@@ -342,13 +342,13 @@ fun GoalsScreen(onBack: () -> Unit) {
     ) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item {
-                AppCard(container = MaterialTheme.colorScheme.secondaryContainer) {
+                AppCard(container = MaterialTheme.colorScheme.secondary.copy(alpha = 0.16f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AccountBalanceWallet, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Icon(Icons.Default.AccountBalanceWallet, null, tint = MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.width(10.dp))
                         Column {
-                            Text("Total saved", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                            Text(Fmt.totals(saved, currency), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                            Text("Total saved", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                            Text(Fmt.totals(saved, currency), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }

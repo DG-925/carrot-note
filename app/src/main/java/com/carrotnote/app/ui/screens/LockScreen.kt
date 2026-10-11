@@ -162,7 +162,7 @@ fun PinDots(count: Int, total: Int = maxOf(PIN_LENGTH, count)) {
 }
 
 @Composable
-fun PinPad(onDigit: (Char) -> Unit, onBackspace: () -> Unit, onOk: () -> Unit, onBiometric: (() -> Unit)?) {
+fun PinPad(onDigit: (Char) -> Unit, onBackspace: () -> Unit, onOk: (() -> Unit)?, onBiometric: (() -> Unit)?) {
     val rows = listOf("123", "456", "789")
     Column(verticalArrangement = Arrangement.spacedBy(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         rows.forEach { r ->
@@ -171,7 +171,7 @@ fun PinPad(onDigit: (Char) -> Unit, onBackspace: () -> Unit, onOk: () -> Unit, o
         Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             if (onBiometric != null) PadKey(icon = true, onClick = onBiometric) {
                 Icon(Icons.Default.Fingerprint, "Use fingerprint", Modifier.size(30.dp), tint = MaterialTheme.colorScheme.primary)
-            } else PadKey("OK", onClick = onOk)
+            } else if (onOk != null) PadKey("OK", onClick = onOk) else Spacer(Modifier.size(74.dp))
             PadKey("0", onClick = { onDigit('0') })
             PadKey(icon = true, onClick = onBackspace) { Icon(Icons.AutoMirrored.Filled.Backspace, "Delete") }
         }
@@ -212,7 +212,7 @@ fun SetPinDialog(onDismiss: () -> Unit, onSet: (String) -> Unit) {
                 PinPad(
                     onDigit = { if (pin.length < 8) { pin += it; error = null } },
                     onBackspace = { pin = pin.dropLast(1) },
-                    onOk = {},
+                    onOk = null,
                     onBiometric = null,
                 )
             }

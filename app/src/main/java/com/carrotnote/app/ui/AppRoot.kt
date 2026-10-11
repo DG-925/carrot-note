@@ -27,6 +27,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,6 +37,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -81,12 +87,25 @@ fun AppRoot() {
     val repo by Graph.repoFlow.collectAsState()
     val locked by Graph.lock.locked.collectAsState()
     val release by Updater.available.collectAsState()
+    // Keeps the current screen while the app is locked; dialogs are still closed.
+    val saveable = rememberSaveableStateHolder()
+    var started by rememberSaveable { mutableStateOf(false) }
+
+    // Once per launch after sign-in/unlock: notification permission + update check.
+    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    if (repo != null && !locked && !started) {
+        LaunchedEffect(Unit) {
+            started = true
+            if (Build.VERSION.SDK_INT >= 33) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            if (Graph.settings.autoUpdate.value) Updater.check(manual = false)
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         when {
             repo == null -> AuthScreen()
             locked -> LockScreen()
-            else -> MainScaffold()
+            else -> key(repo!!.userId) { saveable.SaveableStateProvider(repo!!.userId) { MainScaffold() } }
         }
         val r = release
         if (r != null && !(repo != null && locked)) UpdateDialog(r)
@@ -110,13 +129,6 @@ private fun MainScaffold() {
     }
     val back: () -> Unit = { nav.popBackStack() }
 
-    // Ask for notification permission once (reminders + update alerts).
-    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
-    LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= 33) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        if (Graph.settings.autoUpdate.value) Updater.check(manual = false)
-    }
-
     CompositionLocalProvider(LocalEditor provides editor) {
         Scaffold(
             bottomBar = {
@@ -128,6 +140,11 @@ private fun MainScaffold() {
                                 onClick = { go(t.route) },
                                 icon = { Icon(t.icon, null) },
                                 label = { Text(t.label) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                ),
                             )
                         }
                     }

@@ -59,6 +59,8 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            // Optional: ./gradlew assembleDebug -Pcarrot.debugApiUrl=http://127.0.0.1:8787
+            (findProperty("carrot.debugApiUrl") as String?)?.let { buildConfigField("String", "API_URL", "\"$it\"") }
         }
     }
 
