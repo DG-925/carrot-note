@@ -21,7 +21,7 @@ import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilterChip
+import com.carrotnote.app.ui.components.PillChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +53,12 @@ import com.carrotnote.app.ui.Fmt
 import com.carrotnote.app.ui.LocalEditor
 import com.carrotnote.app.ui.TxnRow
 import com.carrotnote.app.ui.components.AppCard
+import com.carrotnote.app.ui.components.HeroCard
+import com.carrotnote.app.ui.theme.LocalOnHero
+import com.carrotnote.app.ui.theme.MonoFont
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import com.carrotnote.app.ui.components.EmptyState
 import com.carrotnote.app.ui.components.ListPadding
 import com.carrotnote.app.ui.components.ProgressBar
@@ -96,7 +102,7 @@ fun MoneyScreen(nav: (String) -> Unit) {
                 SmallFloatingActionButton(onClick = { editor.open(Edit.Money(kind = TxnKind.INCOME)) }, containerColor = IncomeGreen, contentColor = Color.White) {
                     Text("+ In", modifier = Modifier.padding(horizontal = 10.dp), fontWeight = FontWeight.Bold)
                 }
-                ExtendedFloatingActionButton(onClick = { editor.open(Edit.Money(kind = TxnKind.EXPENSE)) }, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Expense") })
+                ExtendedFloatingActionButton(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, onClick = { editor.open(Edit.Money(kind = TxnKind.EXPENSE)) }, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Expense") })
             }
         },
     ) { pad ->
@@ -109,7 +115,7 @@ fun MoneyScreen(nav: (String) -> Unit) {
                 }
             }
             item {
-                AppCard(container = MaterialTheme.colorScheme.primaryContainer) {
+                HeroCard {
                     Row {
                         Stat("Income", Fmt.totals(incomeSum, currency), Modifier.weight(1f), IncomeGreen)
                         Stat("Expenses", Fmt.totals(expenseSum, currency), Modifier.weight(1f), ExpenseRed)
@@ -120,15 +126,15 @@ fun MoneyScreen(nav: (String) -> Unit) {
             }
             item {
                 PrimaryTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background) {
-                    Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Transactions") })
-                    Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Reports") })
+                    Tab(selected = tab == 0, onClick = { tab = 0 }, unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant, text = { Text("Transactions") })
+                    Tab(selected = tab == 1, onClick = { tab = 1 }, unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant, text = { Text("Reports") })
                 }
             }
             if (tab == 0) {
                 item {
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("all" to "All", TxnKind.EXPENSE to "Expenses", TxnKind.INCOME to "Income").forEach { (k, l) ->
-                            FilterChip(selected = filter == k, onClick = { filter = k }, label = { Text(l) })
+                            PillChip(selected = filter == k, onClick = { filter = k }, label = l)
                         }
                     }
                 }
@@ -142,7 +148,7 @@ fun MoneyScreen(nav: (String) -> Unit) {
                         val spent = dayTx.filter { it.kind == TxnKind.EXPENSE }.sumByCurrency({ it.currency }, { it.amount })
                         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(Fmt.relativeDay(day), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            if (spent.isNotEmpty()) Text("Spent " + Fmt.totals(spent, currency), style = MaterialTheme.typography.labelMedium, color = ExpenseRed)
+                            if (spent.isNotEmpty()) Text("Spent " + Fmt.totals(spent, currency), style = MaterialTheme.typography.labelMedium, fontFamily = MonoFont, color = ExpenseRed)
                         }
                     }
                     items(dayTx.size, key = { dayTx[it].id }) { i ->
@@ -161,7 +167,7 @@ fun MoneyScreen(nav: (String) -> Unit) {
                     val avg = expenseSum.mapValues { it.value / days.coerceAtLeast(1) }
                     AppCard {
                         Text("Average daily spending", style = MaterialTheme.typography.labelLarge)
-                        Text(Fmt.totals(avg, currency), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = ExpenseRed)
+                        Text(Fmt.totals(avg, currency), style = MaterialTheme.typography.titleLarge, fontFamily = MonoFont, fontWeight = FontWeight.Bold, color = ExpenseRed)
                     }
                 }
             }
@@ -185,7 +191,7 @@ private fun ReportSection(title: String, list: List<Txn>, currency: String, colo
             Spacer(Modifier.height(8.dp))
             Row {
                 Text(k, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                Text(Fmt.money(v, currency) + "  ·  ${if (total > 0) (v / total * 100).toInt() else 0}%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text(Fmt.money(v, currency) + "  ·  ${if (total > 0) (v / total * 100).toInt() else 0}%", style = MaterialTheme.typography.bodyMedium, fontFamily = MonoFont, fontWeight = FontWeight.SemiBold)
             }
             Spacer(Modifier.height(4.dp))
             ProgressBar(if (total > 0) (v / total).toFloat() else 0f, color = color)

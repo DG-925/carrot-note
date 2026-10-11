@@ -133,7 +133,8 @@ private fun MainScaffold() {
         Scaffold(
             bottomBar = {
                 if (tabs.any { it.route == route }) {
-                    NavigationBar {
+                    androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer, tonalElevation = 0.dp) {
                         tabs.forEach { t ->
                             NavigationBarItem(
                                 selected = route == t.route,
@@ -141,7 +142,9 @@ private fun MainScaffold() {
                                 icon = { Icon(t.icon, null) },
                                 label = { Text(t.label) },
                                 colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                     selectedTextColor = MaterialTheme.colorScheme.primary,
                                     indicatorColor = MaterialTheme.colorScheme.primaryContainer,
                                 ),

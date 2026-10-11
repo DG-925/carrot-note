@@ -38,7 +38,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
+import com.carrotnote.app.ui.components.PillChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -129,7 +129,7 @@ fun CustomersScreen(onBack: () -> Unit, nav: (String) -> Unit) {
     Scaffold(
         topBar = { SimpleTopBar("Customers", onBack) },
         floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = { editor.open(Edit.CustomerEdit()) }, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Customer") })
+            ExtendedFloatingActionButton(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, onClick = { editor.open(Edit.CustomerEdit()) }, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Customer") })
         },
     ) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -215,7 +215,7 @@ fun CustomerDetailScreen(id: String, onBack: () -> Unit, nav: (String) -> Unit) 
     ) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
-                AppCard(container = MaterialTheme.colorScheme.primaryContainer) {
+                AppCard {
                     if (c.company.isNotBlank()) Text(c.company, style = MaterialTheme.typography.titleSmall)
                     if (c.phone.isNotBlank()) Text(c.phone, style = MaterialTheme.typography.bodyLarge)
                     if (c.email.isNotBlank()) Text(c.email, style = MaterialTheme.typography.bodyMedium)
@@ -298,7 +298,7 @@ fun DebtsScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = { SimpleTopBar("Debts", onBack) },
         floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = { editor.open(Edit.DebtEdit()) }, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Debt") })
+            ExtendedFloatingActionButton(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, onClick = { editor.open(Edit.DebtEdit()) }, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Debt") })
         },
     ) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -311,7 +311,7 @@ fun DebtsScreen(onBack: () -> Unit) {
             item {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("open" to "Open", DebtDirection.OWED_TO_ME to "Owed to me", DebtDirection.I_OWE to "I owe", "settled" to "Settled").forEach { (k, l) ->
-                        FilterChip(selected = filter == k, onClick = { filter = k }, label = { Text(l) })
+                        PillChip(selected = filter == k, onClick = { filter = k }, label = l)
                     }
                 }
             }
@@ -337,7 +337,7 @@ fun GoalsScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = { SimpleTopBar("Savings goals", onBack) },
         floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = { editor.open(Edit.GoalEdit()) }, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Goal") })
+            ExtendedFloatingActionButton(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, onClick = { editor.open(Edit.GoalEdit()) }, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Goal") })
         },
     ) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -390,7 +390,7 @@ fun NotesScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = { SimpleTopBar("Notes", onBack) },
         floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = { editor.open(Edit.NoteEdit()) }, icon = { Icon(Icons.AutoMirrored.Filled.NoteAdd, null) }, text = { Text("Note") })
+            ExtendedFloatingActionButton(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, onClick = { editor.open(Edit.NoteEdit()) }, icon = { Icon(Icons.AutoMirrored.Filled.NoteAdd, null) }, text = { Text("Note") })
         },
     ) { pad ->
         LazyVerticalStaggeredGrid(

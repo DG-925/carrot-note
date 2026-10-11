@@ -103,7 +103,7 @@ fun CalendarScreen(nav: (String) -> Unit) {
         },
         floatingActionButton = {
             Box {
-                FloatingActionButton(onClick = { addMenu = true }) { Icon(Icons.Default.Add, "Add") }
+                FloatingActionButton(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, onClick = { addMenu = true }) { Icon(Icons.Default.Add, "Add") }
                 DropdownMenu(expanded = addMenu, onDismissRequest = { addMenu = false }) {
                     DropdownMenuItem(text = { Text("Task") }, leadingIcon = { Icon(Icons.Default.AddTask, null) }, onClick = { addMenu = false; editor.open(Edit.Task(date = selected)) })
                     DropdownMenuItem(text = { Text("Event / meeting") }, leadingIcon = { Icon(Icons.Default.Event, null) }, onClick = { addMenu = false; editor.open(Edit.Event(date = selected)) })

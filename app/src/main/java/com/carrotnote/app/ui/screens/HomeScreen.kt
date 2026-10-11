@@ -45,6 +45,10 @@ import com.carrotnote.app.ui.GoalCard
 import com.carrotnote.app.ui.LocalEditor
 import com.carrotnote.app.ui.TaskRow
 import com.carrotnote.app.ui.components.AppCard
+import com.carrotnote.app.ui.components.AppLogo
+import com.carrotnote.app.ui.components.HeroCard
+import com.carrotnote.app.ui.theme.MonoFont
+import androidx.compose.ui.graphics.Color
 import com.carrotnote.app.ui.components.ListPadding
 import com.carrotnote.app.ui.components.SectionHeader
 import com.carrotnote.app.ui.sumByCurrency
@@ -100,10 +104,12 @@ fun HomeScreen(nav: (String) -> Unit) {
     LazyColumn(contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                AppLogo(46.dp)
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(greeting + (user?.name?.takeIf { it.isNotBlank() }?.let { ", ${it.substringBefore(' ')}" } ?: ""),
-                        style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text(Fmt.date(today), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text(Fmt.date(today), style = MaterialTheme.typography.bodySmall, fontFamily = MonoFont, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 IconButton(onClick = { scope.launch { Graph.sync.syncNow() } }) {
                     Icon(
@@ -124,38 +130,33 @@ fun HomeScreen(nav: (String) -> Unit) {
             }
         }
         item {
-            AppCard(onClick = { nav("money") }, container = MaterialTheme.colorScheme.primaryContainer) {
-                Text("This month", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Spacer(Modifier.height(8.dp))
+            val net = (income.keys + expense.keys).associateWith { (income[it] ?: 0.0) - (expense[it] ?: 0.0) }
+            HeroCard(onClick = { nav("money") }) {
+                Text("THIS MONTH · NET", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.8f))
+                Text(Fmt.totals(net, currency), style = MaterialTheme.typography.headlineMedium, fontFamily = MonoFont, fontWeight = FontWeight.Bold, maxLines = 1)
+                Spacer(Modifier.height(12.dp))
                 Row {
-                    Column(Modifier.weight(1f)) {
-                        Text("Income", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        Text(Fmt.totals(income, currency), fontWeight = FontWeight.Bold, color = IncomeGreen)
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text("Spent", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        Text(Fmt.totals(expense, currency), fontWeight = FontWeight.Bold, color = ExpenseRed)
-                    }
+                    Stat("Income", Fmt.totals(income, currency), Modifier.weight(1f))
+                    Stat("Spent", Fmt.totals(expense, currency), Modifier.weight(1f))
+                    Stat("Today", Fmt.totals(todaySpent, currency), Modifier.weight(1f))
                 }
-                Spacer(Modifier.height(8.dp))
-                val net = (income.keys + expense.keys).associateWith { (income[it] ?: 0.0) - (expense[it] ?: 0.0) }
-                Text("Net: " + Fmt.totals(net, currency), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Text("Spent today: " + Fmt.totals(todaySpent, currency), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 AppCard(Modifier.weight(1f), onClick = { nav("projects") }) {
                     Text("Active projects", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("${activeProjects.size}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("Waiting: " + Fmt.totals(unpaidTotals, currency), style = MaterialTheme.typography.bodySmall)
+                    Text("${activeProjects.size}", style = MaterialTheme.typography.headlineSmall, fontFamily = MonoFont, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    Text("Waiting", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(Fmt.totals(unpaidTotals, currency), style = MaterialTheme.typography.bodyMedium, fontFamily = MonoFont, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
                 AppCard(Modifier.weight(1f), onClick = { nav("debts") }) {
                     Text("Debts", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("Owed to me", style = MaterialTheme.typography.labelSmall, color = IncomeGreen)
-                    Text(Fmt.totals(owedToMe, currency), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Text(Fmt.totals(owedToMe, currency), style = MaterialTheme.typography.bodyMedium, fontFamily = MonoFont, fontWeight = FontWeight.Bold)
                     Text("I owe", style = MaterialTheme.typography.labelSmall, color = ExpenseRed)
-                    Text(Fmt.totals(iOwe, currency), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Text(Fmt.totals(iOwe, currency), style = MaterialTheme.typography.bodyMedium, fontFamily = MonoFont, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -194,7 +195,7 @@ fun HomeScreen(nav: (String) -> Unit) {
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        Text(Fmt.money(left, p.currency), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text(Fmt.money(left, p.currency), fontFamily = MonoFont, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -216,6 +217,7 @@ private fun QuickChip(label: String, icon: ImageVector, onClick: () -> Unit) {
         onClick = onClick,
         label = { Text(label) },
         leadingIcon = { Icon(icon, null, Modifier.padding(0.dp), tint = MaterialTheme.colorScheme.primary) },
+        shape = androidx.compose.foundation.shape.CircleShape,
         colors = AssistChipDefaults.assistChipColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     )
 }

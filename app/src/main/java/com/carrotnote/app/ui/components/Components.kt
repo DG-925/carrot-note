@@ -41,6 +41,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.border
+import com.carrotnote.app.ui.theme.HeroBrush
+import com.carrotnote.app.ui.theme.LocalOnHero
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -255,7 +261,7 @@ fun <T> PickerInput(
 fun ChipChoice(options: List<String>, selected: String, onSelect: (String) -> Unit, label: (String) -> String = { it }) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
         options.forEach { opt ->
-            FilterChip(selected = opt == selected, onClick = { onSelect(opt) }, label = { Text(label(opt)) })
+            PillChip(selected = opt == selected, onClick = { onSelect(opt) }, label = label(opt))
         }
     }
 }
@@ -381,9 +387,9 @@ fun EmptyState(icon: ImageVector, title: String, subtitle: String, modifier: Mod
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
-            Modifier.size(72.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+            Modifier.size(72.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh),
             contentAlignment = Alignment.Center,
-        ) { Icon(icon, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(36.dp)) }
+        ) { Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(34.dp)) }
         Spacer(Modifier.height(16.dp))
         Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
@@ -394,35 +400,81 @@ fun EmptyState(icon: ImageVector, title: String, subtitle: String, modifier: Mod
 @Composable
 fun AppCard(modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, container: Color? = null, content: @Composable ColumnScope.() -> Unit) {
     val colors = CardDefaults.cardColors(containerColor = container ?: MaterialTheme.colorScheme.surfaceContainerLow)
+    val border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     if (onClick != null) {
-        Card(onClick = onClick, modifier = modifier.fillMaxWidth(), colors = colors) {
+        Card(onClick = onClick, modifier = modifier.fillMaxWidth(), colors = colors, border = border) {
             Column(Modifier.padding(16.dp), content = content)
         }
     } else {
-        Card(modifier = modifier.fillMaxWidth(), colors = colors) {
+        Card(modifier = modifier.fillMaxWidth(), colors = colors, border = border) {
             Column(Modifier.padding(16.dp), content = content)
         }
     }
 }
 
+/** Headline card with the CarrotPOS orange gradient; content inside turns white. */
+@Composable
+fun HeroCard(modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.large)
+            .background(HeroBrush)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(18.dp),
+    ) {
+        CompositionLocalProvider(LocalContentColor provides Color.White, LocalOnHero provides true) { content() }
+    }
+}
+
 @Composable
 fun ProgressBar(progress: Float, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.primary) {
+    val hero = LocalOnHero.current
     LinearProgressIndicator(
         progress = { progress },
         modifier = modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
-        color = color,
-        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+        color = if (hero) Color.White else color,
+        trackColor = if (hero) Color.White.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant,
         strokeCap = StrokeCap.Round,
         drawStopIndicator = {},
     )
 }
 
+/** Rounded-square icon tile, like the CarrotPOS header icons. */
 @Composable
 fun IconBadge(icon: ImageVector, tint: Color, modifier: Modifier = Modifier) {
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
     Box(
-        modifier.size(40.dp).clip(CircleShape).background(tint.copy(alpha = 0.15f)),
+        modifier
+            .size(42.dp)
+            .clip(shape)
+            .background(tint.copy(alpha = 0.14f))
+            .border(1.dp, tint.copy(alpha = 0.35f), shape),
         contentAlignment = Alignment.Center,
     ) { Icon(icon, null, tint = tint, modifier = Modifier.size(22.dp)) }
+}
+
+/** Pill filter chip: solid orange when selected, like the CarrotPOS category chips. */
+@Composable
+fun PillChip(selected: Boolean, onClick: () -> Unit, label: String) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) },
+        shape = CircleShape,
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            labelColor = MaterialTheme.colorScheme.onSurface,
+            selectedContainerColor = MaterialTheme.colorScheme.primary,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+        ),
+        border = FilterChipDefaults.filterChipBorder(
+            enabled = true,
+            selected = selected,
+            borderColor = MaterialTheme.colorScheme.outline,
+            selectedBorderColor = Color.Transparent,
+        ),
+    )
 }
 
 @Composable

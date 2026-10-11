@@ -5,6 +5,9 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.SystemBarStyle
+import android.graphics.Color
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +30,12 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val theme by Graph.settings.theme.collectAsState()
             val secure by Graph.lock.secureScreen.collectAsState()
+            val dark = when (theme) { 1 -> false; 2 -> true; else -> isSystemInDarkTheme() }
+            LaunchedEffect(dark) {
+                val style = if (dark) SystemBarStyle.dark(Color.TRANSPARENT)
+                else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+            }
             LaunchedEffect(secure) {
                 if (secure) window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
                 else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)

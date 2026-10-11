@@ -24,7 +24,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilterChip
+import com.carrotnote.app.ui.components.PillChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -61,6 +61,13 @@ import com.carrotnote.app.ui.NoteCard
 import com.carrotnote.app.ui.TaskRow
 import com.carrotnote.app.ui.TxnRow
 import com.carrotnote.app.ui.components.AppCard
+import com.carrotnote.app.ui.components.HeroCard
+import com.carrotnote.app.ui.theme.LocalOnHero
+import com.carrotnote.app.ui.theme.MonoFont
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import com.carrotnote.app.ui.components.EmptyState
 import com.carrotnote.app.ui.components.ListPadding
 import com.carrotnote.app.ui.components.ProgressBar
@@ -75,13 +82,24 @@ fun projectReceived(p: Project, txns: List<Txn>) =
 
 @Composable
 fun StatusChip(status: String) {
-    val color = when (status) {
-        ProjectStatus.ACTIVE -> MaterialTheme.colorScheme.primary
-        ProjectStatus.DONE -> IncomeGreen
-        ProjectStatus.CANCELLED -> MaterialTheme.colorScheme.error
+    val hero = LocalOnHero.current
+    val color = when {
+        hero -> Color.White
+        status == ProjectStatus.ACTIVE -> MaterialTheme.colorScheme.primary
+        status == ProjectStatus.DONE -> IncomeGreen
+        status == ProjectStatus.CANCELLED -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.tertiary
     }
-    SuggestionChip(onClick = {}, label = { Text(ProjectStatus.label(status), color = color, style = MaterialTheme.typography.labelSmall) })
+    Text(
+        ProjectStatus.label(status),
+        color = color,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(color.copy(alpha = if (hero) 0.22f else 0.14f))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+    )
 }
 
 @Composable
@@ -109,7 +127,7 @@ fun ProjectsScreen(nav: (String) -> Unit) {
     Scaffold(
         topBar = { SimpleTopBar("Projects") },
         floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = { editor.open(Edit.ProjectEdit()) }, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Project") })
+            ExtendedFloatingActionButton(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, onClick = { editor.open(Edit.ProjectEdit()) }, icon = { Icon(Icons.Default.Add, null) }, text = { Text("Project") })
         },
     ) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -122,7 +140,7 @@ fun ProjectsScreen(nav: (String) -> Unit) {
             item {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("open" to "In progress", "done" to "Done", "cancelled" to "Cancelled", "all" to "All").forEach { (k, l) ->
-                        FilterChip(selected = filter == k, onClick = { filter = k }, label = { Text(l) })
+                        PillChip(selected = filter == k, onClick = { filter = k }, label = l)
                     }
                 }
             }
@@ -150,7 +168,7 @@ fun ProjectsScreen(nav: (String) -> Unit) {
                         ProgressBar((received / p.price).toFloat().coerceIn(0f, 1f), color = IncomeGreen)
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "Paid ${Fmt.money(received, p.currency)} of ${Fmt.money(p.price, p.currency)}",
+                            "Paid ${Fmt.money(received, p.currency)} of ${Fmt.money(p.price, p.currency)}", fontFamily = MonoFont,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
@@ -197,19 +215,19 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit, nav: (String) -> Unit) {
                 2 -> "Payment" to { editor.open(Edit.Money(kind = TxnKind.INCOME, projectId = id, customerId = p.customerId)) }
                 else -> "Event" to { editor.open(Edit.Event(projectId = id)) }
             }
-            ExtendedFloatingActionButton(onClick = action, icon = { Icon(Icons.Default.Add, null) }, text = { Text(label) })
+            ExtendedFloatingActionButton(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, onClick = action, icon = { Icon(Icons.Default.Add, null) }, text = { Text(label) })
         },
     ) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
-                AppCard(container = MaterialTheme.colorScheme.primaryContainer) {
+                HeroCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("Client", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text("Client", style = MaterialTheme.typography.labelMedium)
                             Text(
                                 (customer?.name ?: p.clientName).ifBlank { "—" },
                                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+
                                 modifier = if (customer != null) Modifier.clickable { nav("customer/${customer.id}") } else Modifier,
                             )
                         }
@@ -231,14 +249,14 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit, nav: (String) -> Unit) {
                             p.startDate?.let { "Started " + Fmt.dateShort(it) },
                             p.deadline?.let { "Deadline " + Fmt.dateShort(it) + " (" + Fmt.daysLeft(it) + ")" },
                         ).joinToString(" · ").ifBlank { "No dates set" },
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }
             item {
                 PrimaryTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background) {
                     listOf("Tasks", "Notes", "Money", "Info").forEachIndexed { i, t ->
-                        Tab(selected = tab == i, onClick = { tab = i }, text = { Text(t) })
+                        Tab(selected = tab == i, onClick = { tab = i }, unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant, text = { Text(t) })
                     }
                 }
             }
@@ -303,10 +321,11 @@ private fun copy(ctx: Context, text: String) {
 }
 
 @Composable
-fun Stat(label: String, value: String, modifier: Modifier = Modifier, color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface) {
+fun Stat(label: String, value: String, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.onSurface) {
+    val hero = LocalOnHero.current
     Column(modifier) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = if (hero) Color.White.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontFamily = MonoFont, fontWeight = FontWeight.Bold, color = if (hero) Color.White else color, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

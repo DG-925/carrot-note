@@ -47,6 +47,7 @@ import com.carrotnote.app.ui.components.ProgressBar
 import com.carrotnote.app.ui.theme.ExpenseRed
 import com.carrotnote.app.ui.theme.IncomeGreen
 import com.carrotnote.app.ui.theme.NoteColors
+import com.carrotnote.app.ui.theme.MonoFont
 import androidx.compose.ui.platform.LocalContext
 
 @Composable
@@ -116,7 +117,8 @@ fun TxnRow(txn: Txn, subtitleExtra: String? = null, onClick: () -> Unit) {
         }
         Text(
             (if (income) "+" else "−") + Fmt.money(txn.amount, txn.currency),
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
+            fontFamily = MonoFont,
             color = if (income) IncomeGreen else ExpenseRed,
         )
     }
@@ -184,8 +186,8 @@ fun DebtCard(debt: Debt, onClick: () -> Unit, onPay: () -> Unit) {
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text(Fmt.money(debt.remaining, debt.currency), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (debt.settled) MaterialTheme.colorScheme.onSurfaceVariant else color)
-                Text("of ${Fmt.money(debt.amount, debt.currency)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(Fmt.money(debt.remaining, debt.currency), style = MaterialTheme.typography.titleMedium, fontFamily = MonoFont, fontWeight = FontWeight.Bold, color = if (debt.settled) MaterialTheme.colorScheme.onSurfaceVariant else color)
+                Text("of ${Fmt.money(debt.amount, debt.currency)}", style = MaterialTheme.typography.bodySmall, fontFamily = MonoFont, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -219,10 +221,10 @@ fun GoalCard(goal: Goal, onClick: () -> Unit, onAdd: () -> Unit) {
                 Text(goal.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     "${Fmt.money(goal.saved, goal.currency)} of ${Fmt.money(goal.target, goal.currency)}",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall, fontFamily = MonoFont, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Text("${(goal.progress * 100).toInt()}%", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+            Text("${(goal.progress * 100).toInt()}%", style = MaterialTheme.typography.titleMedium, fontFamily = MonoFont, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
         }
         Spacer(Modifier.height(10.dp))
         ProgressBar(goal.progress, color = MaterialTheme.colorScheme.secondary)
