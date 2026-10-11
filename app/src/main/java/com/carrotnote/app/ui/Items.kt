@@ -10,13 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -48,6 +41,7 @@ import com.carrotnote.app.ui.theme.ExpenseRed
 import com.carrotnote.app.ui.theme.IncomeGreen
 import com.carrotnote.app.ui.theme.NoteColors
 import com.carrotnote.app.ui.theme.MonoFont
+import com.carrotnote.app.ui.theme.Ico
 import androidx.compose.ui.platform.LocalContext
 
 @Composable
@@ -87,7 +81,7 @@ fun TaskRow(task: TaskItem, projectName: String?, onClick: () -> Unit) {
                 )
             }
         }
-        if (task.reminder && !task.done) Icon(Icons.Default.NotificationsActive, "Reminder", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+        if (task.reminder && !task.done) Icon(Ico.Bell, "Reminder", Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -103,7 +97,7 @@ fun TxnRow(txn: Txn, subtitleExtra: String? = null, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconBadge(
-            if (income) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+            Ico.category(txn.category),
             if (income) IncomeGreen else ExpenseRed,
         )
         Spacer(Modifier.width(12.dp))
@@ -133,15 +127,31 @@ fun NoteCard(note: Note, projectName: String?, onClick: () -> Unit, modifier: Mo
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    note.title.ifBlank { note.body.lineSequence().firstOrNull().orEmpty() },
+                    note.title.ifBlank { note.body.lineSequence().firstOrNull()?.ifBlank { null } ?: note.checklist.firstOrNull()?.text.orEmpty() },
                     style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
                     maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
                 )
-                if (note.pinned) Icon(Icons.Default.PushPin, "Pinned", Modifier.size(16.dp))
+                if (note.pinned) Icon(Ico.Pin, "Pinned", Modifier.size(13.dp))
             }
             if (note.title.isNotBlank() && note.body.isNotBlank()) {
                 Spacer(Modifier.height(4.dp))
                 Text(note.body, style = MaterialTheme.typography.bodyMedium, maxLines = 6, overflow = TextOverflow.Ellipsis)
+            }
+            if (note.checklist.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                note.checklist.take(4).forEach { item ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(if (item.done) Ico.CheckSquare else Ico.Square, null, Modifier.size(12.dp), tint = onColor.copy(alpha = if (item.done) 0.5f else 0.8f))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            item.text, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            textDecoration = if (item.done) TextDecoration.LineThrough else null,
+                            color = onColor.copy(alpha = if (item.done) 0.55f else 1f),
+                        )
+                    }
+                }
+                if (note.checklist.size > 4) Text("+${note.checklist.size - 4} more", style = MaterialTheme.typography.labelSmall, color = onColor.copy(alpha = 0.6f))
+                Text("${note.checklist.count { it.done }}/${note.checklist.size} done", style = MaterialTheme.typography.labelSmall, fontFamily = MonoFont, color = onColor.copy(alpha = 0.7f))
             }
             val meta = listOfNotNull(projectName, note.date?.let { Fmt.dateShort(it) }).joinToString(" · ")
             if (meta.isNotEmpty()) {
@@ -158,7 +168,7 @@ fun EventRow(event: CalEvent, showDate: Boolean, onClick: () -> Unit) {
         Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).clickable(onClick = onClick).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconBadge(Icons.Default.Event, MaterialTheme.colorScheme.tertiary)
+        IconBadge(Ico.Calendar, MaterialTheme.colorScheme.tertiary)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(event.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -168,7 +178,7 @@ fun EventRow(event: CalEvent, showDate: Boolean, onClick: () -> Unit) {
             ).joinToString(" · ")
             Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (event.reminder) Icon(Icons.Default.NotificationsActive, "Reminder", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+        if (event.reminder) Icon(Ico.Bell, "Reminder", Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -215,7 +225,7 @@ fun DebtCard(debt: Debt, onClick: () -> Unit, onPay: () -> Unit) {
 fun GoalCard(goal: Goal, onClick: () -> Unit, onAdd: () -> Unit) {
     AppCard(onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconBadge(Icons.Default.Savings, MaterialTheme.colorScheme.secondary)
+            IconBadge(Ico.Goal, MaterialTheme.colorScheme.secondary)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(goal.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)

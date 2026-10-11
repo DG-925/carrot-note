@@ -97,6 +97,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.9.5")
     implementation("androidx.work:work-runtime-ktx:2.10.5")
     implementation("androidx.biometric:biometric:1.1.0")
+    implementation("br.com.devsrsouza.compose.icons:font-awesome:1.1.1")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")

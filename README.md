@@ -1,18 +1,19 @@
 # 🥕 Carrot Note
 
-A personal assistant app for freelancers on Android: projects, money, tasks, notes, calendar, customers, and debts in one place, synced to your account.
+A personal assistant app for freelancers on Android: projects, money, time, notes, calendar, customers and debts in one place, synced to your account and shareable with your team.
 
 ## Features
 
-- **Projects**: client, total price, currency, status, start date and deadline. Each project has its own tasks, notes, payments, costs, profit, info fields (links, specs, accounts) and events.
-- **Money**: daily expenses and income with category and payment method (Cash, Card, Bank transfer, USDT, Crypto, PayPal, InstaPay, Wallet…). Multi-currency, monthly summary, reports by category and method, average daily spending, CSV export.
-- **Savings goals**: target, deadline, deposits and withdrawals, progress.
-- **Calendar**: month view with tasks, events, notes, money, project deadlines and debt due dates. Add items directly to any day.
-- **Tasks and reminders**: due date and time, priority, notifications.
-- **Customers**: import from phone contacts. Call, WhatsApp or email in one tap. Shows each customer's projects, payments and debts.
-- **Debts**: "they owe me" or "I owe", partial payments, due dates. Can record each payment in Money too.
+- **Navigation**: a ☰ sidebar (Dashboard, Money, Projects, Notes, Calendar, Time tracker, Customers, Debts, Invitations, Savings goals, Search, Profile, Settings) and a bottom bar with a quick-add **+** for anything.
+- **Projects**: client, status (drop-down), fixed price or hourly rate, start date, deadline, GitHub repo link, info fields. Each project has tasks, notes, tracked time, payments, costs, profit and events, plus a **PDF invoice** you can share.
+- **Teams**: invite people to a project by @username. Members see and add tasks, notes and events. Your money stays private. The owner can remove members; members can leave.
+- **Time tracker**: start/stop a timer per project (with a live notification and a Stop button), add time manually, and see daily and weekly totals.
+- **Money**: daily expenses and income with category icons and payment methods (Cash, Card, Bank transfer, USDT, Crypto, PayPal, InstaPay, Wallet…). Monthly balance, daily spending chart, breakdown by category, method and source, **monthly budgets**, history search and CSV export.
+- **Notes**: personal or project notes, checklists, colours, pinning and sharing.
+- **Savings goals**, **debts**, **customers** (import from contacts; call, WhatsApp or email in one tap) and a **calendar** with everything on it.
+- **Profile**: photo (from the gallery or from GitHub), name, @username, bio, a linked GitHub account and stats, plus sharing.
+- **Account**: sign up with a username and a password typed twice; sign in with username or email. Data works offline and syncs to Cloudflare D1.
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
-- **Account and sync**: email and password login. Data works offline and syncs to Cloudflare D1, separately for each user.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
 ## Project layout
@@ -39,7 +40,8 @@ The version code is derived from the version name (`1.2.3` → `10203`), so ever
 
 ```bash
 cd server
-npx wrangler d1 execute DB --remote --file=schema.sql   # create tables (first time)
+npx wrangler d1 execute DB --remote --file=schema.sql   # new database: create tables
+npx wrangler d1 execute DB --remote --file=migrations/0002_profiles_and_sharing.sql   # upgrade a v1 database
 npx wrangler deploy                                     # deploy the API
 ```
 

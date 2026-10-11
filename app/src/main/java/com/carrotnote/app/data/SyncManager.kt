@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.carrotnote.app.Graph
 import com.carrotnote.app.reminders.Reminders
+import com.carrotnote.app.time.TimeTracker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -44,22 +45,26 @@ class SyncManager(private val context: Context, private val scope: CoroutineScop
         val token = Graph.session.token ?: return false
         _state.value = _state.value.copy(syncing = true, error = null)
         try {
-            var cursor = repo.syncCursor
+            var cursors = repo.cursors
             val dirty = repo.dirtyRecords()
             val chunks = if (dirty.isEmpty()) listOf(emptyList()) else dirty.chunked(100)
             for (chunk in chunks) {
-                val resp = Graph.api.sync(token, SyncRequest(cursor, chunk))
+                val resp = Graph.api.sync(token, SyncRequest(cursors, chunk))
                 if (Graph.repoOrNull !== repo) {
                     _state.value = SyncState()
                     return false
                 }
                 repo.applyRemote(resp.changes)
                 repo.markClean(chunk)
-                cursor = resp.cursor
-                repo.syncCursor = cursor
+                repo.setSpaces(resp.spaces.filter { it.kind == "project" })
+                cursors = resp.cursors.filterKeys { k -> k == repo.userId || resp.spaces.any { it.id == k } }
+                repo.cursors = cursors
+                Graph.setInviteCount(resp.invites)
+                resp.user?.let { Graph.session.updateUser(it) }
                 if (resp.changes.any { it.type == "task" || it.type == "event" }) {
                     Reminders.rescheduleAll(context, repo)
                 }
+                if (resp.changes.any { it.type == "time" }) TimeTracker.refreshNotification(context)
             }
             repo.lastSyncAt = nowMs()
             _state.value = SyncState(syncing = false, lastSync = repo.lastSyncAt)

@@ -7,7 +7,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class UserInfo(val id: String, val email: String, val name: String = "")
+data class UserInfo(
+    val id: String,
+    val email: String = "",
+    val name: String = "",
+    val username: String = "",
+    val bio: String = "",
+    val github: String = "",
+    val avatarRev: Int = 0,
+)
 
 /** Signed-in account and auth token. */
 class Session(context: Context) {
@@ -21,6 +29,9 @@ class Session(context: Context) {
     private fun readUser(): UserInfo? {
         val id = prefs.getString("user_id", null) ?: return null
         if (prefs.getString("token", null) == null) return null
+        prefs.getString("user_json", null)?.let { j ->
+            runCatching { AppJson.decodeFromString(UserInfo.serializer(), j) }.getOrNull()?.let { return it }
+        }
         return UserInfo(id, prefs.getString("email", "") ?: "", prefs.getString("name", "") ?: "")
     }
 
@@ -30,12 +41,15 @@ class Session(context: Context) {
             .putString("user_id", user.id)
             .putString("email", user.email)
             .putString("name", user.name)
+            .putString("user_json", AppJson.encodeToString(UserInfo.serializer(), user))
             .apply()
         _user.value = user
     }
 
     fun updateUser(user: UserInfo) {
-        prefs.edit().putString("email", user.email).putString("name", user.name).apply()
+        if (user == _user.value) return
+        prefs.edit().putString("email", user.email).putString("name", user.name)
+            .putString("user_json", AppJson.encodeToString(UserInfo.serializer(), user)).apply()
         _user.value = user
     }
 

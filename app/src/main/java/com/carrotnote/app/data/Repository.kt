@@ -6,7 +6,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 val AppJson = Json {
     ignoreUnknownKeys = true
@@ -21,6 +27,7 @@ data class SyncRecord(
     val data: String? = null,
     val updatedAt: Long,
     val deleted: Boolean = false,
+    val space: String? = null,
 )
 
 /**
@@ -48,13 +55,15 @@ class Repository(context: Context, val userId: String) {
 
         fun save(item: T) {
             val id = idOf(item)
-            db.put(LocalRow(type, id, AppJson.encodeToString(serializer, item), nextTimestamp(), deleted = false, dirty = true))
+            val json = AppJson.encodeToString(serializer, item)
+            db.put(LocalRow(type, id, json, nextTimestamp(), deleted = false, dirty = true, space = spaceHint(type, id, json)))
             setLocal(id, item)
             onLocalChange?.invoke()
         }
 
         fun delete(id: String) {
-            db.put(LocalRow(type, id, null, nextTimestamp(), deleted = true, dirty = true))
+            val existing = db.get(type, id)
+            db.put(LocalRow(type, id, null, nextTimestamp(), deleted = true, dirty = true, space = existing?.space))
             setLocal(id, null)
             onLocalChange?.invoke()
         }
@@ -82,12 +91,35 @@ class Repository(context: Context, val userId: String) {
     val customers = Collection("customer", Customer.serializer()) { it.id }
     val debts = Collection("debt", Debt.serializer()) { it.id }
     val events = Collection("event", CalEvent.serializer()) { it.id }
+    val time = Collection("time", TimeEntry.serializer()) { it.id }
+    val budgets = Collection("budget", Budget.serializer()) { it.id }
 
-    private val collections = listOf(projects, tasks, notes, txns, goals, customers, debts, events)
+    private val collections = listOf(projects, tasks, notes, txns, goals, customers, debts, events, time, budgets)
         .associateBy { it.type }
+
+    private val spaceList = ListSerializer(SpaceInfo.serializer())
+    private val _spaces = MutableStateFlow<List<SpaceInfo>>(emptyList())
+    /** Shared projects this user belongs to (plus the personal space). */
+    val spaces: StateFlow<List<SpaceInfo>> = _spaces.asStateFlow()
 
     init {
         db.all().forEach { row -> collections[row.type]?.applyRow(row) }
+        _spaces.value = db.getMeta("spaces")?.let { runCatching { AppJson.decodeFromString(spaceList, it) }.getOrNull() }.orEmpty()
+    }
+
+    fun spaceForProject(projectId: String?): SpaceInfo? =
+        if (projectId == null) null else _spaces.value.firstOrNull { it.kind == "project" && it.projectId == projectId }
+
+    /** Where the server will most likely store this record (used to route deletes). */
+    private fun spaceHint(type: String, id: String, json: String): String {
+        val projectId = when (type) {
+            "project" -> id
+            "task", "note", "event" -> runCatching {
+                (AppJson.parseToJsonElement(json) as JsonObject)["projectId"]?.jsonPrimitive?.contentOrNull
+            }.getOrNull()
+            else -> null
+        }
+        return spaceForProject(projectId)?.id ?: userId
     }
 
     private var lastTs = 0L
@@ -102,16 +134,21 @@ class Repository(context: Context, val userId: String) {
 
     // ---- sync support ----
 
-    var syncCursor: Long
-        get() = db.getMeta("cursor")?.toLongOrNull() ?: 0L
-        set(value) = db.setMeta("cursor", value.toString())
+    private val cursorMap = MapSerializer(String.serializer(), Long.serializer())
+
+    /** Per-space sync cursors. Migrates the single v1 cursor into the personal space. */
+    var cursors: Map<String, Long>
+        get() = db.getMeta("cursors")?.let { runCatching { AppJson.decodeFromString(cursorMap, it) }.getOrNull() }
+            ?: db.getMeta("cursor")?.toLongOrNull()?.let { mapOf(userId to it) }
+            ?: emptyMap()
+        set(value) = db.setMeta("cursors", AppJson.encodeToString(cursorMap, value))
 
     var lastSyncAt: Long
         get() = db.getMeta("last_sync")?.toLongOrNull() ?: 0L
         set(value) = db.setMeta("last_sync", value.toString())
 
     fun dirtyRecords(): List<SyncRecord> =
-        db.dirty().map { SyncRecord(it.type, it.id, it.data, it.updatedAt, it.deleted) }
+        db.dirty().map { SyncRecord(it.type, it.id, it.data, it.updatedAt, it.deleted, it.space) }
 
     fun hasUnsynced(): Boolean = db.dirty().isNotEmpty()
 
@@ -128,12 +165,28 @@ class Repository(context: Context, val userId: String) {
                 if (r.type !in collections) continue
                 val local = db.get(r.type, r.id)
                 if (local != null && local.updatedAt > r.updatedAt) continue
-                val row = LocalRow(r.type, r.id, r.data, r.updatedAt, r.deleted, dirty = false)
+                // A tombstone left behind when a record moved to another space is not a delete.
+                if (r.deleted && local != null && !local.deleted && local.space != null && r.space != null && local.space != r.space) continue
+                val row = LocalRow(r.type, r.id, r.data, r.updatedAt, r.deleted, dirty = false, space = r.space)
                 db.put(row)
                 applied += row
             }
         }
         applied.forEach { collections[it.type]?.applyRow(it) }
+    }
+
+    /** Stores the latest space list; forgets data from shared projects the user has left. */
+    fun setSpaces(list: List<SpaceInfo>) {
+        val ids = list.map { it.id }.toSet() + userId
+        val gone = db.all().filter { it.space != null && it.space !in ids && !it.dirty }
+        if (gone.isNotEmpty()) {
+            db.transaction { gone.forEach { db.remove(it.type, it.id) } }
+            gone.forEach { collections[it.type]?.applyRow(it.copy(deleted = true, data = null)) }
+            // Cursors of removed spaces are dropped so a re-invite starts fresh.
+            cursors = cursors.filterKeys { it in ids }
+        }
+        db.setMeta("spaces", AppJson.encodeToString(spaceList, list))
+        _spaces.value = list
     }
 
     fun close() = db.close()

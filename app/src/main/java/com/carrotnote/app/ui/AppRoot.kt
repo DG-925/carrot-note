@@ -9,42 +9,36 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -53,39 +47,35 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.carrotnote.app.Graph
-import com.carrotnote.app.update.DownloadState
-import com.carrotnote.app.update.ReleaseInfo
-import com.carrotnote.app.update.Updater
 import com.carrotnote.app.ui.screens.AuthScreen
 import com.carrotnote.app.ui.screens.CalendarScreen
+import com.carrotnote.app.ui.screens.ChooseUsernameScreen
 import com.carrotnote.app.ui.screens.CustomerDetailScreen
 import com.carrotnote.app.ui.screens.CustomersScreen
 import com.carrotnote.app.ui.screens.DebtsScreen
 import com.carrotnote.app.ui.screens.GoalsScreen
 import com.carrotnote.app.ui.screens.HomeScreen
+import com.carrotnote.app.ui.screens.InvitesScreen
 import com.carrotnote.app.ui.screens.LockScreen
 import com.carrotnote.app.ui.screens.MoneyScreen
-import com.carrotnote.app.ui.screens.MoreScreen
 import com.carrotnote.app.ui.screens.NotesScreen
+import com.carrotnote.app.ui.screens.ProfileScreen
 import com.carrotnote.app.ui.screens.ProjectDetailScreen
 import com.carrotnote.app.ui.screens.ProjectsScreen
+import com.carrotnote.app.ui.screens.SearchScreen
 import com.carrotnote.app.ui.screens.SettingsScreen
+import com.carrotnote.app.ui.screens.TimeScreen
+import com.carrotnote.app.ui.theme.Ico
+import com.carrotnote.app.update.DownloadState
+import com.carrotnote.app.update.ReleaseInfo
+import com.carrotnote.app.update.Updater
 import kotlinx.coroutines.launch
-
-private data class Tab(val route: String, val label: String, val icon: ImageVector)
-
-private val tabs = listOf(
-    Tab("home", "Home", Icons.Default.Home),
-    Tab("projects", "Projects", Icons.Default.Work),
-    Tab("money", "Money", Icons.Default.AccountBalanceWallet),
-    Tab("calendar", "Calendar", Icons.Default.CalendarMonth),
-    Tab("more", "More", Icons.Default.Menu),
-)
 
 @Composable
 fun AppRoot() {
     val repo by Graph.repoFlow.collectAsState()
     val locked by Graph.lock.locked.collectAsState()
+    val user by Graph.session.user.collectAsState()
     val release by Updater.available.collectAsState()
     // Keeps the current screen while the app is locked; dialogs are still closed.
     val saveable = rememberSaveableStateHolder()
@@ -105,6 +95,7 @@ fun AppRoot() {
         when {
             repo == null -> AuthScreen()
             locked -> LockScreen()
+            user?.username.isNullOrBlank() -> ChooseUsernameScreen()
             else -> key(repo!!.userId) { saveable.SaveableStateProvider(repo!!.userId) { MainScaffold() } }
         }
         val r = release
@@ -116,63 +107,70 @@ fun AppRoot() {
 private fun MainScaffold() {
     val nav = rememberNavController()
     val editor = remember { EditorController() }
+    val drawer = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    var quickAdd by remember { mutableStateOf(false) }
+    var signOut by remember { mutableStateOf(false) }
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
+    val topLevel = route in TopLevelRoutes
     val go: (String) -> Unit = { dest ->
-        if (tabs.any { it.route == dest }) {
+        if (dest in TopLevelRoutes) {
             nav.navigate(dest) {
                 popUpTo(nav.graph.findStartDestination().id) { saveState = true }
                 launchSingleTop = true
                 restoreState = true
             }
-        } else nav.navigate(dest)
+        } else if (dest != route) nav.navigate(dest) { launchSingleTop = true }
     }
     val back: () -> Unit = { nav.popBackStack() }
+    val closeThen: (() -> Unit) -> Unit = { action -> scope.launch { drawer.close() }; action() }
 
-    CompositionLocalProvider(LocalEditor provides editor) {
-        Scaffold(
-            bottomBar = {
-                if (tabs.any { it.route == route }) {
-                    androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer, tonalElevation = 0.dp) {
-                        tabs.forEach { t ->
-                            NavigationBarItem(
-                                selected = route == t.route,
-                                onClick = { go(t.route) },
-                                icon = { Icon(t.icon, null) },
-                                label = { Text(t.label) },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                ),
-                            )
-                        }
-                    }
-                }
+    CompositionLocalProvider(
+        LocalEditor provides editor,
+        LocalNav provides go,
+        LocalOpenDrawer provides { scope.launch { drawer.open() } },
+    ) {
+        ModalNavigationDrawer(
+            drawerState = drawer,
+            gesturesEnabled = topLevel || drawer.isOpen,
+            drawerContent = {
+                AppDrawer(
+                    route = route,
+                    go = { r -> closeThen { go(r) } },
+                    onLock = { closeThen { Graph.lock.lockNow() } },
+                    onSignOut = { closeThen { signOut = true } },
+                )
             },
-        ) { pad ->
-            NavHost(
-                navController = nav,
-                startDestination = "home",
-                modifier = Modifier.padding(pad).consumeWindowInsets(pad),
-            ) {
-                composable("home") { HomeScreen(go) }
-                composable("projects") { ProjectsScreen(go) }
-                composable("money") { MoneyScreen(go) }
-                composable("calendar") { CalendarScreen(go) }
-                composable("more") { MoreScreen(go) }
-                composable("project/{id}") { ProjectDetailScreen(it.arguments?.getString("id").orEmpty(), back, go) }
-                composable("customers") { CustomersScreen(back, go) }
-                composable("customer/{id}") { CustomerDetailScreen(it.arguments?.getString("id").orEmpty(), back, go) }
-                composable("debts") { DebtsScreen(back) }
-                composable("goals") { GoalsScreen(back) }
-                composable("notes") { NotesScreen(back) }
-                composable("settings") { SettingsScreen(back) }
+        ) {
+            Scaffold(
+                bottomBar = { if (topLevel) BottomBar(route, go) { quickAdd = true } },
+            ) { pad ->
+                NavHost(
+                    navController = nav,
+                    startDestination = "home",
+                    modifier = Modifier.padding(pad).consumeWindowInsets(pad),
+                ) {
+                    composable("home") { HomeScreen() }
+                    composable("money") { MoneyScreen() }
+                    composable("projects") { ProjectsScreen() }
+                    composable("notes") { NotesScreen() }
+                    composable("calendar") { CalendarScreen(back) }
+                    composable("project/{id}") { ProjectDetailScreen(it.arguments?.getString("id").orEmpty(), back) }
+                    composable("customers") { CustomersScreen(back) }
+                    composable("customer/{id}") { CustomerDetailScreen(it.arguments?.getString("id").orEmpty(), back) }
+                    composable("debts") { DebtsScreen(back) }
+                    composable("goals") { GoalsScreen(back) }
+                    composable("time") { TimeScreen(back) }
+                    composable("invites") { InvitesScreen(back) }
+                    composable("search") { SearchScreen(back) }
+                    composable("profile") { ProfileScreen(back) }
+                    composable("settings") { SettingsScreen(back) }
+                }
             }
         }
+        if (signOut) com.carrotnote.app.ui.screens.SignOutDialog { signOut = false }
+        if (quickAdd) QuickAddSheet({ quickAdd = false }, editor, go)
         EditorHost(editor)
     }
 }
@@ -185,6 +183,7 @@ private fun UpdateDialog(release: ReleaseInfo) {
     val busy = download is DownloadState.Downloading
     AlertDialog(
         onDismissRequest = { if (!busy) Updater.later() },
+        icon = { Icon(Ico.Download, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary) },
         title = { Text("Update available") },
         text = {
             Column {

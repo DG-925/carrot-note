@@ -1,4 +1,4 @@
-
+@file:OptIn(ExperimentalLayoutApi::class)
 
 package com.carrotnote.app.ui
 
@@ -12,23 +12,27 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Contacts
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -42,12 +46,25 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.carrotnote.app.Graph
+import com.carrotnote.app.data.Billing
+import com.carrotnote.app.data.Budget
 import com.carrotnote.app.data.CalEvent
 import com.carrotnote.app.data.Categories
+import com.carrotnote.app.data.CheckItem
 import com.carrotnote.app.data.Customer
 import com.carrotnote.app.data.Debt
 import com.carrotnote.app.data.DebtDirection
@@ -57,8 +74,8 @@ import com.carrotnote.app.data.GoalDeposit
 import com.carrotnote.app.data.InfoItem
 import com.carrotnote.app.data.Note
 import com.carrotnote.app.data.Project
-import com.carrotnote.app.data.ProjectStatus
 import com.carrotnote.app.data.TaskItem
+import com.carrotnote.app.data.TimeEntry
 import com.carrotnote.app.data.Txn
 import com.carrotnote.app.data.TxnKind
 import com.carrotnote.app.reminders.Reminders
@@ -69,15 +86,25 @@ import com.carrotnote.app.ui.components.DateInput
 import com.carrotnote.app.ui.components.FieldLabel
 import com.carrotnote.app.ui.components.FormDialog
 import com.carrotnote.app.ui.components.PickerInput
+import com.carrotnote.app.ui.components.Segmented
+import com.carrotnote.app.ui.components.StatusDropdown
 import com.carrotnote.app.ui.components.SwitchRow
 import com.carrotnote.app.ui.components.TextInput
 import com.carrotnote.app.ui.components.TimeInput
+import com.carrotnote.app.ui.theme.ExpenseRed
+import com.carrotnote.app.ui.theme.Ico
+import com.carrotnote.app.ui.theme.IncomeGreen
+import com.carrotnote.app.ui.theme.MonoFont
 import com.carrotnote.app.ui.theme.NoteColors
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 
 /** Anything that can be opened in an editor dialog. */
 sealed interface Edit {
     data class Task(val item: TaskItem? = null, val projectId: String? = null, val date: Long? = null) : Edit
-    data class NoteEdit(val item: Note? = null, val projectId: String? = null, val date: Long? = null) : Edit
+    data class NoteEdit(val item: Note? = null, val projectId: String? = null, val date: Long? = null, val checklist: Boolean = false) : Edit
     data class Money(val item: Txn? = null, val kind: String = TxnKind.EXPENSE, val projectId: String? = null, val customerId: String? = null, val date: Long? = null) : Edit
     data class ProjectEdit(val item: Project? = null, val customerId: String? = null) : Edit
     data class CustomerEdit(val item: Customer? = null) : Edit
@@ -86,6 +113,8 @@ sealed interface Edit {
     data class GoalEdit(val item: Goal? = null) : Edit
     data class GoalMove(val goal: Goal) : Edit
     data class Event(val item: CalEvent? = null, val date: Long? = null, val projectId: String? = null) : Edit
+    data class TimeEdit(val item: TimeEntry? = null, val projectId: String? = null) : Edit
+    data class BudgetEdit(val item: Budget? = null) : Edit
 }
 
 class EditorController {
@@ -118,6 +147,112 @@ fun EditorHost(controller: EditorController) {
         is Edit.GoalEdit -> GoalEditor(e, close)
         is Edit.GoalMove -> GoalDepositDialog(e.goal, close)
         is Edit.Event -> EventEditor(e, close)
+        is Edit.TimeEdit -> TimeEditor(e, close)
+        is Edit.BudgetEdit -> BudgetEditor(e, close)
+    }
+}
+
+fun shareText(context: Context, subject: String, text: String) {
+    Graph.lock.suppressNextLock()
+    context.startActivity(
+        Intent.createChooser(
+            Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, subject).putExtra(Intent.EXTRA_TEXT, text),
+            "Share",
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    )
+}
+
+private fun amountText(v: Double) = if (v == 0.0) "" else Fmt.amount(v).replace(",", "")
+
+@Composable
+private fun ProjectPicker(projectId: String?, onChange: (String?) -> Unit, label: String = "Project (optional)") {
+    val projects by Graph.repo.projects.flow.collectAsState()
+    PickerInput(label, projects.firstOrNull { it.id == projectId }, projects.sortedBy { it.name }, { it.name }, { onChange(it?.id) }, noneLabel = "No project — just for me")
+}
+
+@Composable
+private fun CustomerPicker(customerId: String?, onChange: (String?) -> Unit, noneLabel: String = "None") {
+    val customers by Graph.repo.customers.flow.collectAsState()
+    PickerInput("Customer", customers.firstOrNull { it.id == customerId }, customers.sortedBy { it.name }, { it.name }, { onChange(it?.id) }, noneLabel = noneLabel)
+}
+
+/** Large centered amount entry used by money forms. */
+@Composable
+private fun BigAmount(value: String, onChange: (String) -> Unit, currency: String, onCurrency: (String) -> Unit, color: androidx.compose.ui.graphics.Color) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp)).padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("AMOUNT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        BasicTextField(
+            value = value,
+            onValueChange = { s -> if (s.all { it.isDigit() || it == '.' || it == ',' } && s.length <= 14) onChange(s) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            textStyle = TextStyle(fontFamily = MonoFont, fontWeight = FontWeight.Bold, fontSize = 40.sp, color = color, textAlign = TextAlign.Center),
+            cursorBrush = SolidColor(color),
+            decorationBox = { inner ->
+                Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+                    if (value.isEmpty()) Text("0", fontFamily = MonoFont, fontWeight = FontWeight.Bold, fontSize = 40.sp, color = color.copy(alpha = 0.35f))
+                    inner()
+                }
+            },
+        )
+        Box(Modifier.width(140.dp)) { CurrencyInput(currency, onCurrency) }
+    }
+}
+
+/** Grid of icon tiles for picking a category. */
+@Composable
+private fun CategoryGrid(options: List<String>, selected: String, onSelect: (String) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), maxItemsInEachRow = 4) {
+        options.forEach { c ->
+            val sel = c == selected
+            Column(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (sel) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow)
+                    .border(1.dp, if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
+                    .clickable { onSelect(c) }
+                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Icon(Ico.category(c), null, Modifier.size(18.dp), tint = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    c, style = MaterialTheme.typography.labelSmall, maxLines = 1, textAlign = TextAlign.Center,
+                    color = if (sel) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                )
+            }
+        }
+        // Keep tiles the same width when the last row is not full.
+        repeat((4 - options.size % 4) % 4) { Spacer(Modifier.weight(1f)) }
+    }
+}
+
+/** Pill chips with icons (payment methods). */
+@Composable
+fun IconChips(options: List<String>, selected: String, icon: (String) -> ImageVector, onSelect: (String) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { o ->
+            val sel = o == selected
+            Row(
+                Modifier
+                    .clip(CircleShape)
+                    .background(if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLow)
+                    .border(1.dp, if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)
+                    .clickable { onSelect(o) }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(icon(o), null, Modifier.size(14.dp), tint = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(8.dp))
+                Text(o, style = MaterialTheme.typography.labelLarge, color = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium)
+            }
+        }
     }
 }
 
@@ -127,7 +262,6 @@ fun EditorHost(controller: EditorController) {
 private fun TaskEditor(e: Edit.Task, close: () -> Unit) {
     val ctx = LocalContext.current
     val repo = Graph.repo
-    val projects by repo.projects.flow.collectAsState()
     val base = e.item ?: TaskItem(projectId = e.projectId, dueDate = e.date)
     var title by remember { mutableStateOf(base.title) }
     var notes by remember { mutableStateOf(base.notes) }
@@ -153,17 +287,17 @@ private fun TaskEditor(e: Edit.Task, close: () -> Unit) {
         },
         onDelete = e.item?.let { item -> { repo.tasks.delete(item.id); Reminders.cancel(ctx, "task_${item.id}"); close() } },
     ) {
-        TextInput(title, { title = it }, "Task")
+        TextInput(title, { title = it }, "What needs to be done?")
         TextInput(notes, { notes = it }, "Details", singleLine = false, minLines = 3)
-        PickerInput("Project", projects.firstOrNull { it.id == projectId }, projects.sortedBy { it.name }, { it.name }, { projectId = it?.id })
+        FieldLabel("Priority")
+        IconChips(listOf("Low", "Normal", "High"), listOf("Low", "Normal", "High")[priority], { if (it == "High") Ico.Flag else if (it == "Low") Ico.List else Ico.Tasks }) {
+            priority = listOf("Low", "Normal", "High").indexOf(it)
+        }
+        ProjectPicker(projectId, { projectId = it })
         DateInput("Due date", due, { due = it })
         if (due != null) {
             TimeInput("Time", time, { time = it })
             SwitchRow("Remind me", "Notification at the due time (9:00 AM if no time)", reminder, { reminder = it })
-        }
-        FieldLabel("Priority")
-        ChipChoice(listOf("0", "1", "2"), priority.toString(), { priority = it.toInt() }) {
-            when (it) { "0" -> "Low"; "2" -> "High"; else -> "Normal" }
         }
         if (e.item != null) SwitchRow("Completed", null, done, { done = it })
     }
@@ -173,35 +307,96 @@ private fun TaskEditor(e: Edit.Task, close: () -> Unit) {
 
 @Composable
 private fun NoteEditor(e: Edit.NoteEdit, close: () -> Unit) {
+    val ctx = LocalContext.current
     val repo = Graph.repo
-    val projects by repo.projects.flow.collectAsState()
-    val base = e.item ?: Note(projectId = e.projectId, date = e.date)
+    val base = e.item ?: Note(projectId = e.projectId, date = e.date, checklist = if (e.checklist) listOf(CheckItem()) else emptyList())
     var title by remember { mutableStateOf(base.title) }
     var body by remember { mutableStateOf(base.body) }
     var projectId by remember { mutableStateOf(base.projectId) }
     var date by remember { mutableStateOf(base.date) }
     var pinned by remember { mutableStateOf(base.pinned) }
     var color by remember { mutableStateOf(base.color) }
+    val checklist = remember { base.checklist.toMutableStateList() }
+    var focusId by remember { mutableStateOf<String?>(null) }
+    val shared = repo.spaceForProject(projectId) != null
+
+    fun current() = base.copy(
+        title = title.trim(), body = body.trim(), projectId = projectId, date = date, pinned = pinned, color = color,
+        checklist = checklist.filter { it.text.isNotBlank() },
+    )
 
     FormDialog(
         title = if (e.item == null) "New note" else "Edit note",
         onDismiss = close,
-        saveEnabled = title.isNotBlank() || body.isNotBlank(),
-        onSave = {
-            repo.notes.save(base.copy(title = title.trim(), body = body.trim(), projectId = projectId, date = date, pinned = pinned, color = color))
-            close()
-        },
+        saveEnabled = title.isNotBlank() || body.isNotBlank() || checklist.any { it.text.isNotBlank() },
+        onSave = { repo.notes.save(current()); close() },
         onDelete = e.item?.let { item -> { repo.notes.delete(item.id); close() } },
+        actions = {
+            IconButton(onClick = { pinned = !pinned }) {
+                Icon(Ico.Pin, "Pin", Modifier.size(16.dp), tint = if (pinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            IconButton(onClick = { shareText(ctx, title.ifBlank { "Note" }, noteAsText(current())) }) { Icon(Ico.Share, "Share", Modifier.size(16.dp)) }
+        },
     ) {
-        TextInput(title, { title = it }, "Title")
-        TextInput(body, { body = it }, "Note", singleLine = false, minLines = 8)
+        BasicTextField(
+            value = title, onValueChange = { title = it }, singleLine = true,
+            textStyle = MaterialTheme.typography.headlineSmall.copy(color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            decorationBox = { inner ->
+                Box { if (title.isEmpty()) Text("Title", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)); inner() }
+            },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        )
+        BasicTextField(
+            value = body, onValueChange = { body = it },
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            decorationBox = { inner ->
+                Box(Modifier.fillMaxWidth().height(if (checklist.isEmpty()) 180.dp else 80.dp)) {
+                    if (body.isEmpty()) Text("Write anything…", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                    inner()
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (checklist.isNotEmpty()) {
+            FieldLabel("Checklist · ${checklist.count { it.done }}/${checklist.size}")
+            checklist.forEachIndexed { i, item ->
+                val focus = remember(item.id) { FocusRequester() }
+                LaunchedEffect(focusId) {
+                    if (focusId == item.id) {
+                        runCatching { focus.requestFocus() }
+                        focusId = null
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(item.done, { checklist[i] = item.copy(done = it) })
+                    BasicTextField(
+                        value = item.text, onValueChange = { checklist[i] = item.copy(text = it) }, singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            color = if (item.done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                            textDecoration = if (item.done) TextDecoration.LineThrough else null,
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        decorationBox = { inner -> Box { if (item.text.isEmpty()) Text("Item", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)); inner() } },
+                        modifier = Modifier.weight(1f).focusRequester(focus),
+                    )
+                    IconButton(onClick = { checklist.removeAt(i) }) { Icon(Ico.Close, "Remove", Modifier.size(14.dp)) }
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { val item = CheckItem(); checklist.add(item); focusId = item.id }) {
+                Icon(Ico.CheckSquare, null, Modifier.size(14.dp)); Text(if (checklist.isEmpty()) "  Add checklist" else "  Add item")
+            }
+        }
         FieldLabel("Color")
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             NoteColors.forEachIndexed { i, c ->
                 val bg = if (i == 0) MaterialTheme.colorScheme.surfaceContainerHigh else c
-                androidx.compose.foundation.layout.Box(
+                Box(
                     Modifier
-                        .size(34.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(bg)
                         .border(if (i == color) 3.dp else 1.dp, if (i == color) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, CircleShape)
@@ -209,19 +404,33 @@ private fun NoteEditor(e: Edit.NoteEdit, close: () -> Unit) {
                 )
             }
         }
-        SwitchRow("Pin to top", null, pinned, { pinned = it })
-        PickerInput("Project", projects.firstOrNull { it.id == projectId }, projects.sortedBy { it.name }, { it.name }, { projectId = it?.id })
+        ProjectPicker(projectId, { projectId = it })
+        Text(
+            when {
+                projectId == null -> "Personal note — only you can see it."
+                shared -> "This project is shared: your team can see and edit this note."
+                else -> "Saved under the project."
+            },
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         DateInput("Show on calendar", date, { date = it })
     }
 }
+
+fun noteAsText(n: Note): String = buildString {
+    if (n.title.isNotBlank()) appendLine(n.title).appendLine()
+    if (n.body.isNotBlank()) appendLine(n.body)
+    if (n.checklist.isNotEmpty()) {
+        if (n.body.isNotBlank()) appendLine()
+        n.checklist.forEach { appendLine((if (it.done) "☑ " else "☐ ") + it.text) }
+    }
+}.trim()
 
 // ---------------------------------------------------------------- Money
 
 @Composable
 private fun TxnEditor(e: Edit.Money, close: () -> Unit) {
     val repo = Graph.repo
-    val projects by repo.projects.flow.collectAsState()
-    val customers by repo.customers.flow.collectAsState()
     val defaultCurrency by Graph.settings.currency.collectAsState()
     val base = e.item ?: Txn(
         kind = e.kind, projectId = e.projectId, customerId = e.customerId, date = e.date ?: Fmt.today(),
@@ -229,7 +438,7 @@ private fun TxnEditor(e: Edit.Money, close: () -> Unit) {
         category = if (e.kind == TxnKind.INCOME) (if (e.projectId != null) "Project payment" else "Freelance") else "Food",
     )
     var kind by remember { mutableStateOf(base.kind) }
-    var amount by remember { mutableStateOf(if (base.amount == 0.0) "" else Fmt.amount(base.amount).replace(",", "")) }
+    var amount by remember { mutableStateOf(amountText(base.amount)) }
     var currency by remember { mutableStateOf(base.currency) }
     var category by remember { mutableStateOf(base.category) }
     var method by remember { mutableStateOf(base.method) }
@@ -238,11 +447,12 @@ private fun TxnEditor(e: Edit.Money, close: () -> Unit) {
     var projectId by remember { mutableStateOf(base.projectId) }
     var customerId by remember { mutableStateOf(base.customerId) }
     val parsed = Fmt.parseAmount(amount)
+    val income = kind == TxnKind.INCOME
 
     FormDialog(
         title = when {
             e.item != null -> "Edit transaction"
-            kind == TxnKind.INCOME -> "Money received"
+            income -> "Money received"
             else -> "New expense"
         },
         onDismiss = close,
@@ -258,33 +468,23 @@ private fun TxnEditor(e: Edit.Money, close: () -> Unit) {
         },
         onDelete = e.item?.let { item -> { repo.txns.delete(item.id); close() } },
     ) {
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            listOf(TxnKind.EXPENSE to "Expense", TxnKind.INCOME to "Income").forEachIndexed { i, (k, label) ->
-                SegmentedButton(
-                    selected = kind == k,
-                    onClick = {
-                        if (kind != k) {
-                            kind = k
-                            category = if (k == TxnKind.INCOME) "Freelance" else "Food"
-                        }
-                    },
-                    shape = SegmentedButtonDefaults.itemShape(i, 2),
-                ) { Text(label) }
+        Segmented(listOf("Expense" to Ico.Expense, "Income" to Ico.Income), if (income) 1 else 0, { i ->
+            val k = if (i == 1) TxnKind.INCOME else TxnKind.EXPENSE
+            if (k != kind) {
+                kind = k
+                category = if (k == TxnKind.INCOME) "Freelance" else "Food"
             }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AmountInput(amount, { amount = it }, modifier = Modifier.weight(1.4f))
-            CurrencyInput(currency, { currency = it }, Modifier.weight(1f))
-        }
+        })
+        BigAmount(amount, { amount = it }, currency, { currency = it }, if (income) IncomeGreen else ExpenseRed)
         FieldLabel("Category")
-        val cats = if (kind == TxnKind.INCOME) Categories.income else Categories.expense
-        ChipChoice((cats + listOfNotNull(category.takeIf { it.isNotBlank() && it !in cats })), category, { category = it })
-        FieldLabel(if (kind == TxnKind.INCOME) "Received via" else "Paid with")
-        ChipChoice(Categories.methods, method, { method = it })
+        val cats = if (income) Categories.income else Categories.expense
+        CategoryGrid(cats + listOfNotNull(category.takeIf { it.isNotBlank() && it !in cats }), category) { category = it }
+        FieldLabel(if (income) "Received via" else "Paid with")
+        IconChips(Categories.methods, method, Ico::method) { method = it }
+        TextInput(note, { note = it }, if (income) "From who / what for" else "What did you spend on?")
         DateInput("Date", date, { date = it ?: Fmt.today() }, allowClear = false)
-        TextInput(note, { note = it }, if (kind == TxnKind.INCOME) "Note (from who / what for)" else "What did you spend on?", singleLine = false, minLines = 2)
-        PickerInput("Project", projects.firstOrNull { it.id == projectId }, projects.sortedBy { it.name }, { it.name }, { projectId = it?.id })
-        PickerInput("Customer", customers.firstOrNull { it.id == customerId }, customers.sortedBy { it.name }, { it.name }, { customerId = it?.id })
+        ProjectPicker(projectId, { projectId = it })
+        CustomerPicker(customerId, { customerId = it })
     }
 }
 
@@ -296,15 +496,20 @@ private fun ProjectEditor(e: Edit.ProjectEdit, close: () -> Unit) {
     val customers by repo.customers.flow.collectAsState()
     val defaultCurrency by Graph.settings.currency.collectAsState()
     val base = e.item ?: Project(customerId = e.customerId, currency = defaultCurrency, startDate = Fmt.today())
+    val space = repo.spaceForProject(base.id)
+    val isOwner = space == null || space.role == "owner"
     var name by remember { mutableStateOf(base.name) }
     var customerId by remember { mutableStateOf(base.customerId) }
     var clientName by remember { mutableStateOf(base.clientName) }
-    var price by remember { mutableStateOf(if (base.price == 0.0) "" else Fmt.amount(base.price).replace(",", "")) }
+    var price by remember { mutableStateOf(amountText(base.price)) }
+    var rate by remember { mutableStateOf(amountText(base.hourlyRate)) }
+    var billing by remember { mutableStateOf(base.billing) }
     var currency by remember { mutableStateOf(base.currency) }
     var status by remember { mutableStateOf(base.status) }
     var start by remember { mutableStateOf(base.startDate) }
     var deadline by remember { mutableStateOf(base.deadline) }
     var description by remember { mutableStateOf(base.description) }
+    var repoUrl by remember { mutableStateOf(base.repo) }
     val info = remember { base.info.toMutableStateList() }
 
     FormDialog(
@@ -312,40 +517,51 @@ private fun ProjectEditor(e: Edit.ProjectEdit, close: () -> Unit) {
         onDismiss = close,
         saveEnabled = name.isNotBlank(),
         onSave = {
+            val customer = customers.firstOrNull { it.id == customerId }
             repo.projects.save(
                 base.copy(
-                    name = name.trim(), customerId = customerId, clientName = clientName.trim(),
-                    price = Fmt.parseAmount(price) ?: 0.0, currency = currency.trim().ifBlank { defaultCurrency },
-                    status = status, startDate = start, deadline = deadline, description = description.trim(),
+                    name = name.trim(), customerId = customerId,
+                    // Keep the client's name on the project so teammates see it too.
+                    clientName = customer?.name ?: clientName.trim(),
+                    price = Fmt.parseAmount(price) ?: 0.0, hourlyRate = Fmt.parseAmount(rate) ?: 0.0, billing = billing,
+                    currency = currency.trim().ifBlank { defaultCurrency },
+                    status = status, startDate = start, deadline = deadline, description = description.trim(), repo = repoUrl.trim(),
                     info = info.filter { it.label.isNotBlank() || it.value.isNotBlank() },
                 )
             )
             close()
         },
-        onDelete = e.item?.let { item -> { repo.projects.delete(item.id); close() } },
+        onDelete = if (isOwner) e.item?.let { item -> { repo.projects.delete(item.id); close() } } else null,
     ) {
         TextInput(name, { name = it }, "Project name")
-        PickerInput("Customer", customers.firstOrNull { it.id == customerId }, customers.sortedBy { it.name }, { it.name }, { customerId = it?.id }, noneLabel = "No saved customer")
-        if (customerId == null) TextInput(clientName, { clientName = it }, "Client name (optional)")
+        StatusDropdown(status, { status = it })
+        if (isOwner) {
+            CustomerPicker(customerId, { customerId = it }, noneLabel = "No saved customer")
+        }
+        if (customerId == null || !isOwner) TextInput(clientName, { clientName = it }, "Client name (optional)")
+        FieldLabel("Billing")
+        Segmented(listOf("Fixed price" to Ico.Tag, "Hourly" to Ico.Timer), if (billing == Billing.HOURLY) 1 else 0, {
+            billing = if (it == 1) Billing.HOURLY else Billing.FIXED
+        })
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AmountInput(price, { price = it }, "Total price", Modifier.weight(1.4f))
+            if (billing == Billing.HOURLY) AmountInput(rate, { rate = it }, "Rate per hour", Modifier.weight(1.4f))
+            else AmountInput(price, { price = it }, "Total price", Modifier.weight(1.4f))
             CurrencyInput(currency, { currency = it }, Modifier.weight(1f))
         }
-        FieldLabel("Status")
-        ChipChoice(ProjectStatus.all, status, { status = it }, ProjectStatus::label)
         DateInput("Start date", start, { start = it })
         DateInput("Deadline", deadline, { deadline = it })
         TextInput(description, { description = it }, "Description / scope", singleLine = false, minLines = 3)
-        FieldLabel("Project info (links, accounts, specs...)")
+        TextInput(repoUrl, { repoUrl = it }, "GitHub repository (optional)", keyboardType = KeyboardType.Uri, supporting = "e.g. github.com/you/project")
+        FieldLabel("Project info (links, accounts, specs…)")
         info.forEachIndexed { i, item ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 TextInput(item.label, { info[i] = item.copy(label = it) }, "Label", Modifier.weight(0.8f))
                 TextInput(item.value, { info[i] = item.copy(value = it) }, "Value", Modifier.weight(1.2f))
-                IconButton(onClick = { info.removeAt(i) }) { Icon(Icons.Default.Close, "Remove") }
+                IconButton(onClick = { info.removeAt(i) }) { Icon(Ico.Close, "Remove", Modifier.size(14.dp)) }
             }
         }
         OutlinedButton(onClick = { info.add(InfoItem()) }) {
-            Icon(Icons.Default.Add, null); Text("  Add info field")
+            Icon(Ico.Plus, null, Modifier.size(14.dp)); Text("  Add info field")
         }
     }
 }
@@ -395,7 +611,7 @@ private fun CustomerEditor(e: Edit.CustomerEdit, close: () -> Unit) {
         onDelete = e.item?.let { item -> { repo.customers.delete(item.id); close() } },
     ) {
         OutlinedButton(onClick = { Graph.lock.suppressNextLock(); picker.launch(Unit) }, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Default.Contacts, null); Text("  Import from contacts")
+            Icon(Ico.Contacts, null, Modifier.size(16.dp)); Text("  Import from contacts")
         }
         TextInput(name, { name = it }, "Name")
         TextInput(phone, { phone = it }, "Phone", keyboardType = KeyboardType.Phone)
@@ -416,12 +632,13 @@ private fun DebtEditor(e: Edit.DebtEdit, close: () -> Unit) {
     var direction by remember { mutableStateOf(base.direction) }
     var customerId by remember { mutableStateOf(base.customerId) }
     var person by remember { mutableStateOf(base.person) }
-    var amount by remember { mutableStateOf(if (base.amount == 0.0) "" else Fmt.amount(base.amount).replace(",", "")) }
+    var amount by remember { mutableStateOf(amountText(base.amount)) }
     var currency by remember { mutableStateOf(base.currency) }
     var due by remember { mutableStateOf(base.dueDate) }
     var note by remember { mutableStateOf(base.note) }
     val parsed = Fmt.parseAmount(amount)
     val customer = customers.firstOrNull { it.id == customerId }
+    val owed = direction == DebtDirection.OWED_TO_ME
 
     FormDialog(
         title = if (e.item == null) "New debt" else "Edit debt",
@@ -438,17 +655,12 @@ private fun DebtEditor(e: Edit.DebtEdit, close: () -> Unit) {
         },
         onDelete = e.item?.let { item -> { repo.debts.delete(item.id); close() } },
     ) {
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            listOf(DebtDirection.OWED_TO_ME to "They owe me", DebtDirection.I_OWE to "I owe").forEachIndexed { i, (d, label) ->
-                SegmentedButton(selected = direction == d, onClick = { direction = d }, shape = SegmentedButtonDefaults.itemShape(i, 2)) { Text(label) }
-            }
-        }
-        PickerInput("Customer", customer, customers.sortedBy { it.name }, { it.name }, { customerId = it?.id }, noneLabel = "Not a saved customer")
+        Segmented(listOf("They owe me" to Ico.Income, "I owe" to Ico.Expense), if (owed) 0 else 1, {
+            direction = if (it == 0) DebtDirection.OWED_TO_ME else DebtDirection.I_OWE
+        })
+        BigAmount(amount, { amount = it }, currency, { currency = it }, if (owed) IncomeGreen else ExpenseRed)
+        CustomerPicker(customerId, { customerId = it }, noneLabel = "Not a saved customer")
         if (customer == null) TextInput(person, { person = it }, "Person name")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AmountInput(amount, { amount = it }, modifier = Modifier.weight(1.4f))
-            CurrencyInput(currency, { currency = it }, Modifier.weight(1f))
-        }
         DateInput("Due date", due, { due = it })
         TextInput(note, { note = it }, "Note", singleLine = false, minLines = 2)
     }
@@ -456,22 +668,19 @@ private fun DebtEditor(e: Edit.DebtEdit, close: () -> Unit) {
 
 @Composable
 private fun DebtPaymentDialog(debt: Debt, close: () -> Unit) {
-    var amount by remember { mutableStateOf(Fmt.amount(debt.remaining).replace(",", "")) }
+    var amount by remember { mutableStateOf(amountText(debt.remaining)) }
     var alsoRecord by remember { mutableStateOf(true) }
     val parsed = Fmt.parseAmount(amount)
     val incoming = debt.direction == DebtDirection.OWED_TO_ME
     AlertDialog(
         onDismissRequest = close,
-        title = { Text(if (incoming) "Record payment received" else "Record payment made") },
+        icon = { Icon(Ico.Debt, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary) },
+        title = { Text(if (incoming) "Payment received" else "Payment made") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Remaining: ${Fmt.money(debt.remaining, debt.currency)}")
+                Text("Remaining: ${Fmt.money(debt.remaining, debt.currency)}", fontFamily = MonoFont)
                 AmountInput(amount, { amount = it })
-                SwitchRow(
-                    if (incoming) "Add to income" else "Add to expenses",
-                    "Also record it in Money",
-                    alsoRecord, { alsoRecord = it },
-                )
+                SwitchRow(if (incoming) "Add to income" else "Add to expenses", "Also record it in Money", alsoRecord, { alsoRecord = it })
             }
         },
         confirmButton = {
@@ -483,7 +692,7 @@ private fun DebtPaymentDialog(debt: Debt, close: () -> Unit) {
                     repo.txns.save(
                         Txn(
                             kind = if (incoming) TxnKind.INCOME else TxnKind.EXPENSE, amount = a, currency = debt.currency,
-                            category = if (incoming) "Other" else "Other", method = "Cash", date = Fmt.today(),
+                            category = "Other", method = "Cash", date = Fmt.today(),
                             note = (if (incoming) "Debt repaid by " else "Debt paid to ") + debt.person, customerId = debt.customerId,
                         )
                     )
@@ -503,7 +712,7 @@ private fun GoalEditor(e: Edit.GoalEdit, close: () -> Unit) {
     val defaultCurrency by Graph.settings.currency.collectAsState()
     val base = e.item ?: Goal(currency = defaultCurrency)
     var name by remember { mutableStateOf(base.name) }
-    var target by remember { mutableStateOf(if (base.target == 0.0) "" else Fmt.amount(base.target).replace(",", "")) }
+    var target by remember { mutableStateOf(amountText(base.target)) }
     var currency by remember { mutableStateOf(base.currency) }
     var deadline by remember { mutableStateOf(base.deadline) }
     var note by remember { mutableStateOf(base.note) }
@@ -518,18 +727,13 @@ private fun GoalEditor(e: Edit.GoalEdit, close: () -> Unit) {
             val start = Fmt.parseAmount(initial)
             val deposits = if (e.item == null && start != null && start > 0)
                 listOf(GoalDeposit(amount = start, date = Fmt.today(), note = "Starting amount")) else base.deposits
-            repo.goals.save(
-                base.copy(name = name.trim(), target = parsed ?: 0.0, currency = currency.trim().ifBlank { defaultCurrency }, deadline = deadline, note = note.trim(), deposits = deposits)
-            )
+            repo.goals.save(base.copy(name = name.trim(), target = parsed ?: 0.0, currency = currency.trim().ifBlank { defaultCurrency }, deadline = deadline, note = note.trim(), deposits = deposits))
             close()
         },
         onDelete = e.item?.let { item -> { repo.goals.delete(item.id); close() } },
     ) {
         TextInput(name, { name = it }, "Goal (e.g. New laptop, Emergency fund)")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AmountInput(target, { target = it }, "Target amount", Modifier.weight(1.4f))
-            CurrencyInput(currency, { currency = it }, Modifier.weight(1f))
-        }
+        BigAmount(target, { target = it }, currency, { currency = it }, IncomeGreen)
         if (e.item == null) AmountInput(initial, { initial = it }, "Already saved (optional)")
         DateInput("Target date", deadline, { deadline = it })
         TextInput(note, { note = it }, "Note", singleLine = false, minLines = 2)
@@ -539,19 +743,17 @@ private fun GoalEditor(e: Edit.GoalEdit, close: () -> Unit) {
 @Composable
 private fun GoalDepositDialog(goal: Goal, close: () -> Unit) {
     var amount by remember { mutableStateOf("") }
-    var withdraw by remember { mutableStateOf(false) }
+    var withdraw by remember { mutableStateOf(0) }
     var note by remember { mutableStateOf("") }
     val parsed = Fmt.parseAmount(amount)
     AlertDialog(
         onDismissRequest = close,
+        icon = { Icon(Ico.Goal, null, Modifier.size(22.dp), tint = IncomeGreen) },
         title = { Text(goal.name) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Saved ${Fmt.money(goal.saved, goal.currency)} of ${Fmt.money(goal.target, goal.currency)}")
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    SegmentedButton(selected = !withdraw, onClick = { withdraw = false }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("Add") }
-                    SegmentedButton(selected = withdraw, onClick = { withdraw = true }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("Withdraw") }
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Saved ${Fmt.money(goal.saved, goal.currency)} of ${Fmt.money(goal.target, goal.currency)}", fontFamily = MonoFont, style = MaterialTheme.typography.bodySmall)
+                Segmented(listOf("Add" to Ico.Plus, "Withdraw" to Ico.Expense), withdraw, { withdraw = it })
                 AmountInput(amount, { amount = it })
                 TextInput(note, { note = it }, "Note (optional)")
             }
@@ -559,7 +761,7 @@ private fun GoalDepositDialog(goal: Goal, close: () -> Unit) {
         confirmButton = {
             TextButton(enabled = parsed != null && parsed > 0, onClick = {
                 val a = parsed ?: return@TextButton
-                Graph.repo.goals.save(goal.copy(deposits = goal.deposits + GoalDeposit(amount = if (withdraw) -a else a, date = Fmt.today(), note = note.trim())))
+                Graph.repo.goals.save(goal.copy(deposits = goal.deposits + GoalDeposit(amount = if (withdraw == 1) -a else a, date = Fmt.today(), note = note.trim())))
                 close()
             }) { Text("Save") }
         },
@@ -573,8 +775,6 @@ private fun GoalDepositDialog(goal: Goal, close: () -> Unit) {
 private fun EventEditor(e: Edit.Event, close: () -> Unit) {
     val ctx = LocalContext.current
     val repo = Graph.repo
-    val projects by repo.projects.flow.collectAsState()
-    val customers by repo.customers.flow.collectAsState()
     val base = e.item ?: CalEvent(date = e.date ?: Fmt.today(), projectId = e.projectId, reminder = true)
     var title by remember { mutableStateOf(base.title) }
     var date by remember { mutableStateOf(base.date) }
@@ -596,12 +796,86 @@ private fun EventEditor(e: Edit.Event, close: () -> Unit) {
         },
         onDelete = e.item?.let { item -> { repo.events.delete(item.id); Reminders.cancel(ctx, "event_${item.id}"); close() } },
     ) {
-        TextInput(title, { title = it }, "Title (meeting, call, delivery...)")
+        TextInput(title, { title = it }, "Title (meeting, call, delivery…)")
         DateInput("Date", date, { date = it ?: Fmt.today() }, allowClear = false)
         TimeInput("Time", time, { time = it })
         SwitchRow("Remind me", "Notification at the event time (9:00 AM if no time)", reminder, { reminder = it })
-        PickerInput("Project", projects.firstOrNull { it.id == projectId }, projects.sortedBy { it.name }, { it.name }, { projectId = it?.id })
-        PickerInput("Customer", customers.firstOrNull { it.id == customerId }, customers.sortedBy { it.name }, { it.name }, { customerId = it?.id })
+        ProjectPicker(projectId, { projectId = it })
+        CustomerPicker(customerId, { customerId = it })
         TextInput(note, { note = it }, "Note", singleLine = false, minLines = 3)
+    }
+}
+
+// ---------------------------------------------------------------- Time entries
+
+private fun minutesOf(ms: Long): Int = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalTime().let { it.hour * 60 + it.minute }
+private fun dayOf(ms: Long): Long = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()
+private fun at(day: Long, minutes: Int): Long =
+    LocalDate.ofEpochDay(day).atTime(LocalTime.of(minutes / 60, minutes % 60)).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+@Composable
+private fun TimeEditor(e: Edit.TimeEdit, close: () -> Unit) {
+    val repo = Graph.repo
+    val now = System.currentTimeMillis()
+    val base = e.item ?: TimeEntry(projectId = e.projectId, start = now - 3_600_000, end = now)
+    var projectId by remember { mutableStateOf(base.projectId) }
+    var day by remember { mutableStateOf(dayOf(base.start)) }
+    var startMin by remember { mutableStateOf<Int?>(minutesOf(base.start)) }
+    var endMin by remember { mutableStateOf<Int?>(base.end?.let(::minutesOf)) }
+    var note by remember { mutableStateOf(base.note) }
+    val s = startMin
+    val en = endMin
+    val startMs = s?.let { at(day, it) }
+    val endMs = en?.let { at(day, it).let { v -> if (startMs != null && v < startMs) v + 86_400_000 else v } }
+
+    FormDialog(
+        title = if (e.item == null) "Add time" else "Edit time",
+        onDismiss = close,
+        saveEnabled = startMs != null && (base.running || endMs != null),
+        onSave = {
+            repo.time.save(base.copy(projectId = projectId, start = startMs ?: base.start, end = if (base.running && endMs == null) null else endMs, note = note.trim()))
+            close()
+        },
+        onDelete = e.item?.let { item -> { repo.time.delete(item.id); close() } },
+    ) {
+        ProjectPicker(projectId, { projectId = it }, label = "Project")
+        DateInput("Day", day, { day = it ?: Fmt.today() }, allowClear = false)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.weight(1f)) { TimeInput("Start", startMin, { startMin = it }) }
+            Box(Modifier.weight(1f)) { TimeInput("End", endMin, { endMin = it }) }
+        }
+        if (startMs != null && endMs != null) {
+            Text(
+                "Duration: " + com.carrotnote.app.time.TimeTracker.format(endMs - startMs),
+                fontFamily = MonoFont, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        TextInput(note, { note = it }, "What did you work on?")
+    }
+}
+
+// ---------------------------------------------------------------- Budgets
+
+@Composable
+private fun BudgetEditor(e: Edit.BudgetEdit, close: () -> Unit) {
+    val repo = Graph.repo
+    val defaultCurrency by Graph.settings.currency.collectAsState()
+    val base = e.item ?: Budget(currency = defaultCurrency)
+    var category by remember { mutableStateOf(base.category) }
+    var limit by remember { mutableStateOf(amountText(base.limit)) }
+    var currency by remember { mutableStateOf(base.currency) }
+    val parsed = Fmt.parseAmount(limit)
+    val options = listOf("") + Categories.expense
+    FormDialog(
+        title = if (e.item == null) "New budget" else "Edit budget",
+        onDismiss = close,
+        saveEnabled = parsed != null && parsed > 0,
+        onSave = { repo.budgets.save(base.copy(category = category, limit = parsed ?: 0.0, currency = currency.trim().ifBlank { defaultCurrency })); close() },
+        onDelete = e.item?.let { item -> { repo.budgets.delete(item.id); close() } },
+    ) {
+        Text("Set how much you want to spend per month — in total or on one category.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        BigAmount(limit, { limit = it }, currency, { currency = it }, MaterialTheme.colorScheme.primary)
+        FieldLabel("Applies to")
+        ChipChoice(options, category, { category = it }) { if (it.isEmpty()) "All spending" else it }
     }
 }

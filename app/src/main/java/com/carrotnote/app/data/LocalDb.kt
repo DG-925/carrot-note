@@ -5,7 +5,10 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-/** One row per synced record. Data is the JSON of the model; deleted rows are tombstones. */
+/**
+ * One row per synced record. Data is the JSON of the model; deleted rows are tombstones.
+ * [space] is the sync space the server keeps the record in (null until the server says).
+ */
 data class LocalRow(
     val type: String,
     val id: String,
@@ -13,9 +16,10 @@ data class LocalRow(
     val updatedAt: Long,
     val deleted: Boolean,
     val dirty: Boolean,
+    val space: String? = null,
 )
 
-class LocalDb(context: Context, name: String) : SQLiteOpenHelper(context, name, null, 1) {
+class LocalDb(context: Context, name: String) : SQLiteOpenHelper(context, name, null, 2) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -26,6 +30,7 @@ class LocalDb(context: Context, name: String) : SQLiteOpenHelper(context, name, 
                 updated_at INTEGER NOT NULL,
                 deleted INTEGER NOT NULL DEFAULT 0,
                 dirty INTEGER NOT NULL DEFAULT 0,
+                space TEXT,
                 PRIMARY KEY (type, id)
             )"""
         )
@@ -33,18 +38,18 @@ class LocalDb(context: Context, name: String) : SQLiteOpenHelper(context, name, 
         db.execSQL("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)")
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) db.execSQL("ALTER TABLE records ADD COLUMN space TEXT")
+    }
 
-    fun all(): List<LocalRow> = query("SELECT type, id, data, updated_at, deleted, dirty FROM records", emptyArray())
+    private val cols = "type, id, data, updated_at, deleted, dirty, space"
 
-    fun dirty(): List<LocalRow> =
-        query("SELECT type, id, data, updated_at, deleted, dirty FROM records WHERE dirty = 1", emptyArray())
+    fun all(): List<LocalRow> = query("SELECT $cols FROM records", emptyArray())
+
+    fun dirty(): List<LocalRow> = query("SELECT $cols FROM records WHERE dirty = 1", emptyArray())
 
     fun get(type: String, id: String): LocalRow? =
-        query(
-            "SELECT type, id, data, updated_at, deleted, dirty FROM records WHERE type = ? AND id = ?",
-            arrayOf(type, id),
-        ).firstOrNull()
+        query("SELECT $cols FROM records WHERE type = ? AND id = ?", arrayOf(type, id)).firstOrNull()
 
     fun put(row: LocalRow) {
         val cv = ContentValues().apply {
@@ -54,8 +59,13 @@ class LocalDb(context: Context, name: String) : SQLiteOpenHelper(context, name, 
             put("updated_at", row.updatedAt)
             put("deleted", if (row.deleted) 1 else 0)
             put("dirty", if (row.dirty) 1 else 0)
+            put("space", row.space)
         }
         writableDatabase.insertWithOnConflict("records", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    fun remove(type: String, id: String) {
+        writableDatabase.delete("records", "type = ? AND id = ?", arrayOf(type, id))
     }
 
     fun markClean(type: String, id: String, updatedAt: Long) {
@@ -98,6 +108,7 @@ class LocalDb(context: Context, name: String) : SQLiteOpenHelper(context, name, 
                             updatedAt = c.getLong(3),
                             deleted = c.getInt(4) == 1,
                             dirty = c.getInt(5) == 1,
+                            space = if (c.isNull(6)) null else c.getString(6),
                         )
                     )
                 }

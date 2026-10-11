@@ -15,15 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.NoteAdd
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddTask
-import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
@@ -60,13 +51,15 @@ import com.carrotnote.app.ui.components.AppCard
 import com.carrotnote.app.ui.components.ListPadding
 import com.carrotnote.app.ui.components.SectionHeader
 import com.carrotnote.app.ui.components.SimpleTopBar
+import com.carrotnote.app.ui.theme.Ico
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.time.temporal.WeekFields
 import java.util.Locale
 
 @Composable
-fun CalendarScreen(nav: (String) -> Unit) {
+fun CalendarScreen(onBack: () -> Unit) {
+    val nav = com.carrotnote.app.ui.LocalNav.current
     val repo = Graph.repo
     val editor = LocalEditor.current
     val tasks by repo.tasks.flow.collectAsState()
@@ -95,19 +88,19 @@ fun CalendarScreen(nav: (String) -> Unit) {
 
     Scaffold(
         topBar = {
-            SimpleTopBar("Calendar") {
+            SimpleTopBar("Calendar", onBack) {
                 IconButton(onClick = {
                     selected = Fmt.today(); monthStart = LocalDate.now().withDayOfMonth(1).toEpochDay()
-                }) { Icon(Icons.Default.Today, "Today") }
+                }) { Icon(Ico.Today, "Today", Modifier.size(18.dp)) }
             }
         },
         floatingActionButton = {
             Box {
-                FloatingActionButton(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, onClick = { addMenu = true }) { Icon(Icons.Default.Add, "Add") }
+                FloatingActionButton(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, onClick = { addMenu = true }) { Icon(Ico.Plus, "Add", Modifier.size(18.dp)) }
                 DropdownMenu(expanded = addMenu, onDismissRequest = { addMenu = false }) {
-                    DropdownMenuItem(text = { Text("Task") }, leadingIcon = { Icon(Icons.Default.AddTask, null) }, onClick = { addMenu = false; editor.open(Edit.Task(date = selected)) })
-                    DropdownMenuItem(text = { Text("Event / meeting") }, leadingIcon = { Icon(Icons.Default.Event, null) }, onClick = { addMenu = false; editor.open(Edit.Event(date = selected)) })
-                    DropdownMenuItem(text = { Text("Note") }, leadingIcon = { Icon(Icons.AutoMirrored.Filled.NoteAdd, null) }, onClick = { addMenu = false; editor.open(Edit.NoteEdit(date = selected)) })
+                    DropdownMenuItem(text = { Text("Task") }, leadingIcon = { Icon(Ico.Tasks, null, Modifier.size(15.dp)) }, onClick = { addMenu = false; editor.open(Edit.Task(date = selected)) })
+                    DropdownMenuItem(text = { Text("Event / meeting") }, leadingIcon = { Icon(Ico.Calendar, null, Modifier.size(15.dp)) }, onClick = { addMenu = false; editor.open(Edit.Event(date = selected)) })
+                    DropdownMenuItem(text = { Text("Note") }, leadingIcon = { Icon(Ico.Note, null, Modifier.size(15.dp)) }, onClick = { addMenu = false; editor.open(Edit.NoteEdit(date = selected)) })
                 }
             }
         },
@@ -137,7 +130,7 @@ fun CalendarScreen(nav: (String) -> Unit) {
                 val p = dayDeadlines[i]
                 AppCard(onClick = { nav("project/${p.id}") }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Flag, null, tint = MaterialTheme.colorScheme.error)
+                        Icon(Ico.Flag, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
                         Text("  Deadline: ${p.name}", fontWeight = FontWeight.SemiBold)
                     }
                 }
@@ -146,7 +139,7 @@ fun CalendarScreen(nav: (String) -> Unit) {
                 val d = dayDebts[i]
                 AppCard(onClick = { nav("debts") }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Flag, null, tint = MaterialTheme.colorScheme.error)
+                        Icon(Ico.Flag, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
                         Text(
                             if (d.direction == DebtDirection.OWED_TO_ME) "  ${d.person} should pay you ${Fmt.money(d.remaining, d.currency)}"
                             else "  Pay ${d.person} ${Fmt.money(d.remaining, d.currency)}",
@@ -185,9 +178,9 @@ private fun MonthGrid(
 
     AppCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { onMonth(first.minusMonths(1)) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous month") }
+            IconButton(onClick = { onMonth(first.minusMonths(1)) }) { Icon(Ico.Left, "Previous month", Modifier.size(14.dp)) }
             Text(Fmt.month(first), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
-            IconButton(onClick = { onMonth(first.plusMonths(1)) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next month") }
+            IconButton(onClick = { onMonth(first.plusMonths(1)) }) { Icon(Ico.Right, "Next month", Modifier.size(14.dp)) }
         }
         Row(Modifier.fillMaxWidth()) {
             weekDays.forEach {

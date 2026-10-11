@@ -24,8 +24,16 @@ data class Project(
     val deadline: Long? = null,
     val description: String = "",
     val info: List<InfoItem> = emptyList(),
+    val billing: String = Billing.FIXED,
+    val hourlyRate: Double = 0.0,
+    val repo: String = "",
     val createdAt: Long = nowMs(),
 )
+
+object Billing {
+    const val FIXED = "fixed"
+    const val HOURLY = "hourly"
+}
 
 object ProjectStatus {
     const val ACTIVE = "active"
@@ -61,6 +69,7 @@ data class Note(
     val id: String = newId(),
     val title: String = "",
     val body: String = "",
+    val checklist: List<CheckItem> = emptyList(),
     val projectId: String? = null,
     val date: Long? = null,
     val pinned: Boolean = false,
@@ -165,3 +174,51 @@ object Categories {
     val methods = listOf("Cash", "Card", "Bank transfer", "USDT", "Crypto", "PayPal", "InstaPay", "Wallet", "Other")
     val currencies = listOf("USD", "EGP", "EUR", "USDT", "GBP", "SAR", "AED", "KWD", "QAR", "TRY")
 }
+
+@Serializable
+data class CheckItem(val id: String = newId(), val text: String = "", val done: Boolean = false)
+
+/** A block of tracked work time. [end] is null while the timer is running. */
+@Serializable
+data class TimeEntry(
+    val id: String = newId(),
+    val projectId: String? = null,
+    val start: Long = nowMs(),
+    val end: Long? = null,
+    val note: String = "",
+    val createdAt: Long = nowMs(),
+) {
+    val running: Boolean get() = end == null
+    fun durationMs(now: Long = nowMs()): Long = ((end ?: now) - start).coerceAtLeast(0)
+}
+
+/** Monthly spending limit. An empty [category] is the overall budget. */
+@Serializable
+data class Budget(
+    val id: String = newId(),
+    val category: String = "",
+    val limit: Double = 0.0,
+    val currency: String = "USD",
+    val createdAt: Long = nowMs(),
+)
+
+@Serializable
+data class SpaceMember(
+    val id: String,
+    val username: String = "",
+    val name: String = "",
+    val avatarRev: Int = 0,
+    val role: String = "editor",
+)
+
+/** A sync space: the user's personal data or a shared project. */
+@Serializable
+data class SpaceInfo(
+    val id: String,
+    val kind: String = "personal",
+    val projectId: String? = null,
+    val ownerId: String = "",
+    val role: String = "owner",
+    val members: List<SpaceMember> = emptyList(),
+    val pending: List<SpaceMember> = emptyList(),
+)

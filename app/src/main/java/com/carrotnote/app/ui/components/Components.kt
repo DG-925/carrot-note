@@ -46,6 +46,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.border
 import com.carrotnote.app.ui.theme.HeroBrush
+import com.carrotnote.app.ui.theme.Ico
 import com.carrotnote.app.ui.theme.LocalOnHero
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -93,6 +94,7 @@ fun FormDialog(
     onSave: () -> Unit,
     saveEnabled: Boolean = true,
     onDelete: (() -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var confirmDelete by remember { mutableStateOf(false) }
@@ -103,11 +105,12 @@ fun FormDialog(
                     TopAppBar(
                         title = { Text(title) },
                         navigationIcon = {
-                            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, "Close") }
+                            IconButton(onClick = onDismiss) { Icon(Ico.Close, "Close", Modifier.size(18.dp)) }
                         },
                         actions = {
+                            actions()
                             if (onDelete != null) {
-                                IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Default.Delete, "Delete") }
+                                IconButton(onClick = { confirmDelete = true }) { Icon(Ico.Trash, "Delete", Modifier.size(18.dp)) }
                             }
                             TextButton(onClick = onSave, enabled = saveEnabled) { Text("Save", fontWeight = FontWeight.Bold) }
                         },
@@ -156,7 +159,7 @@ fun SimpleTopBar(title: String, onBack: (() -> Unit)? = null, actions: @Composab
     TopAppBar(
         title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         navigationIcon = {
-            if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+            if (onBack != null) IconButton(onClick = onBack) { Icon(Ico.Back, "Back", Modifier.size(18.dp)) }
         },
         actions = actions,
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
@@ -280,7 +283,7 @@ fun DateInput(label: String, value: Long?, onChange: (Long?) -> Unit, allowClear
     PickerBox(
         label = label,
         text = value?.let { Fmt.date(it) } ?: "Not set",
-        icon = Icons.Default.CalendarMonth,
+        icon = Ico.Calendar,
         onClick = { open = true },
         onClear = if (allowClear && value != null) ({ onChange(null) }) else null,
         modifier = modifier,
@@ -306,7 +309,7 @@ fun TimeInput(label: String, value: Int?, onChange: (Int?) -> Unit, modifier: Mo
     PickerBox(
         label = label,
         text = value?.let { Fmt.time(it) } ?: "No time",
-        icon = Icons.Default.Schedule,
+        icon = Ico.Clock,
         onClick = { open = true },
         onClear = if (value != null) ({ onChange(null) }) else null,
         modifier = modifier,
@@ -341,14 +344,14 @@ private fun PickerBox(
         modifier = modifier.fillMaxWidth(),
     ) {
         Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+            Icon(icon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(text, style = MaterialTheme.typography.bodyLarge)
             }
             if (onClear != null) {
-                IconButton(onClick = onClear) { Icon(Icons.Default.Close, "Clear") }
+                IconButton(onClick = onClear) { Icon(Ico.Close, "Clear", Modifier.size(18.dp)) }
             }
         }
     }
@@ -389,7 +392,7 @@ fun EmptyState(icon: ImageVector, title: String, subtitle: String, modifier: Mod
         Box(
             Modifier.size(72.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh),
             contentAlignment = Alignment.Center,
-        ) { Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(34.dp)) }
+        ) { Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(30.dp)) }
         Spacer(Modifier.height(16.dp))
         Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
@@ -451,7 +454,7 @@ fun IconBadge(icon: ImageVector, tint: Color, modifier: Modifier = Modifier) {
             .background(tint.copy(alpha = 0.14f))
             .border(1.dp, tint.copy(alpha = 0.35f), shape),
         contentAlignment = Alignment.Center,
-    ) { Icon(icon, null, tint = tint, modifier = Modifier.size(22.dp)) }
+    ) { Icon(icon, null, tint = tint, modifier = Modifier.size(18.dp)) }
 }
 
 /** Pill filter chip: solid orange when selected, like the CarrotPOS category chips. */

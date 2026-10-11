@@ -8,6 +8,7 @@ import com.carrotnote.app.data.Session
 import com.carrotnote.app.data.Settings
 import com.carrotnote.app.data.SyncManager
 import com.carrotnote.app.reminders.Reminders
+import com.carrotnote.app.time.TimeTracker
 import com.carrotnote.app.security.LockManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +40,13 @@ object Graph {
     val repoOrNull: Repository? get() = _repo.value
     val repo: Repository get() = _repo.value ?: error("Not signed in")
 
+    private val _invites = MutableStateFlow(0)
+    /** Pending project invitations for the signed-in user. */
+    val inviteCount: StateFlow<Int> = _invites.asStateFlow()
+    fun setInviteCount(n: Int) {
+        _invites.value = n
+    }
+
     fun init(app: Application) {
         this.app = app
         session = Session(app)
@@ -56,6 +64,7 @@ object Graph {
         _repo.value = repo
         SyncManager.schedulePeriodic(app)
         sync.requestSync(500)
+        TimeTracker.refreshNotification(app)
     }
 
     fun onSignedIn(auth: AuthResponse) {
@@ -76,6 +85,8 @@ object Graph {
         session.signOut()
         lock.clear()
         Reminders.cancelAll(app)
+        TimeTracker.cancelNotification(app)
+        _invites.value = 0
         if (repo != null) {
             repo.close()
             Repository.deleteData(app, repo.userId)

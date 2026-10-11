@@ -16,9 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Backspace
-import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.carrotnote.app.Graph
+import com.carrotnote.app.ui.theme.Ico
 import kotlinx.coroutines.delay
 
 private const val PIN_LENGTH = 4
@@ -170,10 +168,10 @@ fun PinPad(onDigit: (Char) -> Unit, onBackspace: () -> Unit, onOk: (() -> Unit)?
         }
         Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             if (onBiometric != null) PadKey(icon = true, onClick = onBiometric) {
-                Icon(Icons.Default.Fingerprint, "Use fingerprint", Modifier.size(30.dp), tint = MaterialTheme.colorScheme.primary)
+                Icon(Ico.Fingerprint, "Use fingerprint", Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
             } else if (onOk != null) PadKey("OK", onClick = onOk) else Spacer(Modifier.size(74.dp))
             PadKey("0", onClick = { onDigit('0') })
-            PadKey(icon = true, onClick = onBackspace) { Icon(Icons.AutoMirrored.Filled.Backspace, "Delete") }
+            PadKey(icon = true, onClick = onBackspace) { Icon(Ico.Backspace, "Delete", Modifier.size(22.dp)) }
         }
     }
 }

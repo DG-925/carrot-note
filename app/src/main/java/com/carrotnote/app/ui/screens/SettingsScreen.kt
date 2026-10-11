@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -190,29 +191,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             Toast.makeText(ctx, "PIN set", Toast.LENGTH_SHORT).show()
         })
     }
-    if (confirmSignOut) {
-        val unsynced = Graph.repoOrNull?.hasUnsynced() == true
-        AlertDialog(
-            onDismissRequest = { confirmSignOut = false },
-            title = { Text("Sign out?") },
-            text = {
-                Text(
-                    if (unsynced) "Some changes haven't synced yet. We'll try to sync first; anything not synced will be lost on this phone."
-                    else "Your data stays in your account. Sign in again any time to get it back."
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmSignOut = false
-                    scope.launch {
-                        Graph.sync.syncNow()
-                        Graph.signOut()
-                    }
-                }) { Text("Sign out") }
-            },
-            dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } },
-        )
-    }
+    if (confirmSignOut) SignOutDialog { confirmSignOut = false }
     if (changePassword) PasswordDialog(onDismiss = { changePassword = false })
     if (deleteAccount) DeleteAccountDialog(onDismiss = { deleteAccount = false })
 }
@@ -289,6 +268,33 @@ private fun DeleteAccountDialog(onDismiss: () -> Unit) {
                     }
                 },
             ) { Text("Delete forever") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+fun SignOutDialog(onDismiss: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val unsynced = Graph.repoOrNull?.hasUnsynced() == true
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { androidx.compose.material3.Icon(com.carrotnote.app.ui.theme.Ico.SignOut, null, Modifier.size(22.dp)) },
+        title = { Text("Sign out?") },
+        text = {
+            Text(
+                if (unsynced) "Some changes haven't synced yet. We'll try to sync first; anything not synced will be lost on this phone."
+                else "Your data stays in your account. Sign in again any time to get it back."
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onDismiss()
+                scope.launch {
+                    Graph.sync.syncNow()
+                    Graph.signOut()
+                }
+            }) { Text("Sign out") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
