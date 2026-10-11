@@ -152,10 +152,10 @@ fun NotesScreen() {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalItemSpacing = 10.dp,
         ) {
-            item(span = StaggeredGridItemSpan.FullLine) { SearchField(query, { query = it }, "Search notes and checklists") }
+            if (notes.size > 6) item(span = StaggeredGridItemSpan.FullLine) { SearchField(query, { query = it }, "Search notes") }
             item(span = StaggeredGridItemSpan.FullLine) {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("all" to "All", "pinned" to "Pinned", "personal" to "Personal", "projects" to "Projects", "checklists" to "Checklists").forEach { (k, l) ->
+                    listOf("all" to "All", "personal" to "Personal", "pinned" to "Pinned").forEach { (k, l) ->
                         PillChip(selected = filter == k, onClick = { filter = k }, label = l)
                     }
                 }

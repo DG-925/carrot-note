@@ -46,6 +46,9 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.runtime.LaunchedEffect
@@ -164,6 +167,47 @@ fun shareText(context: Context, subject: String, text: String) {
 
 private fun amountText(v: Double) = if (v == 0.0) "" else Fmt.amount(v).replace(",", "")
 
+/** Fields most people don't need every time, behind one tap. */
+@Composable
+private fun MoreOptions(startOpen: Boolean = false, content: @Composable () -> Unit) {
+    var open by remember { mutableStateOf(startOpen) }
+    Row(
+        Modifier.clip(RoundedCornerShape(12.dp)).clickable { open = !open }.padding(vertical = 10.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            if (open) "Fewer options" else "More options",
+            color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.width(8.dp))
+        Icon(Ico.Down, null, Modifier.size(11.dp).rotate(if (open) 180f else 0f), tint = MaterialTheme.colorScheme.primary)
+    }
+    if (open) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { content() }
+}
+
+/** Single scrollable row of icon pills. */
+@Composable
+private fun ChipRow(options: List<String>, selected: String, icon: (String) -> ImageVector, onSelect: (String) -> Unit) {
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { o ->
+            val sel = o == selected
+            Row(
+                Modifier
+                    .clip(CircleShape)
+                    .background(if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLow)
+                    .border(1.dp, if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)
+                    .clickable { onSelect(o) }
+                    .padding(horizontal = 14.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(icon(o), null, Modifier.size(14.dp), tint = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(8.dp))
+                Text(o, style = MaterialTheme.typography.labelLarge, color = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium)
+            }
+        }
+    }
+}
+
 @Composable
 private fun ProjectPicker(projectId: String?, onChange: (String?) -> Unit, label: String = "Project (optional)") {
     val projects by Graph.repo.projects.flow.collectAsState()
@@ -200,36 +244,6 @@ private fun BigAmount(value: String, onChange: (String) -> Unit, currency: Strin
             },
         )
         Box(Modifier.width(140.dp)) { CurrencyInput(currency, onCurrency) }
-    }
-}
-
-/** Grid of icon tiles for picking a category. */
-@Composable
-private fun CategoryGrid(options: List<String>, selected: String, onSelect: (String) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), maxItemsInEachRow = 4) {
-        options.forEach { c ->
-            val sel = c == selected
-            Column(
-                Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(if (sel) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow)
-                    .border(1.dp, if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
-                    .clickable { onSelect(c) }
-                    .padding(vertical = 10.dp, horizontal = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Icon(Ico.category(c), null, Modifier.size(18.dp), tint = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    c, style = MaterialTheme.typography.labelSmall, maxLines = 1, textAlign = TextAlign.Center,
-                    color = if (sel) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
-                )
-            }
-        }
-        // Keep tiles the same width when the last row is not full.
-        repeat((4 - options.size % 4) % 4) { Spacer(Modifier.weight(1f)) }
     }
 }
 
@@ -288,18 +302,20 @@ private fun TaskEditor(e: Edit.Task, close: () -> Unit) {
         onDelete = e.item?.let { item -> { repo.tasks.delete(item.id); Reminders.cancel(ctx, "task_${item.id}"); close() } },
     ) {
         TextInput(title, { title = it }, "What needs to be done?")
-        TextInput(notes, { notes = it }, "Details", singleLine = false, minLines = 3)
-        FieldLabel("Priority")
-        IconChips(listOf("Low", "Normal", "High"), listOf("Low", "Normal", "High")[priority], { if (it == "High") Ico.Flag else if (it == "Low") Ico.List else Ico.Tasks }) {
-            priority = listOf("Low", "Normal", "High").indexOf(it)
-        }
-        ProjectPicker(projectId, { projectId = it })
         DateInput("Due date", due, { due = it })
-        if (due != null) {
-            TimeInput("Time", time, { time = it })
-            SwitchRow("Remind me", "Notification at the due time (9:00 AM if no time)", reminder, { reminder = it })
-        }
         if (e.item != null) SwitchRow("Completed", null, done, { done = it })
+        MoreOptions(startOpen = base.notes.isNotBlank() || base.reminder || base.priority != 1 || base.dueTime != null) {
+            TextInput(notes, { notes = it }, "Details", singleLine = false, minLines = 3)
+            if (due != null) {
+                TimeInput("Time", time, { time = it })
+                SwitchRow("Remind me", "Notification at the due time (9:00 AM if no time)", reminder, { reminder = it })
+            }
+            FieldLabel("Priority")
+            ChipRow(listOf("Low", "Normal", "High"), listOf("Low", "Normal", "High")[priority], { if (it == "High") Ico.Flag else if (it == "Low") Ico.List else Ico.Tasks }) {
+                priority = listOf("Low", "Normal", "High").indexOf(it)
+            }
+            ProjectPicker(projectId, { projectId = it })
+        }
     }
 }
 
@@ -390,6 +406,7 @@ private fun NoteEditor(e: Edit.NoteEdit, close: () -> Unit) {
                 Icon(Ico.CheckSquare, null, Modifier.size(14.dp)); Text(if (checklist.isEmpty()) "  Add checklist" else "  Add item")
             }
         }
+        MoreOptions(startOpen = base.projectId != null || base.date != null || base.color != 0) {
         FieldLabel("Color")
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             NoteColors.forEachIndexed { i, c ->
@@ -414,6 +431,7 @@ private fun NoteEditor(e: Edit.NoteEdit, close: () -> Unit) {
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         DateInput("Show on calendar", date, { date = it })
+        }
     }
 }
 
@@ -476,15 +494,17 @@ private fun TxnEditor(e: Edit.Money, close: () -> Unit) {
             }
         })
         BigAmount(amount, { amount = it }, currency, { currency = it }, if (income) IncomeGreen else ExpenseRed)
+        TextInput(note, { note = it }, if (income) "From who / what for (optional)" else "What was it for? (optional)")
         FieldLabel("Category")
         val cats = if (income) Categories.income else Categories.expense
-        CategoryGrid(cats + listOfNotNull(category.takeIf { it.isNotBlank() && it !in cats }), category) { category = it }
+        ChipRow(cats + listOfNotNull(category.takeIf { it.isNotBlank() && it !in cats }), category, Ico::category) { category = it }
         FieldLabel(if (income) "Received via" else "Paid with")
-        IconChips(Categories.methods, method, Ico::method) { method = it }
-        TextInput(note, { note = it }, if (income) "From who / what for" else "What did you spend on?")
+        ChipRow(Categories.methods, method, Ico::method) { method = it }
         DateInput("Date", date, { date = it ?: Fmt.today() }, allowClear = false)
-        ProjectPicker(projectId, { projectId = it })
-        CustomerPicker(customerId, { customerId = it })
+        MoreOptions(startOpen = base.customerId != null || (e.item != null && base.projectId != null)) {
+            ProjectPicker(projectId, { projectId = it })
+            CustomerPicker(customerId, { customerId = it })
+        }
     }
 }
 
@@ -534,22 +554,23 @@ private fun ProjectEditor(e: Edit.ProjectEdit, close: () -> Unit) {
         onDelete = if (isOwner) e.item?.let { item -> { repo.projects.delete(item.id); close() } } else null,
     ) {
         TextInput(name, { name = it }, "Project name")
+        if (customerId == null || !isOwner) TextInput(clientName, { clientName = it }, "Client name (optional)")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (billing == Billing.HOURLY) AmountInput(rate, { rate = it }, "Rate per hour", Modifier.weight(1.4f))
+            else AmountInput(price, { price = it }, "Price", Modifier.weight(1.4f))
+            CurrencyInput(currency, { currency = it }, Modifier.weight(1f))
+        }
         StatusDropdown(status, { status = it })
+        DateInput("Deadline", deadline, { deadline = it })
+        MoreOptions(startOpen = e.item != null && (base.description.isNotBlank() || base.repo.isNotBlank() || base.info.isNotEmpty() || base.billing == Billing.HOURLY)) {
         if (isOwner) {
             CustomerPicker(customerId, { customerId = it }, noneLabel = "No saved customer")
         }
-        if (customerId == null || !isOwner) TextInput(clientName, { clientName = it }, "Client name (optional)")
         FieldLabel("Billing")
         Segmented(listOf("Fixed price" to Ico.Tag, "Hourly" to Ico.Timer), if (billing == Billing.HOURLY) 1 else 0, {
             billing = if (it == 1) Billing.HOURLY else Billing.FIXED
         })
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (billing == Billing.HOURLY) AmountInput(rate, { rate = it }, "Rate per hour", Modifier.weight(1.4f))
-            else AmountInput(price, { price = it }, "Total price", Modifier.weight(1.4f))
-            CurrencyInput(currency, { currency = it }, Modifier.weight(1f))
-        }
         DateInput("Start date", start, { start = it })
-        DateInput("Deadline", deadline, { deadline = it })
         TextInput(description, { description = it }, "Description / scope", singleLine = false, minLines = 3)
         TextInput(repoUrl, { repoUrl = it }, "GitHub repository (optional)", keyboardType = KeyboardType.Uri, supporting = "e.g. github.com/you/project")
         FieldLabel("Project info (links, accounts, specs…)")
@@ -562,6 +583,7 @@ private fun ProjectEditor(e: Edit.ProjectEdit, close: () -> Unit) {
         }
         OutlinedButton(onClick = { info.add(InfoItem()) }) {
             Icon(Ico.Plus, null, Modifier.size(14.dp)); Text("  Add info field")
+        }
         }
     }
 }
@@ -800,9 +822,11 @@ private fun EventEditor(e: Edit.Event, close: () -> Unit) {
         DateInput("Date", date, { date = it ?: Fmt.today() }, allowClear = false)
         TimeInput("Time", time, { time = it })
         SwitchRow("Remind me", "Notification at the event time (9:00 AM if no time)", reminder, { reminder = it })
-        ProjectPicker(projectId, { projectId = it })
-        CustomerPicker(customerId, { customerId = it })
-        TextInput(note, { note = it }, "Note", singleLine = false, minLines = 3)
+        MoreOptions(startOpen = base.note.isNotBlank() || base.customerId != null || (e.item != null && base.projectId != null)) {
+            TextInput(note, { note = it }, "Note", singleLine = false, minLines = 3)
+            ProjectPicker(projectId, { projectId = it })
+            CustomerPicker(customerId, { customerId = it })
+        }
     }
 }
 

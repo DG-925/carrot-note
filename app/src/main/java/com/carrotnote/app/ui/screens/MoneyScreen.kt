@@ -83,9 +83,8 @@ fun MoneyScreen() {
     val budgets by repo.budgets.flow.collectAsState()
     val currency by Graph.settings.currency.collectAsState()
     var monthStartDay by rememberSaveable { mutableLongStateOf(LocalDate.now().withDayOfMonth(1).toEpochDay()) }
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var tab by rememberSaveable { mutableIntStateOf(0) } // 0 = transactions, 1 = summary
     var filter by rememberSaveable { mutableStateOf("all") }
-    var query by rememberSaveable { mutableStateOf("") }
 
     val month = LocalDate.ofEpochDay(monthStartDay)
     val monthEnd = month.plusMonths(1).minusDays(1).toEpochDay()
@@ -134,17 +133,14 @@ fun MoneyScreen() {
                 }
             }
             item {
-                Segmented(listOf("Overview" to Ico.ChartBar, "History" to Ico.Receipt, "Budgets" to Ico.Budget), tab, { tab = it })
+                Segmented(listOf("Transactions" to Ico.Receipt, "Summary" to Ico.ChartBar), tab, { tab = it })
             }
             when (tab) {
-                0 -> overview(this, monthTx, expense, income, monthStartDay, monthEnd, currency)
                 1 -> {
-                    item {
-                        OutlinedTextField(
-                            value = query, onValueChange = { query = it }, placeholder = { Text("Search notes, categories, methods") },
-                            leadingIcon = { Icon(Ico.Search, null, Modifier.size(16.dp)) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+                    overview(this, expense, monthStartDay, monthEnd, currency)
+                    budgetsTab(this, budgets, expense, currency, onEdit = { editor.open(Edit.BudgetEdit(it)) }, onAdd = { editor.open(Edit.BudgetEdit()) })
+                }
+                else -> {
                     item {
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             listOf("all" to "All", TxnKind.EXPENSE to "Expenses", TxnKind.INCOME to "Income").forEach { (k, l) ->
@@ -152,10 +148,8 @@ fun MoneyScreen() {
                             }
                         }
                     }
-                    val list = monthTx.filter { filter == "all" || it.kind == filter }.filter {
-                        query.isBlank() || it.note.contains(query, true) || it.category.contains(query, true) || it.method.contains(query, true)
-                    }
-                    if (list.isEmpty()) item { EmptyState(Ico.Receipt, "No transactions", "Tap + to add what you spend and the money you receive.") }
+                    val list = monthTx.filter { filter == "all" || it.kind == filter }
+                    if (list.isEmpty()) item { EmptyState(Ico.Receipt, "Nothing this month", "Use + Expense or + Income above to add one.") }
                     val byDay = list.groupBy { it.date }.toSortedMap(compareByDescending { it })
                     byDay.forEach { (day, dayTx) ->
                         item(key = "day_$day") {
@@ -177,32 +171,27 @@ fun MoneyScreen() {
                         }
                     }
                 }
-                else -> budgetsTab(this, budgets, expense, currency, onEdit = { editor.open(Edit.BudgetEdit(it)) }, onAdd = { editor.open(Edit.BudgetEdit()) })
             }
         }
     }
 }
 
 @Composable
-private fun HeroButton(label: String, icon: ImageVector, modifier: Modifier, onClick: () -> Unit) {
+fun HeroButton(label: String, icon: ImageVector, modifier: Modifier, onClick: () -> Unit) {
     Row(
         modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.18f)).clickable(onClick = onClick).padding(vertical = 10.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Ico.Plus, null, Modifier.size(11.dp), tint = Color.White)
-        Spacer(Modifier.width(6.dp))
-        Icon(icon, null, Modifier.size(12.dp), tint = Color.White)
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(8.dp))
         Text(label, color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
     }
 }
 
 private fun overview(
     scope: androidx.compose.foundation.lazy.LazyListScope,
-    monthTx: List<Txn>,
     expense: List<Txn>,
-    income: List<Txn>,
     start: Long,
     end: Long,
     currency: String,
@@ -212,8 +201,6 @@ private fun overview(
     val daily = List(days) { i -> main.filter { it.date == start + i }.sumOf { it.amount } }
     val today = Fmt.today()
     val todayIndex = if (today in start..end) (today - start).toInt() else -1
-    val elapsed = if (todayIndex >= 0) todayIndex + 1 else days
-    val spentMain = main.sumOf { it.amount }
 
     item {
         AppCard {
@@ -221,13 +208,6 @@ private fun overview(
             Text("In $currency · tap a day", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
             DailyBars(daily, todayIndex, currency)
-        }
-    }
-    item {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MiniStat("Per day", Fmt.money(spentMain / elapsed.coerceAtLeast(1), currency), Modifier.weight(1f))
-            MiniStat("Biggest day", Fmt.money(daily.maxOrNull() ?: 0.0, currency), Modifier.weight(1f))
-            MiniStat("Entries", "${monthTx.size}", Modifier.weight(1f))
         }
     }
     item {
@@ -247,24 +227,6 @@ private fun overview(
             val methods = groupTop(main) { it.method }
             if (methods.isEmpty()) Text("Nothing yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             else RankedBars(methods.map { Triple(it.first, Ico.method(it.first), it.second) }, currency, MaterialTheme.colorScheme.primary)
-        }
-    }
-    item {
-        AppCard {
-            SectionHeader("Where income came from")
-            Spacer(Modifier.height(10.dp))
-            val mainIncome = income.filter { it.currency == currency }
-            val src = groupTop(mainIncome) { it.category }
-            if (src.isEmpty()) Text("No income this month", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            else RankedBars(src.map { Triple(it.first, Ico.category(it.first), it.second) }, currency, IncomeGreen)
-            val via = groupTop(mainIncome) { it.method }
-            if (via.isNotEmpty()) {
-                Spacer(Modifier.height(16.dp))
-                Text("Received via", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(10.dp))
-                RankedBars(via.map { Triple(it.first, Ico.method(it.first), it.second) }, currency, IncomeGreen)
-            }
-            OtherCurrencies(income, currency)
         }
     }
 }
@@ -305,8 +267,9 @@ private fun budgetsTab(
     onEdit: (Budget) -> Unit,
     onAdd: () -> Unit,
 ) = with(scope) {
+    item { SectionHeader("Monthly budgets") }
     if (budgets.isEmpty()) {
-        item { EmptyState(Ico.Budget, "No budgets yet", "Set a monthly limit for all spending or for one category, like Food or Transport.") }
+        item { Text("Set a monthly spending limit — for everything, or for one category like Food.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
     val sorted = budgets.sortedWith(compareBy({ it.category.isNotEmpty() }, { it.category }))
     items(sorted.size, key = { sorted[it].id }) { i ->

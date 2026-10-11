@@ -56,7 +56,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.carrotnote.app.Graph
 import com.carrotnote.app.data.TxnKind
-import com.carrotnote.app.time.TimeTracker
 import com.carrotnote.app.ui.components.AppLogo
 import com.carrotnote.app.ui.components.Avatar
 import com.carrotnote.app.ui.components.CountBadge
@@ -76,24 +75,21 @@ val TopLevelRoutes = setOf("home", "money", "projects", "notes")
 private data class DrawerEntry(val route: String, val label: String, val icon: ImageVector)
 
 private val drawerSections = listOf(
-    "MAIN" to listOf(
-        DrawerEntry("home", "Dashboard", Ico.Home),
+    "" to listOf(
+        DrawerEntry("home", "Home", Ico.Home),
         DrawerEntry("money", "Money", Ico.Wallet),
         DrawerEntry("projects", "Projects", Ico.Project),
         DrawerEntry("notes", "Notes", Ico.Note),
         DrawerEntry("calendar", "Calendar", Ico.Calendar),
     ),
-    "WORK" to listOf(
+    "MORE" to listOf(
         DrawerEntry("time", "Time tracker", Ico.Timer),
         DrawerEntry("customers", "Customers", Ico.Users),
         DrawerEntry("debts", "Debts", Ico.Debt),
+        DrawerEntry("goals", "Savings", Ico.Goal),
         DrawerEntry("invites", "Invitations", Ico.Inbox),
     ),
-    "PERSONAL" to listOf(
-        DrawerEntry("goals", "Savings goals", Ico.Goal),
-        DrawerEntry("search", "Search everything", Ico.Search),
-    ),
-    "SYSTEM" to listOf(
+    "ACCOUNT" to listOf(
         DrawerEntry("profile", "Profile", Ico.UserCircle),
         DrawerEntry("settings", "Settings", Ico.Settings),
     ),
@@ -138,8 +134,9 @@ fun AppDrawer(route: String?, go: (String) -> Unit, onLock: () -> Unit, onSignOu
                 }
                 Icon(Ico.Right, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            drawerSections.forEach { (title, entries) ->
-                Text(
+            drawerSections.forEach { (title, all) ->
+                val entries = all.filter { it.route != "invites" || invites > 0 }
+                if (title.isNotEmpty()) Text(
                     title, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 28.dp, top = 16.dp, bottom = 6.dp),
@@ -202,8 +199,7 @@ fun MainTopBar(title: String, subtitle: String? = null, actions: @Composable Row
         },
         actions = {
             actions()
-            IconButton(onClick = { nav("search") }) { Icon(Ico.Search, "Search", Modifier.size(18.dp)) }
-            Box {
+            if (invites > 0) Box {
                 IconButton(onClick = { nav("invites") }) { Icon(Ico.Bell, "Invitations", Modifier.size(18.dp)) }
                 CountBadge(invites, Modifier.align(Alignment.TopEnd).offset(x = (-4).dp, y = 6.dp))
             }
@@ -276,31 +272,22 @@ private data class QuickAction(val label: String, val icon: ImageVector, val tin
 /** "+" sheet: quick ways to add anything. */
 @Composable
 fun QuickAddSheet(onDismiss: () -> Unit, editor: EditorController, go: (String) -> Unit) {
-    val ctx = LocalContext.current
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val running = Graph.repo.time.flow.collectAsState().value.any { it.running }
     val today = Fmt.today()
     val actions = listOf(
         QuickAction("Expense", Ico.Expense, { ExpenseRed }) { editor.open(Edit.Money(kind = TxnKind.EXPENSE)) },
         QuickAction("Income", Ico.Income, { IncomeGreen }) { editor.open(Edit.Money(kind = TxnKind.INCOME)) },
         QuickAction("Note", Ico.Note, { MaterialTheme.colorScheme.tertiary }) { editor.open(Edit.NoteEdit()) },
-        QuickAction("Checklist", Ico.Checklist, { MaterialTheme.colorScheme.tertiary }) { editor.open(Edit.NoteEdit(checklist = true)) },
         QuickAction("Task", Ico.Tasks, { MaterialTheme.colorScheme.primary }) { editor.open(Edit.Task(date = today)) },
         QuickAction("Event", Ico.Calendar, { MaterialTheme.colorScheme.primary }) { editor.open(Edit.Event(date = today)) },
         QuickAction("Project", Ico.Project, { MaterialTheme.colorScheme.primary }) { editor.open(Edit.ProjectEdit()) },
-        if (running) QuickAction("Stop timer", Ico.Stop, { ExpenseRed }) { TimeTracker.stop(ctx) }
-        else QuickAction("Start timer", Ico.Timer, { IncomeGreen }) { go("time") },
-        QuickAction("Customer", Ico.UserPlus, { MaterialTheme.colorScheme.secondary }) { editor.open(Edit.CustomerEdit()) },
-        QuickAction("Debt", Ico.Debt, { MaterialTheme.colorScheme.secondary }) { editor.open(Edit.DebtEdit()) },
-        QuickAction("Saving", Ico.Goal, { MaterialTheme.colorScheme.secondary }) { editor.open(Edit.GoalEdit()) },
-        QuickAction("Budget", Ico.Budget, { MaterialTheme.colorScheme.secondary }) { editor.open(Edit.BudgetEdit()) },
     )
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = state, containerColor = MaterialTheme.colorScheme.surfaceContainer) {
         Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding().padding(bottom = 12.dp)) {
             Text("Add new", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("What do you want to add?", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Pick one — you can fill in the details later.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = 4) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = 3) {
                 actions.forEach { a ->
                     val tint = a.tint()
                     Column(
@@ -310,7 +297,7 @@ fun QuickAddSheet(onDismiss: () -> Unit, editor: EditorController, go: (String) 
                             .background(MaterialTheme.colorScheme.surfaceContainerLow)
                             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
                             .clickable { onDismiss(); a.run() }
-                            .padding(vertical = 14.dp),
+                            .padding(vertical = 20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Box(

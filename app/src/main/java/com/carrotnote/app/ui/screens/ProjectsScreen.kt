@@ -166,7 +166,7 @@ fun ProjectsScreen() {
         },
     ) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            item {
+            if (projects.size > 6) item {
                 OutlinedTextField(
                     value = query, onValueChange = { query = it }, placeholder = { Text("Search projects or clients") },
                     leadingIcon = { Icon(Ico.Search, null, Modifier.size(16.dp)) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
@@ -174,7 +174,7 @@ fun ProjectsScreen() {
             }
             item {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("open" to "In progress", "shared" to "Shared", "done" to "Done", "cancelled" to "Cancelled", "all" to "All").forEach { (k, l) ->
+                    listOf("open" to "In progress", "done" to "Done", "all" to "All").forEach { (k, l) ->
                         PillChip(selected = filter == k, onClick = { filter = k }, label = l)
                     }
                 }
@@ -222,8 +222,7 @@ private fun ProjectCard(p: Project, received: Double, openTasks: Int, trackedMs:
             Spacer(Modifier.height(8.dp))
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Meta(Ico.Tasks, "$openTasks open")
-            if (trackedMs > 0 || p.billing == Billing.HOURLY) Meta(Ico.Clock, "%.1f h".format(TimeTracker.hours(trackedMs)))
+            if (openTasks > 0) Meta(Ico.Tasks, "$openTasks to do")
             p.deadline?.let { Meta(Ico.Flag, Fmt.daysLeft(it), if (it < Fmt.today() && p.status == ProjectStatus.ACTIVE) ExpenseRed else null) }
             Spacer(Modifier.weight(1f))
             if (space != null && space.members.size > 1) AvatarStack(space.members.map { Triple(it.id, it.avatarRev, it.name.ifBlank { it.username }) }, 24.dp, 3)
@@ -285,8 +284,7 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit) {
             val (label, action) = when (tab) {
                 0 -> "Task" to { editor.open(Edit.Task(projectId = id)) }
                 1 -> "Note" to { editor.open(Edit.NoteEdit(projectId = id)) }
-                2 -> "Time" to { editor.open(Edit.TimeEdit(projectId = id)) }
-                3 -> "Payment" to { editor.open(Edit.Money(kind = TxnKind.INCOME, projectId = id, customerId = p.customerId)) }
+                2 -> "Payment" to { editor.open(Edit.Money(kind = TxnKind.INCOME, projectId = id, customerId = p.customerId)) }
                 else -> "Event" to { editor.open(Edit.Event(projectId = id)) }
             }
             ExtendedFloatingActionButton(
@@ -387,7 +385,7 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit) {
             }
             item {
                 Segmented(
-                    listOf("Tasks" to null, "Notes" to null, "Time" to null, "Money" to null, "Info" to null),
+                    listOf("Tasks" to null, "Notes" to null, "Money" to null, "Info" to null),
                     tab, { tab = it },
                 )
             }
@@ -409,10 +407,6 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit) {
                     items(pNotes.size, key = { pNotes[it].id }) { i -> NoteCard(pNotes[i], null, { editor.open(Edit.NoteEdit(pNotes[i])) }) }
                 }
                 2 -> {
-                    if (pTime.isEmpty()) item { EmptyHint("Start the timer while you work, or add time manually.") }
-                    items(pTime.size, key = { pTime[it].id }) { i -> TimeRow(pTime[i], null) { editor.open(Edit.TimeEdit(pTime[i])) } }
-                }
-                3 -> {
                     item {
                         AppCard {
                             Row {
@@ -430,6 +424,10 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit) {
                     }
                     if (pTx.isEmpty()) item { EmptyHint("Payments you receive for this project show here (only you see your money).") }
                     items(pTx.size, key = { pTx[it].id }) { i -> TxnRow(pTx[i], Fmt.dateShort(pTx[i].date)) { editor.open(Edit.Money(pTx[i])) } }
+                    if (pTime.isNotEmpty()) {
+                        item { SectionHeader("Time logged") { TextButton(onClick = { editor.open(Edit.TimeEdit(projectId = id)) }) { Text("+ Add") } } }
+                        items(pTime.size, key = { pTime[it].id }) { i -> TimeRow(pTime[i], null) { editor.open(Edit.TimeEdit(pTime[i])) } }
+                    }
                 }
                 else -> {
                     if (p.description.isNotBlank()) {
