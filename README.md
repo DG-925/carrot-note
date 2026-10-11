@@ -16,6 +16,14 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+## Design
+
+Carrot Note 1.3 uses the **Bento Pop** look: a warm light background (with a matching dark theme), bright tiles in carrot orange, mint, butter and lilac, and a dark floating tab bar.
+
+- **Fonts**: [Bricolage Grotesque](https://fonts.google.com/specimen/Bricolage+Grotesque) for headings and numbers, [Onest](https://fonts.google.com/specimen/Onest) for text. Both are bundled in `app/src/main/res/font` under the SIL Open Font License (see `licenses/`).
+- **Motion**: cards pop in one after another when a screen opens, buttons spring when pressed, numbers count up, charts and progress rings draw themselves, the tab highlight slides between tabs, and the **+** turns into **×** while the add sheet is open.
+- **Building blocks** live in `ui/theme/Theme.kt` (colors, type, shapes), `ui/components/Motion.kt` (press, pop-in and count-up animations) and `ui/components/Components.kt` / `Widgets.kt` (cards, tiles, chips, inputs, charts).
+
 ## Project layout
 
 | Path | What |

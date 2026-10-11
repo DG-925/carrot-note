@@ -62,6 +62,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import com.carrotnote.app.ui.components.LocalInCard
+import com.carrotnote.app.ui.components.bentoSurface
+import com.carrotnote.app.ui.components.popIn
+import com.carrotnote.app.ui.theme.Bento
 import com.carrotnote.app.Graph
 import com.carrotnote.app.data.Billing
 import com.carrotnote.app.data.Budget
@@ -97,7 +113,7 @@ import com.carrotnote.app.ui.components.TimeInput
 import com.carrotnote.app.ui.theme.ExpenseRed
 import com.carrotnote.app.ui.theme.Ico
 import com.carrotnote.app.ui.theme.IncomeGreen
-import com.carrotnote.app.ui.theme.MonoFont
+import com.carrotnote.app.ui.theme.NumFont
 import com.carrotnote.app.ui.theme.NoteColors
 import java.time.Instant
 import java.time.LocalDate
@@ -171,8 +187,9 @@ private fun amountText(v: Double) = if (v == 0.0) "" else Fmt.amount(v).replace(
 @Composable
 private fun MoreOptions(startOpen: Boolean = false, content: @Composable () -> Unit) {
     var open by remember { mutableStateOf(startOpen) }
+    val turn by animateFloatAsState(if (open) 180f else 0f, spring(dampingRatio = 0.6f, stiffness = 400f), label = "moreTurn")
     Row(
-        Modifier.clip(RoundedCornerShape(12.dp)).clickable { open = !open }.padding(vertical = 10.dp, horizontal = 4.dp),
+        Modifier.bentoSurface(CircleShape, Bento.colors.card, { open = !open }, pressed = 0.94f).padding(vertical = 10.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -180,31 +197,41 @@ private fun MoreOptions(startOpen: Boolean = false, content: @Composable () -> U
             color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.width(8.dp))
-        Icon(Ico.Down, null, Modifier.size(11.dp).rotate(if (open) 180f else 0f), tint = MaterialTheme.colorScheme.primary)
+        Icon(Ico.Down, null, Modifier.size(11.dp).rotate(turn), tint = MaterialTheme.colorScheme.primary)
     }
-    if (open) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { content() }
+    AnimatedVisibility(
+        visible = open,
+        enter = expandVertically(spring(dampingRatio = 0.85f, stiffness = 400f)) + fadeIn(),
+        exit = shrinkVertically(tween(200)) + fadeOut(tween(150)),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { content() }
+    }
+}
+
+/** Pill with an icon; dark when selected, colors fade on change. */
+@Composable
+private fun IconPill(label: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
+    val b = Bento.colors
+    val cs = MaterialTheme.colorScheme
+    val bg by animateColorAsState(if (selected) (if (b.dark) cs.primary else b.ink) else b.card, tween(200), label = "pillBg")
+    val fg by animateColorAsState(if (selected) Color.White else cs.onSurface, tween(200), label = "pillFg")
+    Row(
+        Modifier
+            .bentoSurface(CircleShape, bg, onClick, pressed = 0.9f)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, Modifier.size(13.dp), tint = if (selected) Color.White else cs.primary)
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, color = fg, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
+    }
 }
 
 /** Single scrollable row of icon pills. */
 @Composable
 private fun ChipRow(options: List<String>, selected: String, icon: (String) -> ImageVector, onSelect: (String) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { o ->
-            val sel = o == selected
-            Row(
-                Modifier
-                    .clip(CircleShape)
-                    .background(if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLow)
-                    .border(1.dp, if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)
-                    .clickable { onSelect(o) }
-                    .padding(horizontal = 14.dp, vertical = 9.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(icon(o), null, Modifier.size(14.dp), tint = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.width(8.dp))
-                Text(o, style = MaterialTheme.typography.labelLarge, color = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium)
-            }
-        }
+        options.forEach { o -> IconPill(o, icon(o), o == selected) { onSelect(o) } }
     }
 }
 
@@ -224,8 +251,7 @@ private fun CustomerPicker(customerId: String?, onChange: (String?) -> Unit, non
 @Composable
 private fun BigAmount(value: String, onChange: (String) -> Unit, currency: String, onCurrency: (String) -> Unit, color: androidx.compose.ui.graphics.Color) {
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp)).padding(16.dp),
+        Modifier.fillMaxWidth().popIn(0).clip(RoundedCornerShape(28.dp)).background(Bento.colors.card).padding(18.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("AMOUNT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -234,16 +260,16 @@ private fun BigAmount(value: String, onChange: (String) -> Unit, currency: Strin
             onValueChange = { s -> if (s.all { it.isDigit() || it == '.' || it == ',' } && s.length <= 14) onChange(s) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            textStyle = TextStyle(fontFamily = MonoFont, fontWeight = FontWeight.Bold, fontSize = 40.sp, color = color, textAlign = TextAlign.Center),
+            textStyle = TextStyle(fontFamily = NumFont, fontWeight = FontWeight.ExtraBold, fontSize = 46.sp, color = color, textAlign = TextAlign.Center, letterSpacing = (-1).sp),
             cursorBrush = SolidColor(color),
             decorationBox = { inner ->
                 Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
-                    if (value.isEmpty()) Text("0", fontFamily = MonoFont, fontWeight = FontWeight.Bold, fontSize = 40.sp, color = color.copy(alpha = 0.35f))
+                    if (value.isEmpty()) Text("0", fontFamily = NumFont, fontWeight = FontWeight.ExtraBold, fontSize = 46.sp, color = color.copy(alpha = 0.3f))
                     inner()
                 }
             },
         )
-        Box(Modifier.width(140.dp)) { CurrencyInput(currency, onCurrency) }
+        CompositionLocalProvider(LocalInCard provides true) { Box(Modifier.width(150.dp)) { CurrencyInput(currency, onCurrency) } }
     }
 }
 
@@ -251,22 +277,7 @@ private fun BigAmount(value: String, onChange: (String) -> Unit, currency: Strin
 @Composable
 fun IconChips(options: List<String>, selected: String, icon: (String) -> ImageVector, onSelect: (String) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { o ->
-            val sel = o == selected
-            Row(
-                Modifier
-                    .clip(CircleShape)
-                    .background(if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLow)
-                    .border(1.dp, if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)
-                    .clickable { onSelect(o) }
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(icon(o), null, Modifier.size(14.dp), tint = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.width(8.dp))
-                Text(o, style = MaterialTheme.typography.labelLarge, color = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium)
-            }
-        }
+        options.forEach { o -> IconPill(o, icon(o), o == selected) { onSelect(o) } }
     }
 }
 
@@ -386,7 +397,7 @@ private fun NoteEditor(e: Edit.NoteEdit, close: () -> Unit) {
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(item.done, { checklist[i] = item.copy(done = it) })
+                    BentoCheck(item.done, { checklist[i] = item.copy(done = !item.done) })
                     BasicTextField(
                         value = item.text, onValueChange = { checklist[i] = item.copy(text = it) }, singleLine = true,
                         textStyle = MaterialTheme.typography.bodyLarge.copy(
@@ -402,23 +413,28 @@ private fun NoteEditor(e: Edit.NoteEdit, close: () -> Unit) {
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { val item = CheckItem(); checklist.add(item); focusId = item.id }) {
-                Icon(Ico.CheckSquare, null, Modifier.size(14.dp)); Text(if (checklist.isEmpty()) "  Add checklist" else "  Add item")
-            }
+            PillButton(
+                if (checklist.isEmpty()) "Add checklist" else "Add item", { val item = CheckItem(); checklist.add(item); focusId = item.id },
+                icon = Ico.CheckSquare, container = Bento.colors.lilac.container, content = Bento.colors.lilac.content,
+            )
         }
         MoreOptions(startOpen = base.projectId != null || base.date != null || base.color != 0) {
         FieldLabel("Color")
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             NoteColors.forEachIndexed { i, c ->
-                val bg = if (i == 0) MaterialTheme.colorScheme.surfaceContainerHigh else c
+                val bg = if (i == 0) Bento.colors.card else c
+                val chosen = i == color
+                val scale by animateFloatAsState(if (chosen) 1.15f else 1f, spring(dampingRatio = 0.4f, stiffness = 500f), label = "swatch")
                 Box(
                     Modifier
-                        .size(32.dp)
+                        .size(34.dp)
+                        .graphicsLayer { scaleX = scale; scaleY = scale }
                         .clip(CircleShape)
                         .background(bg)
-                        .border(if (i == color) 3.dp else 1.dp, if (i == color) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                        .border(if (chosen) 3.dp else 1.dp, if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, CircleShape)
                         .clickable { color = i },
-                )
+                    contentAlignment = Alignment.Center,
+                ) { if (chosen) Icon(Ico.Check, null, Modifier.size(11.dp), tint = MaterialTheme.colorScheme.primary) }
             }
         }
         ProjectPicker(projectId, { projectId = it })
@@ -700,7 +716,7 @@ private fun DebtPaymentDialog(debt: Debt, close: () -> Unit) {
         title = { Text(if (incoming) "Payment received" else "Payment made") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Remaining: ${Fmt.money(debt.remaining, debt.currency)}", fontFamily = MonoFont)
+                Text("Remaining: ${Fmt.money(debt.remaining, debt.currency)}", fontFamily = NumFont)
                 AmountInput(amount, { amount = it })
                 SwitchRow(if (incoming) "Add to income" else "Add to expenses", "Also record it in Money", alsoRecord, { alsoRecord = it })
             }
@@ -774,7 +790,7 @@ private fun GoalDepositDialog(goal: Goal, close: () -> Unit) {
         title = { Text(goal.name) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Saved ${Fmt.money(goal.saved, goal.currency)} of ${Fmt.money(goal.target, goal.currency)}", fontFamily = MonoFont, style = MaterialTheme.typography.bodySmall)
+                Text("Saved ${Fmt.money(goal.saved, goal.currency)} of ${Fmt.money(goal.target, goal.currency)}", fontFamily = NumFont, style = MaterialTheme.typography.bodySmall)
                 Segmented(listOf("Add" to Ico.Plus, "Withdraw" to Ico.Expense), withdraw, { withdraw = it })
                 AmountInput(amount, { amount = it })
                 TextInput(note, { note = it }, "Note (optional)")
@@ -871,7 +887,7 @@ private fun TimeEditor(e: Edit.TimeEdit, close: () -> Unit) {
         if (startMs != null && endMs != null) {
             Text(
                 "Duration: " + com.carrotnote.app.time.TimeTracker.format(endMs - startMs),
-                fontFamily = MonoFont, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary,
+                fontFamily = NumFont, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary,
             )
         }
         TextInput(note, { note = it }, "What did you work on?")

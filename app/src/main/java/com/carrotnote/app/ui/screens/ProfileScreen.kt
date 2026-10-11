@@ -57,6 +57,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.carrotnote.app.BuildConfig
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import com.carrotnote.app.ui.components.popIn
+import com.carrotnote.app.ui.theme.Bento
 import com.carrotnote.app.Graph
 import com.carrotnote.app.data.ProfileUpdate
 import com.carrotnote.app.data.ProjectStatus
@@ -77,7 +81,7 @@ import com.carrotnote.app.ui.theme.ExpenseRed
 import com.carrotnote.app.ui.theme.HeroBrush
 import com.carrotnote.app.ui.theme.Ico
 import com.carrotnote.app.ui.theme.IncomeGreen
-import com.carrotnote.app.ui.theme.MonoFont
+import com.carrotnote.app.ui.theme.NumFont
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -142,13 +146,21 @@ fun ProfileScreen(onBack: () -> Unit) {
     ) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
+                val dotA = Bento.colors.butter.container
+                val dotB = Bento.colors.mint.container
                 Column(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceContainerLow)
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp)),
+                    Modifier.fillMaxWidth().popIn(1).clip(RoundedCornerShape(28.dp)).background(MaterialTheme.colorScheme.surfaceContainerLow),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Box(Modifier.fillMaxWidth().height(146.dp)) {
-                    Box(Modifier.fillMaxWidth().height(86.dp).background(HeroBrush))
+                    Box(Modifier.fillMaxWidth().height(170.dp)) {
+                    Box(
+                        Modifier.fillMaxWidth().height(110.dp).background(Bento.colors.orange.container).drawBehind {
+                            drawCircle(Color.White.copy(alpha = 0.12f), size.height * 0.9f, Offset(size.width * 0.92f, 0f))
+                            drawCircle(Color.White.copy(alpha = 0.08f), size.height * 0.55f, Offset(size.width * 0.08f, size.height))
+                            drawCircle(dotA.copy(alpha = 0.9f), 10.dp.toPx(), Offset(size.width * 0.22f, size.height * 0.3f))
+                            drawCircle(dotB.copy(alpha = 0.9f), 6.dp.toPx(), Offset(size.width * 0.75f, size.height * 0.7f))
+                        },
+                    )
                     Box(Modifier.align(Alignment.BottomCenter).size(116.dp).clip(CircleShape).clickable { photoSheet = true }, contentAlignment = Alignment.Center) {
                         Avatar(u.id, u.avatarRev, u.name.ifBlank { u.username }, 108.dp, Modifier.border(4.dp, MaterialTheme.colorScheme.surfaceContainerLow, CircleShape))
                         if (busy) CircularProgressIndicator(Modifier.size(40.dp), color = Color.White)
@@ -159,8 +171,8 @@ fun ProfileScreen(onBack: () -> Unit) {
                         ) { Icon(Ico.Camera, "Change photo", Modifier.size(13.dp), tint = Color.White) }
                     }
                     }
-                    Text(u.name.ifBlank { "@${u.username}" }, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("@${u.username}", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary, fontFamily = MonoFont)
+                    Text(u.name.ifBlank { "@${u.username}" }, style = MaterialTheme.typography.headlineMedium)
+                    Text("@${u.username}", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary, fontFamily = NumFont)
                     if (u.bio.isNotBlank()) {
                         Spacer(Modifier.height(8.dp))
                         Text(u.bio, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
@@ -202,7 +214,7 @@ fun ProfileScreen(onBack: () -> Unit) {
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(gh?.name?.ifBlank { null } ?: u.github, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                                Text("github.com/${u.github}", style = MaterialTheme.typography.bodySmall, fontFamily = MonoFont, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("github.com/${u.github}", style = MaterialTheme.typography.bodySmall, fontFamily = NumFont, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         gh?.let { p ->
@@ -308,7 +320,7 @@ private fun SheetRow(icon: ImageVector, label: String, tint: Color? = null, onCl
 private fun MiniTile(label: String, value: String, modifier: Modifier) {
     Column(modifier.clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(10.dp)) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.titleMedium, fontFamily = MonoFont, fontWeight = FontWeight.Bold)
+        Text(value, style = MaterialTheme.typography.titleMedium, fontFamily = NumFont, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -317,7 +329,7 @@ private fun StatTile(icon: ImageVector, label: String, value: String, tint: Colo
     AppCard(modifier) {
         Icon(icon, null, Modifier.size(15.dp), tint = tint)
         Spacer(Modifier.height(8.dp))
-        Text(value, style = MaterialTheme.typography.titleMedium, fontFamily = MonoFont, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(value, style = MaterialTheme.typography.titleMedium, fontFamily = NumFont, fontWeight = FontWeight.Bold, maxLines = 1)
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
     }
 }

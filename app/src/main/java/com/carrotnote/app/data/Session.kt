@@ -67,7 +67,7 @@ class Settings(context: Context) {
     val currency: StateFlow<String> = _currency.asStateFlow()
 
     /** 0 = system, 1 = light, 2 = dark (default, matches CarrotPOS) */
-    private val _theme = MutableStateFlow(prefs.getInt("theme", 2))
+    private val _theme = MutableStateFlow(prefs.getInt("theme", 1))
     val theme: StateFlow<Int> = _theme.asStateFlow()
 
     private val _autoUpdate = MutableStateFlow(prefs.getBoolean("auto_update", true))

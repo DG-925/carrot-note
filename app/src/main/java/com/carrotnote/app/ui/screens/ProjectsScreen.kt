@@ -62,6 +62,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.TextField
+import com.carrotnote.app.ui.PillButton
+import com.carrotnote.app.ui.components.BentoFab
+import com.carrotnote.app.ui.components.Eyebrow
+import com.carrotnote.app.ui.components.FieldShape
+import com.carrotnote.app.ui.components.IconBadge
+import com.carrotnote.app.ui.components.ProgressRing
+import com.carrotnote.app.ui.components.Tile
+import com.carrotnote.app.ui.components.bentoSurface
+import com.carrotnote.app.ui.components.fieldColors
+import com.carrotnote.app.ui.components.popIn
+import com.carrotnote.app.ui.theme.Bento
 import com.carrotnote.app.Graph
 import com.carrotnote.app.data.Billing
 import com.carrotnote.app.data.Note
@@ -98,7 +113,7 @@ import com.carrotnote.app.ui.theme.ExpenseRed
 import com.carrotnote.app.ui.theme.Ico
 import com.carrotnote.app.ui.theme.IncomeGreen
 import com.carrotnote.app.ui.theme.LocalOnHero
-import com.carrotnote.app.ui.theme.MonoFont
+import com.carrotnote.app.ui.theme.NumFont
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -121,7 +136,7 @@ fun StatusChip(status: String) {
         else -> MaterialTheme.colorScheme.tertiary
     }
     Row(
-        Modifier.clip(CircleShape).background(color.copy(alpha = if (hero) 0.22f else 0.14f)).padding(horizontal = 10.dp, vertical = 4.dp),
+        Modifier.clip(CircleShape).background(color.copy(alpha = if (hero) 0.22f else 0.13f)).padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(statusIcon(status), null, Modifier.size(10.dp), tint = color)
@@ -157,30 +172,27 @@ fun ProjectsScreen() {
         .sortedWith(compareBy<Project>({ it.deadline ?: Long.MAX_VALUE }).thenByDescending { it.createdAt })
 
     Scaffold(
-        topBar = { MainTopBar("Projects", "${projects.count { it.status == ProjectStatus.ACTIVE }} active") },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary,
-                onClick = { editor.open(Edit.ProjectEdit()) }, icon = { Icon(Ico.Plus, null, Modifier.size(14.dp)) }, text = { Text("Project") },
-            )
-        },
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = { MainTopBar("Projects", "${projects.count { it.status == ProjectStatus.ACTIVE }} active · ${projects.size} total") },
+        floatingActionButton = { BentoFab("Project") { editor.open(Edit.ProjectEdit()) } },
     ) { pad ->
-        LazyColumn(Modifier.padding(pad), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (projects.size > 6) item {
-                OutlinedTextField(
+        LazyColumn(Modifier.padding(pad), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (projects.size > 6) item(key = "search") {
+                TextField(
                     value = query, onValueChange = { query = it }, placeholder = { Text("Search projects or clients") },
-                    leadingIcon = { Icon(Ico.Search, null, Modifier.size(16.dp)) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Ico.Search, null, Modifier.size(16.dp)) }, singleLine = true, modifier = Modifier.fillMaxWidth().popIn(1),
+                    shape = FieldShape, colors = fieldColors(),
                 )
             }
-            item {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item(key = "filters") {
+                Row(Modifier.horizontalScroll(rememberScrollState()).popIn(2), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("open" to "In progress", "done" to "Done", "all" to "All").forEach { (k, l) ->
                         PillChip(selected = filter == k, onClick = { filter = k }, label = l)
                     }
                 }
             }
             if (shown.isEmpty()) {
-                item { EmptyState(Ico.Project, "No projects here", "Add your freelance projects to track price, payments, time, tasks and notes — and invite your team.") }
+                item(key = "empty") { EmptyState(Ico.Project, "No projects here", "Add your freelance projects to track price, payments, time, tasks and notes, and invite your team.", Modifier.animateItem()) }
             }
             items(shown.size, key = { shown[it].id }) { i ->
                 val p = shown[i]
@@ -188,6 +200,7 @@ fun ProjectsScreen() {
                 ProjectCard(
                     p, projectReceived(p, txns), tasks.count { it.projectId == p.id && !it.done },
                     time.filter { it.projectId == p.id }.sumOf { it.durationMs() }, space,
+                    Modifier.animateItem().popIn(3 + i),
                 ) { nav("project/${p.id}") }
             }
         }
@@ -195,46 +208,67 @@ fun ProjectsScreen() {
 }
 
 @Composable
-private fun ProjectCard(p: Project, received: Double, openTasks: Int, trackedMs: Long, space: SpaceInfo?, onClick: () -> Unit) {
+private fun ProjectCard(p: Project, received: Double, openTasks: Int, trackedMs: Long, space: SpaceInfo?, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val value = projectValue(p, trackedMs)
-    AppCard(onClick = onClick) {
+    val progress = if (value > 0) (received / value).toFloat().coerceIn(0f, 1f) else 0f
+    val ringColor = when (p.status) {
+        ProjectStatus.DONE -> IncomeGreen
+        ProjectStatus.CANCELLED -> MaterialTheme.colorScheme.error
+        ProjectStatus.ACTIVE -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.tertiary
+    }
+    AppCard(modifier, onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            ProgressRing(progress, diameter = 54.dp, stroke = 5.dp, color = ringColor) {
+                Text(
+                    if (value > 0) "${(progress * 100).toInt()}%" else "—",
+                    style = MaterialTheme.typography.labelMedium, fontFamily = NumFont, fontWeight = FontWeight.ExtraBold,
+                )
+            }
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(p.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    Text(p.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     if (space != null) {
                         Spacer(Modifier.width(8.dp))
                         Icon(Ico.Team, "Shared", Modifier.size(13.dp), tint = MaterialTheme.colorScheme.tertiary)
                     }
                 }
                 Text(p.clientName.ifBlank { "No client" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                Spacer(Modifier.height(6.dp))
+                StatusChip(p.status)
             }
-            StatusChip(p.status)
         }
-        Spacer(Modifier.height(12.dp))
         if (value > 0) {
-            ProgressBar((received / value).toFloat().coerceIn(0f, 1f), color = IncomeGreen)
-            Spacer(Modifier.height(6.dp))
-            Row {
-                Text("Paid ${Fmt.money(received, p.currency)}", style = MaterialTheme.typography.labelMedium, fontFamily = MonoFont, modifier = Modifier.weight(1f))
-                Text("of ${Fmt.money(value, p.currency)}", style = MaterialTheme.typography.labelMedium, fontFamily = MonoFont, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            Spacer(Modifier.height(14.dp))
+            ProgressBar(progress, color = ringColor)
             Spacer(Modifier.height(8.dp))
+            Row {
+                Text("Paid ${Fmt.money(received, p.currency)}", style = MaterialTheme.typography.labelMedium, fontFamily = NumFont, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("of ${Fmt.money(value, p.currency)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            if (openTasks > 0) Meta(Ico.Tasks, "$openTasks to do")
-            p.deadline?.let { Meta(Ico.Flag, Fmt.daysLeft(it), if (it < Fmt.today() && p.status == ProjectStatus.ACTIVE) ExpenseRed else null) }
-            Spacer(Modifier.weight(1f))
-            if (space != null && space.members.size > 1) AvatarStack(space.members.map { Triple(it.id, it.avatarRev, it.name.ifBlank { it.username }) }, 24.dp, 3)
+        if (openTasks > 0 || p.deadline != null || (space != null && space.members.size > 1)) {
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (openTasks > 0) Meta(Ico.Tasks, "$openTasks to do")
+                p.deadline?.let { Meta(Ico.Flag, Fmt.daysLeft(it), if (it < Fmt.today() && p.status == ProjectStatus.ACTIVE) ExpenseRed else null) }
+                Spacer(Modifier.weight(1f))
+                if (space != null && space.members.size > 1) AvatarStack(space.members.map { Triple(it.id, it.avatarRev, it.name.ifBlank { it.username }) }, 24.dp, 3)
+            }
         }
     }
 }
 
 @Composable
 private fun Meta(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, color: Color? = null) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, Modifier.size(11.dp), tint = color ?: MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(" $text", style = MaterialTheme.typography.labelSmall, color = color ?: MaterialTheme.colorScheme.onSurfaceVariant)
+    val c = color ?: MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        Modifier.clip(CircleShape).background(c.copy(alpha = 0.1f)).padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, Modifier.size(10.dp), tint = c)
+        Text(" $text", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = c)
     }
 }
 
@@ -280,6 +314,7 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit) {
                 IconButton(onClick = { editor.open(Edit.ProjectEdit(p)) }) { Icon(Ico.Edit, "Edit", Modifier.size(18.dp)) }
             }
         },
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             val (label, action) = when (tab) {
                 0 -> "Task" to { editor.open(Edit.Task(projectId = id)) }
@@ -287,20 +322,17 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit) {
                 2 -> "Payment" to { editor.open(Edit.Money(kind = TxnKind.INCOME, projectId = id, customerId = p.customerId)) }
                 else -> "Event" to { editor.open(Edit.Event(projectId = id)) }
             }
-            ExtendedFloatingActionButton(
-                containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary,
-                onClick = action, icon = { Icon(Ico.Plus, null, Modifier.size(14.dp)) }, text = { Text(label) },
-            )
+            BentoFab(label, onClick = action)
         },
     ) { pad ->
-        LazyColumn(Modifier.padding(pad), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        LazyColumn(Modifier.padding(pad), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
-                HeroCard {
+                HeroCard(Modifier.popIn(1)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("CLIENT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.75f))
+                            Eyebrow("Client")
                             Text(
-                                (customer?.name ?: p.clientName).ifBlank { "—" }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                                (customer?.name ?: p.clientName).ifBlank { "—" }, style = MaterialTheme.typography.titleLarge,
                                 modifier = if (customer != null) Modifier.clickable { nav("customer/${customer.id}") } else Modifier,
                             )
                         }
@@ -319,10 +351,10 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit) {
                         }
                     }
                     if (value > 0) {
-                        Spacer(Modifier.height(10.dp))
-                        ProgressBar((received / value).toFloat().coerceIn(0f, 1f))
+                        Spacer(Modifier.height(12.dp))
+                        ProgressBar((received / value).toFloat().coerceIn(0f, 1f), height = 10.dp)
                     }
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(12.dp))
                     Text(
                         listOfNotNull(
                             p.startDate?.let { "Started " + Fmt.dateShort(it) },
@@ -334,37 +366,37 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit) {
             }
             item {
                 // Team + timer row
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    AppCard(Modifier.weight(1f), onClick = { team = true }) {
+                Row(Modifier.height(IntrinsicSize.Min).popIn(2), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Tile(Bento.colors.lilac, Modifier.weight(1f).fillMaxHeight(), onClick = { team = true }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (space != null && space.members.isNotEmpty()) {
                                 AvatarStack(space.members.map { Triple(it.id, it.avatarRev, it.name.ifBlank { it.username }) }, 26.dp, 3)
                             } else {
-                                Icon(Ico.UserPlus, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                                Icon(Ico.UserPlus, null, Modifier.size(16.dp))
                             }
                             Spacer(Modifier.width(10.dp))
                             Column {
-                                Text("Team", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                                Text("Team", style = MaterialTheme.typography.titleMedium)
                                 Text(
                                     when {
                                         space == null -> "Invite people"
                                         else -> "${space.members.size} member" + (if (space.members.size == 1) "" else "s") +
                                             (if (space.pending.isNotEmpty()) " · ${space.pending.size} invited" else "")
                                     },
-                                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+                                    style = MaterialTheme.typography.labelSmall, color = LocalContentColor.current.copy(alpha = 0.7f), maxLines = 1,
                                 )
                             }
                         }
                     }
-                    AppCard(Modifier.weight(1f), onClick = { if (running != null) TimeTracker.stop(ctx) else TimeTracker.start(ctx, id) }) {
+                    Tile(Bento.colors.mint, Modifier.weight(1f).fillMaxHeight(), onClick = { if (running != null) TimeTracker.stop(ctx) else TimeTracker.start(ctx, id) }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
-                                Modifier.size(28.dp).clip(CircleShape).background(if (running != null) ExpenseRed else IncomeGreen),
+                                Modifier.size(32.dp).clip(CircleShape).background(if (running != null) ExpenseRed else Bento.colors.mint.content),
                                 contentAlignment = Alignment.Center,
-                            ) { Icon(if (running != null) Ico.Stop else Ico.Play, null, Modifier.size(11.dp), tint = Color.White) }
+                            ) { Icon(if (running != null) Ico.Stop else Ico.Play, null, Modifier.size(11.dp), tint = if (running != null) Color.White else Bento.colors.mint.container) }
                             Spacer(Modifier.width(10.dp))
                             Column {
-                                Text(if (running != null) "Stop timer" else "Start timer", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                                Text(if (running != null) "Stop timer" else "Start timer", style = MaterialTheme.typography.titleMedium)
                                 LiveDuration(running?.start, pTime.filter { !it.running }.sumOf { it.durationMs() })
                             }
                         }
@@ -377,7 +409,7 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Ico.Github, null, Modifier.size(20.dp))
                             Spacer(Modifier.width(12.dp))
-                            Text(p.repo.removePrefix("https://").removePrefix("http://"), style = MaterialTheme.typography.bodyMedium, fontFamily = MonoFont, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(p.repo.removePrefix("https://").removePrefix("http://"), style = MaterialTheme.typography.bodyMedium, fontFamily = NumFont, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Icon(Ico.Open, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -386,7 +418,7 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit) {
             item {
                 Segmented(
                     listOf("Tasks" to null, "Notes" to null, "Money" to null, "Info" to null),
-                    tab, { tab = it },
+                    tab, { tab = it }, Modifier.popIn(3),
                 )
             }
             when (tab) {
@@ -395,16 +427,20 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit) {
                     else item {
                         val done = pTasks.count { it.done }
                         Column {
-                            Text("$done of ${pTasks.size} done", style = MaterialTheme.typography.labelMedium, fontFamily = MonoFont, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("$done of ${pTasks.size} done", style = MaterialTheme.typography.labelMedium, fontFamily = NumFont, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.height(6.dp))
                             ProgressBar(done.toFloat() / pTasks.size)
                         }
                     }
-                    items(pTasks.size, key = { pTasks[it].id }) { i -> TaskRow(pTasks[i], null) { editor.open(Edit.Task(pTasks[i])) } }
+                    items(pTasks.size, key = { pTasks[it].id }) { i ->
+                        Box(Modifier.animateItem().bentoSurface(RoundedCornerShape(20.dp), Bento.colors.card, null).padding(horizontal = 6.dp)) {
+                            TaskRow(pTasks[i], null) { editor.open(Edit.Task(pTasks[i])) }
+                        }
+                    }
                 }
                 1 -> {
                     if (pNotes.isEmpty()) item { EmptyHint(if (space != null) "Notes here are shared with your team." else "Save requirements, ideas and client feedback here.") }
-                    items(pNotes.size, key = { pNotes[it].id }) { i -> NoteCard(pNotes[i], null, { editor.open(Edit.NoteEdit(pNotes[i])) }) }
+                    items(pNotes.size, key = { pNotes[it].id }) { i -> NoteCard(pNotes[i], null, { editor.open(Edit.NoteEdit(pNotes[i])) }, Modifier.animateItem()) }
                 }
                 2 -> {
                     item {
@@ -418,21 +454,23 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit) {
                     }
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { editor.open(Edit.Money(kind = TxnKind.EXPENSE, projectId = id)) }) { Icon(Ico.Expense, null, Modifier.size(12.dp)); Text("  Add cost") }
-                            OutlinedButton(onClick = { Invoice.share(ctx, p) }) { Icon(Ico.Invoice, null, Modifier.size(12.dp)); Text("  Invoice PDF") }
+                            PillButton("Add cost", { editor.open(Edit.Money(kind = TxnKind.EXPENSE, projectId = id)) }, icon = Ico.Expense, container = Bento.colors.rose.container, content = Bento.colors.rose.content)
+                            PillButton("Invoice PDF", { Invoice.share(ctx, p) }, icon = Ico.Invoice, container = Bento.colors.sky.container, content = Bento.colors.sky.content)
                         }
                     }
                     if (pTx.isEmpty()) item { EmptyHint("Payments you receive for this project show here (only you see your money).") }
-                    items(pTx.size, key = { pTx[it].id }) { i -> TxnRow(pTx[i], Fmt.dateShort(pTx[i].date)) { editor.open(Edit.Money(pTx[i])) } }
+                    if (pTx.isNotEmpty()) item {
+                        AppCard { pTx.forEach { t -> TxnRow(t, Fmt.dateShort(t.date)) { editor.open(Edit.Money(t)) } } }
+                    }
                     if (pTime.isNotEmpty()) {
                         item { SectionHeader("Time logged") { TextButton(onClick = { editor.open(Edit.TimeEdit(projectId = id)) }) { Text("+ Add") } } }
-                        items(pTime.size, key = { pTime[it].id }) { i -> TimeRow(pTime[i], null) { editor.open(Edit.TimeEdit(pTime[i])) } }
+                        item { AppCard { pTime.forEach { e -> TimeRow(e, null) { editor.open(Edit.TimeEdit(e)) } } } }
                     }
                 }
                 else -> {
                     if (p.description.isNotBlank()) {
                         item { SectionHeader("Description") }
-                        item { Text(p.description, style = MaterialTheme.typography.bodyMedium) }
+                        item { AppCard { Text(p.description, style = MaterialTheme.typography.bodyMedium) } }
                     }
                     item { SectionHeader("Info") { TextButton(onClick = { editor.open(Edit.ProjectEdit(p)) }) { Text("Edit") } } }
                     if (p.info.isEmpty()) item { EmptyHint("Add links, logins, specs, or anything you need for this project.") }
@@ -450,7 +488,9 @@ fun ProjectDetailScreen(id: String, onBack: () -> Unit) {
                     }
                     item { SectionHeader("Events & meetings") }
                     if (pEvents.isEmpty()) item { EmptyHint("No events. Add meetings, calls or delivery dates.") }
-                    items(pEvents.size, key = { pEvents[it].id }) { i -> EventRow(pEvents[i], showDate = true) { editor.open(Edit.Event(pEvents[i])) } }
+                    if (pEvents.isNotEmpty()) item {
+                        AppCard { pEvents.forEach { e -> EventRow(e, showDate = true) { editor.open(Edit.Event(e)) } } }
+                    }
                 }
             }
         }
@@ -463,7 +503,7 @@ private fun LiveDuration(runningSince: Long?, finishedMs: Long) {
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     if (runningSince != null) LaunchedEffect(runningSince) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
     val total = finishedMs + (runningSince?.let { (now - it).coerceAtLeast(0) } ?: 0L)
-    Text(TimeTracker.format(total), style = MaterialTheme.typography.labelSmall, fontFamily = MonoFont, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(TimeTracker.format(total), style = MaterialTheme.typography.labelMedium, fontFamily = NumFont, fontWeight = FontWeight.Bold, color = LocalContentColor.current.copy(alpha = 0.75f))
 }
 
 /** Members, pending invites, invite by username, and leave/remove. */
@@ -507,9 +547,12 @@ private fun TeamSheet(project: Project, space: SpaceInfo?, isOwner: Boolean, onD
         }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = state, containerColor = MaterialTheme.colorScheme.surfaceContainer) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss, sheetState = state, containerColor = MaterialTheme.colorScheme.background,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+    ) {
         Column(Modifier.padding(horizontal = 16.dp).navigationBarsPadding().padding(bottom = 16.dp).verticalScroll(rememberScrollState())) {
-            Text("Team", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Team", style = MaterialTheme.typography.headlineSmall)
             Text(
                 "Members can see and add tasks, notes and events in “${project.name}”. Your money stays private.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -532,9 +575,10 @@ private fun TeamSheet(project: Project, space: SpaceInfo?, isOwner: Boolean, onD
 
             if (isOwner) {
                 Spacer(Modifier.height(16.dp))
-                Text("Invite by username", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text("Invite by username", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
+                TextField(
+                    shape = FieldShape, colors = fieldColors(),
                     value = query, onValueChange = { query = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Search @username") }, prefix = { Text("@") },
                     leadingIcon = { Icon(Ico.Search, null, Modifier.size(15.dp)) },
@@ -604,10 +648,7 @@ fun TimeRow(entry: com.carrotnote.app.data.TimeEntry, projectName: String?, onCl
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background((if (entry.running) ExpenseRed else MaterialTheme.colorScheme.primary).copy(alpha = 0.14f)),
-            contentAlignment = Alignment.Center,
-        ) { Icon(if (entry.running) Ico.Timer else Ico.Clock, null, Modifier.size(15.dp), tint = if (entry.running) ExpenseRed else MaterialTheme.colorScheme.primary) }
+        IconBadge(if (entry.running) Ico.Timer else Ico.Clock, if (entry.running) ExpenseRed else MaterialTheme.colorScheme.secondary)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(entry.note.ifBlank { projectName ?: "Work" }, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -616,7 +657,7 @@ fun TimeRow(entry: com.carrotnote.app.data.TimeEntry, projectName: String?, onCl
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
             )
         }
-        Text(TimeTracker.format(entry.durationMs(now)), fontFamily = MonoFont, fontWeight = FontWeight.Bold, color = if (entry.running) ExpenseRed else MaterialTheme.colorScheme.onSurface)
+        Text(TimeTracker.format(entry.durationMs(now)), style = MaterialTheme.typography.bodyLarge, fontFamily = NumFont, fontWeight = FontWeight.ExtraBold, color = if (entry.running) ExpenseRed else MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -639,12 +680,12 @@ private fun copy(ctx: Context, text: String) {
 fun Stat(label: String, value: String, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.onSurface) {
     val hero = LocalOnHero.current
     Column(modifier) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = if (hero) Color.White.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontFamily = MonoFont, fontWeight = FontWeight.Bold, color = if (hero) Color.White else color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = if (hero) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.titleMedium, fontFamily = NumFont, fontWeight = FontWeight.ExtraBold, color = if (hero) Color.White else color, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
 @Composable
 fun EmptyHint(text: String) {
-    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 16.dp))
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp))
 }

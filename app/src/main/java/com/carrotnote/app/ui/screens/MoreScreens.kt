@@ -60,6 +60,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material3.TextField
+import com.carrotnote.app.ui.PillButton
+import com.carrotnote.app.ui.components.AnimatedTotals
+import com.carrotnote.app.ui.components.BentoFab
+import com.carrotnote.app.ui.components.Eyebrow
+import com.carrotnote.app.ui.components.FieldShape
+import com.carrotnote.app.ui.components.PulseDot
+import com.carrotnote.app.ui.components.RoundIconButton
+import com.carrotnote.app.ui.components.Tile
+import com.carrotnote.app.ui.components.bentoSurface
+import com.carrotnote.app.ui.components.fieldColors
+import com.carrotnote.app.ui.components.popIn
+import com.carrotnote.app.ui.theme.Bento
 import com.carrotnote.app.Graph
 import com.carrotnote.app.data.DebtDirection
 import com.carrotnote.app.data.Invite
@@ -90,7 +105,7 @@ import com.carrotnote.app.ui.sumByCurrency
 import com.carrotnote.app.ui.theme.ExpenseRed
 import com.carrotnote.app.ui.theme.Ico
 import com.carrotnote.app.ui.theme.IncomeGreen
-import com.carrotnote.app.ui.theme.MonoFont
+import com.carrotnote.app.ui.theme.NumFont
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -100,20 +115,16 @@ import java.time.temporal.WeekFields
 import java.util.Locale
 
 @Composable
-private fun AddFab(label: String, onClick: () -> Unit) {
-    ExtendedFloatingActionButton(
-        containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary,
-        onClick = onClick, icon = { Icon(Ico.Plus, null, Modifier.size(14.dp)) }, text = { Text(label) },
-    )
-}
+private fun AddFab(label: String, onClick: () -> Unit) = BentoFab(label, onClick = onClick)
 
 @Composable
 private fun SearchField(query: String, onChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier) {
-    OutlinedTextField(
+    TextField(
         value = query, onValueChange = onChange, placeholder = { Text(placeholder) },
-        leadingIcon = { Icon(Ico.Search, null, Modifier.size(16.dp)) },
+        leadingIcon = { Icon(Ico.Search, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary) },
         trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { onChange("") }) { Icon(Ico.Close, "Clear", Modifier.size(13.dp)) } },
         singleLine = true, modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp), colors = fieldColors(),
     )
 }
 
@@ -152,10 +163,10 @@ fun NotesScreen() {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalItemSpacing = 10.dp,
         ) {
-            if (notes.size > 6) item(span = StaggeredGridItemSpan.FullLine) { SearchField(query, { query = it }, "Search notes") }
+            if (notes.size > 6) item(span = StaggeredGridItemSpan.FullLine) { SearchField(query, { query = it }, "Search notes", Modifier.popIn(1)) }
             item(span = StaggeredGridItemSpan.FullLine) {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("all" to "All", "personal" to "Personal", "pinned" to "Pinned").forEach { (k, l) ->
+                Row(Modifier.horizontalScroll(rememberScrollState()).popIn(2), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("all" to "All", "personal" to "Personal", "projects" to "Projects", "pinned" to "Pinned", "checklists" to "Checklists").forEach { (k, l) ->
                         PillChip(selected = filter == k, onClick = { filter = k }, label = l)
                     }
                 }
@@ -164,13 +175,13 @@ fun NotesScreen() {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     EmptyState(Ico.Note, "No notes here", "Write ideas, client requests or a to-do checklist. Notes are personal unless you put them in a project.")
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { editor.open(Edit.NoteEdit()) }) { Icon(Ico.Pen, null, Modifier.size(12.dp)); Text("  New note") }
-                        OutlinedButton(onClick = { editor.open(Edit.NoteEdit(checklist = true)) }) { Icon(Ico.CheckSquare, null, Modifier.size(12.dp)); Text("  Checklist") }
+                        PillButton("New note", { editor.open(Edit.NoteEdit()) }, icon = Ico.Pen)
+                        PillButton("Checklist", { editor.open(Edit.NoteEdit(checklist = true)) }, icon = Ico.CheckSquare, container = Bento.colors.lilac.container, content = Bento.colors.lilac.content)
                     }
                 }
             }
             items(shown.size, key = { shown[it].id }) { i ->
-                NoteCard(shown[i], names[shown[i].projectId], { editor.open(Edit.NoteEdit(shown[i])) })
+                NoteCard(shown[i], names[shown[i].projectId], { editor.open(Edit.NoteEdit(shown[i])) }, Modifier.popIn(3 + i))
             }
         }
     }
@@ -196,26 +207,27 @@ fun CustomersScreen(onBack: () -> Unit) {
         floatingActionButton = { AddFab("Customer") { editor.open(Edit.CustomerEdit()) } },
     ) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            item { SearchField(query, { query = it }, "Search name, phone, company") }
+            item { SearchField(query, { query = it }, "Search name, phone, company", Modifier.popIn(1)) }
             if (shown.isEmpty()) item { EmptyState(Ico.Users, "No customers yet", "Add clients manually or import them from your phone contacts.") }
             items(shown.size, key = { shown[it].id }) { i ->
                 val c = shown[i]
                 val owes = debts.filter { it.customerId == c.id && !it.settled && it.direction == DebtDirection.OWED_TO_ME }.sumByCurrency({ it.currency }, { it.remaining })
-                AppCard(onClick = { nav("customer/${c.id}") }) {
+                AppCard(Modifier.animateItem().popIn(2 + i), onClick = { nav("customer/${c.id}") }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Avatar(null, 0, c.name, 42.dp)
+                        Avatar(null, 0, c.name, 46.dp)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(c.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text(c.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(
                                 listOf(c.company, c.phone).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "No contact info" },
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            if (owes.isNotEmpty()) Text("Owes you " + Fmt.totals(owes, Graph.settings.currency.value), style = MaterialTheme.typography.labelMedium, fontFamily = MonoFont, color = IncomeGreen)
+                            if (owes.isNotEmpty()) Text("Owes you " + Fmt.totals(owes, Graph.settings.currency.value), style = MaterialTheme.typography.labelMedium, fontFamily = NumFont, color = IncomeGreen)
                         }
                         if (c.phone.isNotBlank()) {
-                            IconButton(onClick = { whatsapp(ctx, c.phone) }) { Icon(Ico.Whatsapp, "WhatsApp", Modifier.size(18.dp), tint = IncomeGreen) }
-                            IconButton(onClick = { dial(ctx, c.phone) }) { Icon(Ico.Phone, "Call", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary) }
+                            RoundIconButton(Ico.Whatsapp, "WhatsApp", { whatsapp(ctx, c.phone) }, tint = Bento.colors.mint.content, container = Bento.colors.mint.container, size = 38.dp)
+                            Spacer(Modifier.width(6.dp))
+                            RoundIconButton(Ico.Phone, "Call", { dial(ctx, c.phone) }, tint = Bento.colors.orange.content, container = Bento.colors.orange.container, size = 38.dp)
                         }
                     }
                 }
@@ -270,12 +282,12 @@ fun CustomerDetailScreen(id: String, onBack: () -> Unit) {
     ) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item {
-                AppCard {
+                AppCard(Modifier.popIn(1)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Avatar(null, 0, c.name, 56.dp)
+                        Avatar(null, 0, c.name, 60.dp)
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(c.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text(c.name, style = MaterialTheme.typography.headlineSmall)
                             if (c.company.isNotBlank()) Text(c.company, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -283,10 +295,10 @@ fun CustomerDetailScreen(id: String, onBack: () -> Unit) {
                         Spacer(Modifier.height(12.dp))
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (c.phone.isNotBlank()) {
-                                FilledTonalButton(onClick = { dial(ctx, c.phone) }) { Icon(Ico.Phone, null, Modifier.size(13.dp)); Text("  Call") }
-                                FilledTonalButton(onClick = { whatsapp(ctx, c.phone) }) { Icon(Ico.Whatsapp, null, Modifier.size(14.dp)); Text("  WhatsApp") }
+                                PillButton("Call", { dial(ctx, c.phone) }, icon = Ico.Phone)
+                                PillButton("WhatsApp", { whatsapp(ctx, c.phone) }, icon = Ico.Whatsapp, container = Bento.colors.mint.container, content = Bento.colors.mint.content)
                             }
-                            if (c.email.isNotBlank()) FilledTonalButton(onClick = { email(ctx, c.email) }) { Icon(Ico.Email, null, Modifier.size(13.dp)); Text("  Email") }
+                            if (c.email.isNotBlank()) PillButton("Email", { email(ctx, c.email) }, icon = Ico.Email, container = Bento.colors.sky.container, content = Bento.colors.sky.content)
                         }
                     }
                     Spacer(Modifier.height(12.dp))
@@ -298,10 +310,10 @@ fun CustomerDetailScreen(id: String, onBack: () -> Unit) {
                 }
             }
             item {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { editor.open(Edit.ProjectEdit(customerId = id)) }) { Icon(Ico.Project, null, Modifier.size(12.dp)); Text("  Project") }
-                    OutlinedButton(onClick = { editor.open(Edit.Money(kind = TxnKind.INCOME, customerId = id)) }) { Icon(Ico.Income, null, Modifier.size(12.dp)); Text("  Payment") }
-                    OutlinedButton(onClick = { editor.open(Edit.DebtEdit(customerId = id)) }) { Icon(Ico.Debt, null, Modifier.size(12.dp)); Text("  Debt") }
+                Row(Modifier.horizontalScroll(rememberScrollState()).popIn(2), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PillButton("Project", { editor.open(Edit.ProjectEdit(customerId = id)) }, icon = Ico.Plus, container = Bento.colors.butter.container, content = Bento.colors.butter.content)
+                    PillButton("Payment", { editor.open(Edit.Money(kind = TxnKind.INCOME, customerId = id)) }, icon = Ico.Plus, container = Bento.colors.mint.container, content = Bento.colors.mint.content)
+                    PillButton("Debt", { editor.open(Edit.DebtEdit(customerId = id)) }, icon = Ico.Plus, container = Bento.colors.rose.container, content = Bento.colors.rose.content)
                 }
             }
             item { SectionHeader("Projects") }
@@ -311,8 +323,8 @@ fun CustomerDetailScreen(id: String, onBack: () -> Unit) {
                 AppCard(onClick = { nav("project/${p.id}") }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(p.name, fontWeight = FontWeight.SemiBold)
-                            Text("Paid ${Fmt.money(projectReceived(p, txns), p.currency)} of ${Fmt.money(p.price, p.currency)}", style = MaterialTheme.typography.bodySmall, fontFamily = MonoFont)
+                            Text(p.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text("Paid ${Fmt.money(projectReceived(p, txns), p.currency)} of ${Fmt.money(p.price, p.currency)}", style = MaterialTheme.typography.bodySmall, fontFamily = NumFont)
                         }
                         StatusChip(p.status)
                     }
@@ -326,11 +338,11 @@ fun CustomerDetailScreen(id: String, onBack: () -> Unit) {
             }
             if (cEvents.isNotEmpty()) {
                 item { SectionHeader("Upcoming") }
-                items(cEvents.size, key = { "e_" + cEvents[it].id }) { i -> EventRow(cEvents[i], showDate = true) { editor.open(Edit.Event(cEvents[i])) } }
+                item { AppCard { cEvents.forEach { e -> EventRow(e, showDate = true) { editor.open(Edit.Event(e)) } } } }
             }
             if (cTx.isNotEmpty()) {
                 item { SectionHeader("Payments") }
-                items(cTx.size, key = { "t_" + cTx[it].id }) { i -> TxnRow(cTx[i], Fmt.dateShort(cTx[i].date)) { editor.open(Edit.Money(cTx[i])) } }
+                item { AppCard { cTx.forEach { t -> TxnRow(t, Fmt.dateShort(t.date)) { editor.open(Edit.Money(t)) } } } }
             }
         }
     }
@@ -363,15 +375,23 @@ fun DebtsScreen(onBack: () -> Unit) {
     ) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item {
-                HeroCard {
-                    Row {
-                        Stat("↓ People owe you", Fmt.totals(owedToMe, currency), Modifier.weight(1f))
-                        Stat("↑ You owe", Fmt.totals(iOwe, currency), Modifier.weight(1f))
+                Row(Modifier.height(IntrinsicSize.Min).popIn(1), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Tile(Bento.colors.mint, Modifier.weight(1f).fillMaxHeight()) {
+                        Eyebrow("People owe you")
+                        Spacer(Modifier.height(4.dp))
+                        AnimatedTotals(owedToMe, currency, style = MaterialTheme.typography.titleLarge.copy(fontFamily = NumFont, fontWeight = FontWeight.ExtraBold))
+                        Text("${open.count { it.direction == DebtDirection.OWED_TO_ME }} open", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                    }
+                    Tile(Bento.colors.rose, Modifier.weight(1f).fillMaxHeight()) {
+                        Eyebrow("You owe")
+                        Spacer(Modifier.height(4.dp))
+                        AnimatedTotals(iOwe, currency, style = MaterialTheme.typography.titleLarge.copy(fontFamily = NumFont, fontWeight = FontWeight.ExtraBold))
+                        Text("${open.count { it.direction == DebtDirection.I_OWE }} open", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
             item {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.horizontalScroll(rememberScrollState()).popIn(2), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("open" to "Open", DebtDirection.OWED_TO_ME to "Owed to me", DebtDirection.I_OWE to "I owe", "settled" to "Settled").forEach { (k, l) ->
                         PillChip(selected = filter == k, onClick = { filter = k }, label = l)
                     }
@@ -379,7 +399,9 @@ fun DebtsScreen(onBack: () -> Unit) {
             }
             if (shown.isEmpty()) item { EmptyState(Ico.Debt, "No debts here", "Track money people owe you and money you owe others.") }
             items(shown.size, key = { shown[it].id }) { i ->
-                DebtCard(shown[i], onClick = { editor.open(Edit.DebtEdit(shown[i])) }, onPay = { editor.open(Edit.DebtPay(shown[i])) })
+                Box(Modifier.animateItem().popIn(3 + i)) {
+                    DebtCard(shown[i], onClick = { editor.open(Edit.DebtEdit(shown[i])) }, onPay = { editor.open(Edit.DebtPay(shown[i])) })
+                }
             }
         }
     }
@@ -402,16 +424,20 @@ fun GoalsScreen(onBack: () -> Unit) {
     ) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item {
-                HeroCard {
-                    Text("TOTAL SAVED", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.8f))
-                    Text(Fmt.totals(saved, currency), style = MaterialTheme.typography.headlineMedium, fontFamily = MonoFont, fontWeight = FontWeight.Bold)
-                    Text("${goals.count { it.progress >= 1f }} of ${goals.size} goals reached", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.85f))
+                HeroCard(Modifier.popIn(1)) {
+                    Eyebrow("Total saved")
+                    Spacer(Modifier.height(2.dp))
+                    AnimatedTotals(saved, currency, style = MaterialTheme.typography.displaySmall)
+                    Spacer(Modifier.height(6.dp))
+                    Text("${goals.count { it.progress >= 1f }} of ${goals.size} goals reached", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.85f))
                 }
             }
             if (sorted.isEmpty()) item { EmptyState(Ico.Goal, "No goals yet", "Set a target — a new laptop, a trip, an emergency fund — and add to it as you save.") }
             items(sorted.size, key = { sorted[it].id }) { i ->
                 val g = sorted[i]
-                GoalCard(g, onClick = { editor.open(Edit.GoalEdit(g)) }, onAdd = { editor.open(Edit.GoalMove(g)) })
+                Box(Modifier.animateItem().popIn(2 + i)) {
+                    GoalCard(g, onClick = { editor.open(Edit.GoalEdit(g)) }, onAdd = { editor.open(Edit.GoalMove(g)) })
+                }
             }
         }
     }
@@ -449,12 +475,18 @@ fun TimeScreen(onBack: () -> Unit) {
     ) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item {
-                HeroCard {
-                    Text(if (running != null) "TRACKING · ${names[running.projectId] ?: "No project"}" else "READY", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.85f))
+                HeroCard(Modifier.popIn(1)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (running != null) {
+                            PulseDot(Color.White)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Eyebrow(if (running != null) "Tracking · ${names[running.projectId] ?: "No project"}" else "Ready when you are")
+                    }
                     Text(
                         TimeTracker.format(running?.durationMs(now) ?: 0),
-                        style = MaterialTheme.typography.displaySmall, fontFamily = MonoFont, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.displayMedium.copy(fontFeatureSettings = "tnum"),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), textAlign = TextAlign.Center,
                     )
                     if (running?.note?.isNotBlank() == true) Text(running.note, color = Color.White.copy(alpha = 0.85f), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
                     Spacer(Modifier.height(12.dp))
@@ -473,7 +505,7 @@ fun TimeScreen(onBack: () -> Unit) {
                     AppCard {
                         PickerInput("Project", projects.firstOrNull { it.id == projectId }, projects.sortedBy { it.name }, { it.name }, { projectId = it?.id }, noneLabel = "No project")
                         Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(note, { note = it }, label = { Text("What are you working on?") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        TextField(note, { note = it }, label = { Text("What are you working on?") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = FieldShape, colors = fieldColors())
                         Spacer(Modifier.height(12.dp))
                         Button(onClick = { TimeTracker.start(ctx, projectId, note.trim()); note = "" }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                             Icon(Ico.Play, null, Modifier.size(14.dp)); Text("  Start timer", fontWeight = FontWeight.Bold)
@@ -484,9 +516,9 @@ fun TimeScreen(onBack: () -> Unit) {
             if (time.isEmpty()) item { EmptyState(Ico.Timer, "No time tracked yet", "Track hours per project, then bill hourly clients with an invoice in one tap.") }
             byDay.forEach { (day, entries) ->
                 item(key = "h_$day") {
-                    Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-                        Text(Fmt.relativeDay(day), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                        Text(TimeTracker.format(entries.sumOf { it.durationMs(now) }), style = MaterialTheme.typography.labelLarge, fontFamily = MonoFont, color = MaterialTheme.colorScheme.primary)
+                    Row(Modifier.fillMaxWidth().padding(top = 6.dp, start = 4.dp, end = 4.dp)) {
+                        Text(Fmt.relativeDay(day), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Text(TimeTracker.format(entries.sumOf { it.durationMs(now) }), style = MaterialTheme.typography.titleMedium, fontFamily = NumFont, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 item(key = "c_$day") {
@@ -524,9 +556,9 @@ fun InvitesScreen(onBack: () -> Unit) {
             list?.let { l ->
                 items(l.size, key = { l[it].id }) { i ->
                     val inv = l[i]
-                    AppCard {
+                    AppCard(Modifier.animateItem().popIn(1 + i)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Avatar(inv.from.id, inv.from.avatarRev, inv.from.name.ifBlank { inv.from.username }, 44.dp)
+                            Avatar(inv.from.id, inv.from.avatarRev, inv.from.name.ifBlank { inv.from.username }, 46.dp)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(inv.projectName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -605,9 +637,7 @@ fun SearchScreen(onBack: () -> Unit) {
                 items(list.size, key = { "${section}_$it" }) { i ->
                     val h = list[i]
                     Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainerLow)
-                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-                            .padding(12.dp),
+                        Modifier.fillMaxWidth().animateItem().bentoSurface(RoundedCornerShape(20.dp), Bento.colors.card, h.open).padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         IconBadge(h.icon, h.tint(), Modifier.size(36.dp))
@@ -616,7 +646,7 @@ fun SearchScreen(onBack: () -> Unit) {
                             Text(h.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             if (h.subtitle.isNotBlank()) Text(h.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        TextButton(onClick = h.open) { Text("Open") }
+                        Icon(Ico.Right, null, Modifier.padding(end = 4.dp).size(11.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

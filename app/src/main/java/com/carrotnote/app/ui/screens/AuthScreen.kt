@@ -45,6 +45,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.TextField
+import com.carrotnote.app.ui.components.FieldShape
+import com.carrotnote.app.ui.components.HeroCard
+import com.carrotnote.app.ui.components.fieldColors
+import com.carrotnote.app.ui.components.popIn
+import com.carrotnote.app.ui.theme.Bento
+import com.carrotnote.app.ui.theme.TileColors
 import com.carrotnote.app.Graph
 import com.carrotnote.app.ui.components.AppLogo
 import com.carrotnote.app.ui.components.Segmented
@@ -133,16 +141,31 @@ fun AuthScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Spacer(Modifier.height(20.dp))
-        AppLogo(84.dp)
-        Text("Carrot Note", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text(
-            "Projects, money, notes and your team — in one place.",
-            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(4.dp))
-        Segmented(listOf("Sign in" to Ico.Lock, "Create account" to Ico.UserPlus), tab, { tab = it; error = null })
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(8.dp))
+        HeroCard(Modifier.popIn(0)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AppLogo(56.dp)
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "for freelancers", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.2f)).padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
+            Spacer(Modifier.height(18.dp))
+            Text("Carrot Note", style = MaterialTheme.typography.displaySmall)
+            Text(
+                "Projects, money, notes and your team, in one place.",
+                style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.88f),
+            )
+        }
+        Row(Modifier.fillMaxWidth().popIn(1), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            AuthChip("Projects", Ico.Project, Bento.colors.butter, Modifier.weight(1f))
+            AuthChip("Money", Ico.Wallet, Bento.colors.mint, Modifier.weight(1f))
+            AuthChip("Notes", Ico.Note, Bento.colors.lilac, Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(2.dp))
+        Segmented(listOf("Sign in" to Ico.Lock, "Create account" to Ico.UserPlus), tab, { tab = it; error = null }, Modifier.popIn(2))
+        Spacer(Modifier.height(2.dp))
 
         if (register) {
             Field(name, { name = it }, "Full name", Ico.User)
@@ -188,7 +211,7 @@ fun AuthScreen() {
         }
         if (error != null) {
             Row(
-                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).background(ExpenseRed.copy(alpha = 0.12f)).padding(12.dp),
+                Modifier.fillMaxWidth().popIn(0).clip(MaterialTheme.shapes.small).background(ExpenseRed.copy(alpha = 0.12f)).padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(Ico.Warning, null, Modifier.size(16.dp), tint = ExpenseRed)
@@ -225,12 +248,14 @@ fun Field(
     supportingColor: Color? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
-    OutlinedTextField(
+    TextField(
         value = value,
         onValueChange = onChange,
         label = { Text(label) },
         singleLine = true,
-        leadingIcon = { Icon(icon, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+        shape = FieldShape,
+        colors = fieldColors(),
+        leadingIcon = { Icon(icon, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary) },
         prefix = prefix?.let { { Text(it) } },
         trailingIcon = trailing,
         visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
@@ -255,6 +280,19 @@ private fun StrengthMeter(level: Int) {
     }
 }
 
+@Composable
+private fun AuthChip(label: String, icon: ImageVector, colors: TileColors, modifier: Modifier) {
+    Row(
+        modifier.clip(RoundedCornerShape(18.dp)).background(colors.container).padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, Modifier.size(13.dp), tint = colors.content)
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = colors.content, maxLines = 1)
+    }
+}
+
 /** Shown once to accounts created before usernames existed. */
 @Composable
 fun ChooseUsernameScreen() {
@@ -275,8 +313,8 @@ fun ChooseUsernameScreen() {
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Spacer(Modifier.height(40.dp))
-        AppLogo(72.dp)
-        Text("Pick a username", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Box(Modifier.popIn(0)) { AppLogo(76.dp) }
+        Text("Pick a username", style = MaterialTheme.typography.headlineMedium)
         Text(
             "People use it to find you and invite you to projects${user?.name?.let { ", $it" } ?: ""}.",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,

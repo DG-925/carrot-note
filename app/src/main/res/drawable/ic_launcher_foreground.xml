@@ -8,10 +8,10 @@
     <path android:fillColor="#33B34D00"
         android:pathData="M41,36 H63 L75,48 V78 Q75,84 69,84 H41 Q35,84 35,78 V42 Q35,36 41,36 Z" />
     <!-- note body -->
-    <path android:fillColor="#FF7A1A"
+    <path android:fillColor="#FF6B1F"
         android:pathData="M40,34 H62 L74,46 V76 Q74,82 68,82 H40 Q34,82 34,76 V40 Q34,34 40,34 Z" />
     <!-- folded corner -->
-    <path android:fillColor="#FFB877"
+    <path android:fillColor="#FFB28A"
         android:pathData="M62,34 V42 Q62,46 66,46 H74 Z" />
     <!-- writing lines -->
     <path android:strokeColor="#FFF4E8" android:strokeWidth="3" android:strokeLineCap="round"

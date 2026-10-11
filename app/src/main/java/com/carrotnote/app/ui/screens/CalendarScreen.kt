@@ -38,6 +38,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.graphicsLayer
+import com.carrotnote.app.ui.PillButton
+import com.carrotnote.app.ui.components.BentoFab
+import com.carrotnote.app.ui.components.RoundIconButton
+import com.carrotnote.app.ui.components.Tile
+import com.carrotnote.app.ui.components.popIn
+import com.carrotnote.app.ui.theme.Bento
+import com.carrotnote.app.ui.theme.NumFont
 import com.carrotnote.app.Graph
 import com.carrotnote.app.data.DebtDirection
 import com.carrotnote.app.ui.Edit
@@ -89,14 +109,15 @@ fun CalendarScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             SimpleTopBar("Calendar", onBack) {
-                IconButton(onClick = {
+                PillButton("Today", {
                     selected = Fmt.today(); monthStart = LocalDate.now().withDayOfMonth(1).toEpochDay()
-                }) { Icon(Ico.Today, "Today", Modifier.size(18.dp)) }
+                }, icon = Ico.Today, container = Bento.colors.ink, content = Bento.colors.onInk)
+                Spacer(Modifier.width(8.dp))
             }
         },
         floatingActionButton = {
             Box {
-                FloatingActionButton(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, onClick = { addMenu = true }) { Icon(Ico.Plus, "Add", Modifier.size(18.dp)) }
+                BentoFab("Add") { addMenu = true }
                 DropdownMenu(expanded = addMenu, onDismissRequest = { addMenu = false }) {
                     DropdownMenuItem(text = { Text("Task") }, leadingIcon = { Icon(Ico.Tasks, null, Modifier.size(15.dp)) }, onClick = { addMenu = false; editor.open(Edit.Task(date = selected)) })
                     DropdownMenuItem(text = { Text("Event / meeting") }, leadingIcon = { Icon(Ico.Calendar, null, Modifier.size(15.dp)) }, onClick = { addMenu = false; editor.open(Edit.Event(date = selected)) })
@@ -105,9 +126,10 @@ fun CalendarScreen(onBack: () -> Unit) {
             }
         },
     ) { pad ->
-        LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item {
                 MonthGrid(
+                    modifier = Modifier.popIn(1),
                     month = LocalDate.ofEpochDay(monthStart),
                     selected = selected,
                     onSelect = { selected = it },
@@ -128,18 +150,18 @@ fun CalendarScreen(onBack: () -> Unit) {
             if (empty) item { EmptyHint("Nothing planned. Tap + to add a task, event or note for this day.") }
             items(dayDeadlines.size, key = { "dl_" + dayDeadlines[it].id }) { i ->
                 val p = dayDeadlines[i]
-                AppCard(onClick = { nav("project/${p.id}") }) {
+                Tile(Bento.colors.rose, Modifier.fillMaxWidth().animateItem(), onClick = { nav("project/${p.id}") }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Ico.Flag, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
-                        Text("  Deadline: ${p.name}", fontWeight = FontWeight.SemiBold)
+                        Icon(Ico.Flag, null, Modifier.size(14.dp))
+                        Text("  Deadline: ${p.name}", fontWeight = FontWeight.Bold)
                     }
                 }
             }
             items(dayDebts.size, key = { "debt_" + dayDebts[it].id }) { i ->
                 val d = dayDebts[i]
-                AppCard(onClick = { nav("debts") }) {
+                Tile(Bento.colors.butter, Modifier.fillMaxWidth().animateItem(), onClick = { nav("debts") }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Ico.Flag, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
+                        Icon(Ico.Flag, null, Modifier.size(14.dp))
                         Text(
                             if (d.direction == DebtDirection.OWED_TO_ME) "  ${d.person} should pay you ${Fmt.money(d.remaining, d.currency)}"
                             else "  Pay ${d.person} ${Fmt.money(d.remaining, d.currency)}",
@@ -148,12 +170,16 @@ fun CalendarScreen(onBack: () -> Unit) {
                     }
                 }
             }
-            items(dayEvents.size, key = { "ev_" + dayEvents[it].id }) { i -> EventRow(dayEvents[i], showDate = false) { editor.open(Edit.Event(dayEvents[i])) } }
-            items(dayTasks.size, key = { "t_" + dayTasks[it].id }) { i -> TaskRow(dayTasks[i], projectNames[dayTasks[i].projectId]) { editor.open(Edit.Task(dayTasks[i])) } }
-            items(dayNotes.size, key = { "n_" + dayNotes[it].id }) { i -> NoteCard(dayNotes[i], projectNames[dayNotes[i].projectId], { editor.open(Edit.NoteEdit(dayNotes[i])) }) }
+            if (dayEvents.isNotEmpty() || dayTasks.isNotEmpty()) item(key = "agenda_$selected") {
+                AppCard(Modifier.animateItem().popIn(2)) {
+                    dayEvents.forEach { e -> EventRow(e, showDate = false) { editor.open(Edit.Event(e)) } }
+                    dayTasks.forEach { t -> TaskRow(t, projectNames[t.projectId]) { editor.open(Edit.Task(t)) } }
+                }
+            }
+            items(dayNotes.size, key = { "n_" + dayNotes[it].id }) { i -> NoteCard(dayNotes[i], projectNames[dayNotes[i].projectId], { editor.open(Edit.NoteEdit(dayNotes[i])) }, Modifier.animateItem()) }
             if (dayTx.isNotEmpty()) {
                 item { SectionHeader("Money") }
-                items(dayTx.size, key = { "tx_" + dayTx[it].id }) { i -> TxnRow(dayTx[i]) { editor.open(Edit.Money(dayTx[i])) } }
+                item(key = "money_$selected") { AppCard(Modifier.animateItem()) { dayTx.forEach { t -> TxnRow(t) { editor.open(Edit.Money(t)) } } } }
             }
         }
     }
@@ -161,6 +187,7 @@ fun CalendarScreen(onBack: () -> Unit) {
 
 @Composable
 private fun MonthGrid(
+    modifier: Modifier = Modifier,
     month: LocalDate,
     selected: Long,
     onSelect: (Long) -> Unit,
@@ -176,15 +203,26 @@ private fun MonthGrid(
     val rows = (cells + 6) / 7
     val weekDays = (0 until 7).map { firstDow.plus(it.toLong()).getDisplayName(TextStyle.NARROW, Locale.getDefault()) }
 
-    AppCard {
+    AppCard(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { onMonth(first.minusMonths(1)) }) { Icon(Ico.Left, "Previous month", Modifier.size(14.dp)) }
-            Text(Fmt.month(first), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
-            IconButton(onClick = { onMonth(first.plusMonths(1)) }) { Icon(Ico.Right, "Next month", Modifier.size(14.dp)) }
+            RoundIconButton(Ico.Left, "Previous month", { onMonth(first.minusMonths(1)) }, container = MaterialTheme.colorScheme.background, size = 38.dp)
+            AnimatedContent(
+                targetState = first,
+                transitionSpec = {
+                    val dir = if (targetState > initialState) 1 else -1
+                    (slideInHorizontally { it * dir / 3 } + fadeIn()) togetherWith (slideOutHorizontally { -it * dir / 3 } + fadeOut())
+                },
+                label = "calendarMonth",
+                modifier = Modifier.weight(1f),
+            ) { m ->
+                Text(Fmt.month(m), style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            }
+            RoundIconButton(Ico.Right, "Next month", { onMonth(first.plusMonths(1)) }, container = MaterialTheme.colorScheme.background, size = 38.dp)
         }
+        Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth()) {
             weekDays.forEach {
-                Text(it, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(it, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Spacer(Modifier.height(4.dp))
@@ -200,14 +238,17 @@ private fun MonthGrid(
                         val isSel = epoch == selected
                         val isToday = epoch == today
                         val dayDots = dots(epoch)
+                        val bg by animateColorAsState(if (isSel) MaterialTheme.colorScheme.primary else Color.Transparent, tween(200), label = "dayBg")
+                        val pop by animateFloatAsState(if (isSel) 1f else 0.92f, spring(dampingRatio = 0.4f, stiffness = 500f), label = "dayPop")
                         Column(
                             Modifier
                                 .weight(1f)
                                 .aspectRatio(1f)
                                 .padding(2.dp)
-                                .clip(CircleShape)
-                                .background(if (isSel) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                .then(if (isToday && !isSel) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier)
+                                .graphicsLayer { scaleX = pop; scaleY = pop }
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(bg)
+                                .then(if (isToday && !isSel) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(14.dp)) else Modifier)
                                 .clickable { onSelect(epoch) },
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center,
@@ -215,7 +256,8 @@ private fun MonthGrid(
                             Text(
                                 "$dayNum",
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isToday || isSel) FontWeight.Bold else FontWeight.Normal,
+                                fontWeight = if (isToday || isSel) FontWeight.ExtraBold else FontWeight.Medium,
+                                fontFamily = NumFont,
                                 color = if (isSel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                             )
                             Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.height(6.dp)) {

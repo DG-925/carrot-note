@@ -39,6 +39,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import com.carrotnote.app.ui.components.bentoSurface
+import com.carrotnote.app.ui.theme.Bento
+import com.carrotnote.app.ui.theme.NumFont
 import com.carrotnote.app.Graph
 import com.carrotnote.app.ui.theme.Ico
 import kotlinx.coroutines.delay
@@ -70,12 +83,19 @@ fun showBiometricPrompt(activity: FragmentActivity, title: String, onSuccess: ()
 fun LockScreen() {
     val activity = LocalContext.current as FragmentActivity
     val lock = Graph.lock
+    val user by Graph.session.user.collectAsState()
     val biometricOn by lock.biometricEnabled.collectAsState()
     val canBio = biometricOn && remember { biometricAvailable(activity) }
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    var fails by remember { mutableIntStateOf(0) }
     var cooldown by remember { mutableStateOf(lock.cooldownRemaining()) }
+    val shake = remember { Animatable(0f) }
+    val logo = remember { Animatable(0f) }
 
+    LaunchedEffect(Unit) {
+        logo.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 260f))
+    }
     LaunchedEffect(Unit) {
         if (canBio) showBiometricPrompt(activity, "Unlock Carrot Note") { lock.unlock() }
     }
@@ -86,20 +106,24 @@ fun LockScreen() {
             if (cooldown == 0L) error = null
         }
     }
+    LaunchedEffect(fails) {
+        if (fails > 0) for (x in listOf(-22f, 18f, -14f, 10f, -5f, 0f)) shake.animateTo(x, tween(45))
+    }
 
     val pinLength = remember { lock.pinLength }
+
+    fun wrong() {
+        error = "Wrong PIN"
+        fails++
+        cooldown = lock.cooldownRemaining()
+    }
 
     fun onDigit(d: Char) {
         if (cooldown > 0 || pin.length >= pinLength) return
         pin += d
         error = null
         if (pin.length == pinLength) {
-            if (lock.verify(pin)) {
-                lock.unlock()
-            } else {
-                error = "Wrong PIN"
-                cooldown = lock.cooldownRemaining()
-            }
+            if (lock.verify(pin)) lock.unlock() else wrong()
             pin = ""
         }
     }
@@ -109,12 +133,14 @@ fun LockScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.weight(1f))
-        AppLogo(80.dp)
-        Spacer(Modifier.height(12.dp))
-        Text("Enter your PIN", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(20.dp))
-        PinDots(pin.length, pinLength)
-        Spacer(Modifier.height(12.dp))
+        Box(Modifier.graphicsLayer { scaleX = logo.value; scaleY = logo.value; rotationZ = (1f - logo.value) * -20f }) { AppLogo(84.dp) }
+        Spacer(Modifier.height(18.dp))
+        val first = user?.name?.trim()?.substringBefore(' ')?.ifBlank { null }
+        Text(if (first != null) "Welcome back, $first" else "Welcome back", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        Text("Enter your PIN to open Carrot Note", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(24.dp))
+        Box(Modifier.graphicsLayer { translationX = shake.value.dp.toPx() }) { PinDots(pin.length, pinLength, error = error != null) }
+        Spacer(Modifier.height(14.dp))
         Text(
             when {
                 cooldown > 0 -> "Too many attempts. Try again in ${(cooldown + 999) / 1000}s"
@@ -123,6 +149,7 @@ fun LockScreen() {
             },
             color = MaterialTheme.colorScheme.error,
             style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.weight(1f))
@@ -131,10 +158,7 @@ fun LockScreen() {
             onBackspace = { pin = pin.dropLast(1) },
             onOk = {
                 if (pin.isNotEmpty() && cooldown == 0L) {
-                    if (lock.verify(pin)) lock.unlock() else {
-                        error = "Wrong PIN"
-                        cooldown = lock.cooldownRemaining()
-                    }
+                    if (lock.verify(pin)) lock.unlock() else wrong()
                     pin = ""
                 }
             },
@@ -144,49 +168,62 @@ fun LockScreen() {
     }
 }
 
+/** PIN dots that pop when filled and turn red on a wrong PIN. */
 @Composable
-fun PinDots(count: Int, total: Int = maxOf(PIN_LENGTH, count)) {
-    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+fun PinDots(count: Int, total: Int = maxOf(PIN_LENGTH, count), error: Boolean = false) {
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
         repeat(total) { i ->
-            Box(
-                Modifier
-                    .size(16.dp)
-                    .clip(CircleShape)
-                    .background(if (i < count) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface)
-                    .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+            val filled = i < count
+            val scale by animateFloatAsState(if (filled) 1f else 0.62f, spring(dampingRatio = 0.4f, stiffness = 600f), label = "dot")
+            val color by animateColorAsState(
+                when {
+                    error -> MaterialTheme.colorScheme.error
+                    filled -> MaterialTheme.colorScheme.primary
+                    else -> Bento.colors.track
+                },
+                tween(160), label = "dotColor",
             )
+            Box(Modifier.size(18.dp).graphicsLayer { scaleX = scale; scaleY = scale }.clip(CircleShape).background(color))
         }
     }
 }
 
 @Composable
-fun PinPad(onDigit: (Char) -> Unit, onBackspace: () -> Unit, onOk: (() -> Unit)?, onBiometric: (() -> Unit)?) {
+fun PinPad(
+    onDigit: (Char) -> Unit,
+    onBackspace: () -> Unit,
+    onOk: (() -> Unit)?,
+    onBiometric: (() -> Unit)?,
+    keyColor: Color = Bento.colors.card,
+) {
     val rows = listOf("123", "456", "789")
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         rows.forEach { r ->
-            Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) { r.forEach { d -> PadKey(d.toString(), onClick = { onDigit(d) }) } }
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) { r.forEach { d -> PadKey(d.toString(), keyColor, onClick = { onDigit(d) }) } }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-            if (onBiometric != null) PadKey(icon = true, onClick = onBiometric) {
-                Icon(Ico.Fingerprint, "Use fingerprint", Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
-            } else if (onOk != null) PadKey("OK", onClick = onOk) else Spacer(Modifier.size(74.dp))
-            PadKey("0", onClick = { onDigit('0') })
-            PadKey(icon = true, onClick = onBackspace) { Icon(Ico.Backspace, "Delete", Modifier.size(22.dp)) }
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            if (onBiometric != null) PadKey(color = Bento.colors.orange.container, onClick = onBiometric) {
+                Icon(Ico.Fingerprint, "Use fingerprint", Modifier.size(26.dp), tint = Bento.colors.orange.content)
+            } else if (onOk != null) PadKey("OK", Bento.colors.ink, onClick = onOk, textColor = Bento.colors.onInk) else Spacer(Modifier.size(width = 82.dp, height = 66.dp))
+            PadKey("0", keyColor, onClick = { onDigit('0') })
+            PadKey(color = Color.Transparent, onClick = onBackspace) { Icon(Ico.Backspace, "Delete", Modifier.size(22.dp)) }
         }
     }
 }
 
 @Composable
-private fun PadKey(label: String = "", icon: Boolean = false, onClick: () -> Unit, content: (@Composable () -> Unit)? = null) {
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = if (icon) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = Modifier.size(74.dp),
+private fun PadKey(
+    label: String = "",
+    color: Color,
+    onClick: () -> Unit,
+    textColor: Color = MaterialTheme.colorScheme.onSurface,
+    content: (@Composable () -> Unit)? = null,
+) {
+    Box(
+        Modifier.size(width = 82.dp, height = 66.dp).bentoSurface(RoundedCornerShape(22.dp), color, onClick, pressed = 0.86f),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            if (content != null) content() else Text(label, fontSize = 26.sp, fontWeight = FontWeight.Medium)
-        }
+        if (content != null) content() else Text(label, fontSize = 26.sp, fontFamily = NumFont, fontWeight = FontWeight.Bold, color = textColor)
     }
 }
 
@@ -212,11 +249,12 @@ fun SetPinDialog(onDismiss: () -> Unit, onSet: (String) -> Unit) {
                     onBackspace = { pin = pin.dropLast(1) },
                     onOk = null,
                     onBiometric = null,
+                    keyColor = MaterialTheme.colorScheme.background,
                 )
             }
         },
         confirmButton = {
-            TextButton(enabled = pin.length >= 4, onClick = {
+            Button(enabled = pin.length >= 4, onClick = {
                 if (first == null) {
                     first = pin; pin = ""
                 } else if (first == pin) {

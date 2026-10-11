@@ -41,6 +41,10 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.carrotnote.app.Graph
+import com.carrotnote.app.ui.theme.Ico
+import com.carrotnote.app.ui.theme.Bento
+import com.carrotnote.app.ui.PillButton
+import com.carrotnote.app.ui.components.popIn
 import com.carrotnote.app.update.UpdateWorker
 import com.carrotnote.app.update.Updater
 import com.carrotnote.app.ui.components.AppCard
@@ -84,7 +88,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     Scaffold(topBar = { SimpleTopBar("Settings", onBack) }) { pad ->
         LazyColumn(Modifier.padding(pad), contentPadding = ListPadding, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
-                AppCard {
+                AppCard(Modifier.popIn(1)) {
                     SectionHeader("Account")
                     Text(user?.name?.ifBlank { null } ?: "Carrot Note user", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Text(user?.email.orEmpty(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -107,7 +111,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
             item {
-                AppCard {
+                AppCard(Modifier.popIn(2)) {
                     SectionHeader("Preferences")
                     CurrencyInput(currency, { if (it.isNotBlank()) Graph.settings.setCurrency(it) })
                     Text("Used for new entries and summaries", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -123,7 +127,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
             item {
-                AppCard {
+                AppCard(Modifier.popIn(3)) {
                     SectionHeader("Security")
                     SwitchRow("PIN lock", "Ask for a PIN when opening the app", pinOn, { on ->
                         if (on) setPin = true else {
@@ -152,7 +156,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
             item {
-                AppCard {
+                AppCard(Modifier.popIn(4)) {
                     SectionHeader("Updates")
                     Text("Version ${Updater.currentVersion}", style = MaterialTheme.typography.bodyLarge)
                     SwitchRow("Check for updates automatically", "Get a notification when a new version is on GitHub", autoUpdate, { on ->
@@ -173,10 +177,12 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
             item {
-                Column(Modifier.fillMaxWidth()) {
-                    HorizontalDivider()
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedButton(onClick = { confirmSignOut = true }, modifier = Modifier.fillMaxWidth()) { Text("Sign out") }
+                Column(Modifier.fillMaxWidth().popIn(5)) {
+                    Spacer(Modifier.height(4.dp))
+                    PillButton(
+                        "Sign out", { confirmSignOut = true }, Modifier.fillMaxWidth(), icon = Ico.SignOut,
+                        container = Bento.colors.ink, content = Bento.colors.onInk,
+                    )
                     TextButton(onClick = { deleteAccount = true }, modifier = Modifier.fillMaxWidth()) {
                         Text("Delete account", color = MaterialTheme.colorScheme.error)
                     }

@@ -4,6 +4,18 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -47,6 +59,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.carrotnote.app.Graph
+import com.carrotnote.app.ui.components.Entrance
 import com.carrotnote.app.ui.screens.AuthScreen
 import com.carrotnote.app.ui.screens.CalendarScreen
 import com.carrotnote.app.ui.screens.ChooseUsernameScreen
@@ -144,28 +157,39 @@ private fun MainScaffold() {
             },
         ) {
             Scaffold(
-                bottomBar = { if (topLevel) BottomBar(route, go) { quickAdd = true } },
+                containerColor = MaterialTheme.colorScheme.background,
+                bottomBar = {
+                    AnimatedVisibility(
+                        visible = topLevel,
+                        enter = slideInVertically(spring(dampingRatio = 0.7f, stiffness = 400f)) { it } + fadeIn(),
+                        exit = slideOutVertically(tween(180)) { it } + fadeOut(tween(180)),
+                    ) { BottomBar(route, go, addOpen = quickAdd) { quickAdd = !quickAdd } }
+                },
             ) { pad ->
                 NavHost(
                     navController = nav,
                     startDestination = "home",
                     modifier = Modifier.padding(pad).consumeWindowInsets(pad),
+                    enterTransition = { screenEnter(initialState.destination.route, targetState.destination.route) },
+                    exitTransition = { fadeOut(tween(140)) },
+                    popEnterTransition = { fadeIn(tween(220)) + scaleIn(tween(320, easing = EaseOutCubic), initialScale = 0.97f) },
+                    popExitTransition = { fadeOut(tween(160)) + slideOutHorizontally(tween(260, easing = EaseOutCubic)) { it / 5 } },
                 ) {
-                    composable("home") { HomeScreen() }
-                    composable("money") { MoneyScreen() }
-                    composable("projects") { ProjectsScreen() }
-                    composable("notes") { NotesScreen() }
-                    composable("calendar") { CalendarScreen(back) }
-                    composable("project/{id}") { ProjectDetailScreen(it.arguments?.getString("id").orEmpty(), back) }
-                    composable("customers") { CustomersScreen(back) }
-                    composable("customer/{id}") { CustomerDetailScreen(it.arguments?.getString("id").orEmpty(), back) }
-                    composable("debts") { DebtsScreen(back) }
-                    composable("goals") { GoalsScreen(back) }
-                    composable("time") { TimeScreen(back) }
-                    composable("invites") { InvitesScreen(back) }
-                    composable("search") { SearchScreen(back) }
-                    composable("profile") { ProfileScreen(back) }
-                    composable("settings") { SettingsScreen(back) }
+                    composable("home") { Entrance { HomeScreen() } }
+                    composable("money") { Entrance { MoneyScreen() } }
+                    composable("projects") { Entrance { ProjectsScreen() } }
+                    composable("notes") { Entrance { NotesScreen() } }
+                    composable("calendar") { Entrance { CalendarScreen(back) } }
+                    composable("project/{id}") { Entrance { ProjectDetailScreen(it.arguments?.getString("id").orEmpty(), back) } }
+                    composable("customers") { Entrance { CustomersScreen(back) } }
+                    composable("customer/{id}") { Entrance { CustomerDetailScreen(it.arguments?.getString("id").orEmpty(), back) } }
+                    composable("debts") { Entrance { DebtsScreen(back) } }
+                    composable("goals") { Entrance { GoalsScreen(back) } }
+                    composable("time") { Entrance { TimeScreen(back) } }
+                    composable("invites") { Entrance { InvitesScreen(back) } }
+                    composable("search") { Entrance { SearchScreen(back) } }
+                    composable("profile") { Entrance { ProfileScreen(back) } }
+                    composable("settings") { Entrance { SettingsScreen(back) } }
                 }
             }
         }
@@ -174,6 +198,14 @@ private fun MainScaffold() {
         EditorHost(editor)
     }
 }
+
+/** Tabs fade and rise into place; pushed screens slide in from the right. */
+private fun screenEnter(from: String?, to: String?): EnterTransition =
+    if (from in TopLevelRoutes && to in TopLevelRoutes) {
+        fadeIn(tween(220)) + slideInVertically(tween(340, easing = EaseOutCubic)) { it / 24 }
+    } else {
+        fadeIn(tween(220)) + slideInHorizontally(spring(dampingRatio = 0.85f, stiffness = 420f)) { it / 4 }
+    }
 
 @Composable
 private fun UpdateDialog(release: ReleaseInfo) {
