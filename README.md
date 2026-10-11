@@ -43,7 +43,7 @@ npx wrangler d1 execute DB --remote --file=schema.sql   # create tables (first t
 npx wrangler deploy                                     # deploy the API
 ```
 
-Set the deployed Worker URL in `gradle.properties` (`carrot.apiUrl`).
+The API is live at `https://carrot-note-api.carrot-note-api.workers.dev` (set in `gradle.properties` as `carrot.apiUrl`).
 
 ## Building locally
 
