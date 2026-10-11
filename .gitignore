@@ -1,0 +1,19 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+# Signing secrets - never commit
+keystore.properties
+*.jks
+*.keystore
+# Server
+server/node_modules/
+server/.wrangler/
+server/.dev.vars

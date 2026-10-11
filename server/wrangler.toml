@@ -1,0 +1,12 @@
+name = "carrot-note-api"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "carrot-note"
+database_id = "ffc59d7d-1417-42f1-bdcb-82ceb150764d"
