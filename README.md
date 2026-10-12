@@ -16,6 +16,18 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.8: Carrot Note for Windows
+
+A desktop app built with **Tauri + TypeScript**. Download `carrot-note-vX.Y.Z-windows-setup.exe` (or the `.msi`) from the [latest release](https://github.com/DG-925/carrot-note/releases/latest), install it, and sign in with the same account: everything syncs with the phone app.
+- **Same interface:** the same TypeScript UI as the phone, in a window.
+- **Local storage and sync:** your data is kept on the PC (IndexedDB) and synced with the same server.
+- **Reminders and monitoring:** reminders, "still working?" and rental uptime checks arrive as Windows notifications while the app is open.
+- **PDFs:** invoices and reports open the print dialog, where *Microsoft Print to PDF* saves a PDF.
+- **Files:** CSV and backup export and restore use normal Save/Open dialogs.
+- **Not on the PC:** phone contacts, contact birthdays, fingerprint unlock and the home-screen widget.
+
+Developing it: `cd desktop && npm install && npm run dev` (needs Rust and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)). `npm run build` makes the Windows installer.
+
 ### New in 1.7
 
 - **Invoices**: numbered invoices with line items, discount and tax, Draft/Sent/Part paid/Paid/Overdue, partial payments (also added to Money), a PDF to share, a WhatsApp reminder, and a notification on the due date.
@@ -95,9 +107,12 @@ Open `app/src/main/assets/web/index.html` in a desktop browser to try the UI wit
 | Path | What |
 |---|---|
 | `app/` | Android shell (Kotlin): WebView host, data, sync, notifications, lock |
-| `web/` | The UI: TypeScript (Preact) + CSS, bundled into `app/src/main/assets/web` |
+| `web/` | The UI: TypeScript (Preact) + CSS, bundled into `app/src/main/assets/web` (and `desktop/dist` with `npm run build:desktop`) |
+| `web/src/desktop/` | The desktop side of the bridge in TypeScript: offline store, sync, sign-in, notifications, files |
+| `desktop/` | Windows app (Tauri 2); `src-tauri/` is the small Rust host |
 | `server/` | Cloudflare Worker API with a D1 database (`schema.sql`, `src/index.ts`) |
-| `.github/workflows/release.yml` | Builds a signed APK and publishes a GitHub Release when you push a tag |
+| `.github/workflows/release.yml` | Builds the signed APK and the Windows installer and publishes a GitHub Release |
+| `.github/workflows/desktop.yml` | Test build of the Windows app on every change to `desktop/` or `web/` |
 
 ## Releasing an update
 
