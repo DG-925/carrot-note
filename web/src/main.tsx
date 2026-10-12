@@ -22,6 +22,7 @@ import { InvoiceDetail, InvoicesScreen, invoiceState } from './screens/invoices'
 import { ReportScreen } from './screens/report'
 import { VaultScreen } from './screens/vault'
 import { RecurringScreen } from './screens/recurring'
+import { ItemDetail, StockScreen, stockOf, stockState } from './screens/stock'
 import { runRecurring } from './recurring'
 import { startMasonry } from './masonry'
 import { startWheelScroll } from './wheel'
@@ -81,6 +82,8 @@ function routeScreen(r: Route) {
     case 'report': return <ReportScreen />
     case 'vault': return <VaultScreen />
     case 'recurring': return <RecurringScreen />
+    case 'stock': return <StockScreen />
+    case 'item': return <ItemDetail id={r.id} />
     case 'calendar': return <CalendarScreen />
     case 'time': return <TimeScreen />
     case 'customers': return <CustomersScreen />
@@ -227,11 +230,12 @@ function Sidebar() {
   const renew = data.rental.filter(r => ['expired', 'soon'].includes(rentalState(r))).length
   const unpaid = data.invoice.filter(i => ['sent', 'partial', 'overdue'].includes(invoiceState(i))).length
   const dueToday = data.task.filter(t => !t.done && t.dueDate != null && t.dueDate <= F.today()).length
+  const lowStock = data.item.filter(i => !i.archived && i.lowStock > 0 && stockState(i) !== 'ok').length
   const groups: [string, [string, string, string, string, number?][]][] = [
     ['', [['Home', 'home', 'orange', 'home'], ['Money', 'wallet', 'mint', 'money'], ['Projects', 'project', 'sky', 'projects'], ['Notes', 'note', 'lilac', 'notes'],
       ['Calendar', 'calendar', 'butter', 'calendar', dueToday]]],
     ['Work', [['Time', 'timer', 'mint', 'time'], ['Invoices', 'invoice', 'orange', 'invoices', unpaid], ['Rentals', 'server', 'sky', 'rentals', renew],
-      ['Customers', 'users', 'rose', 'customers'], ...(s.invites > 0 ? [['Invitations', 'inbox', 'orange', 'invites', s.invites] as [string, string, string, string, number]] : [])]],
+      ['Stock', 'box', 'butter', 'stock', lowStock], ['Customers', 'users', 'rose', 'customers'], ...(s.invites > 0 ? [['Invitations', 'inbox', 'orange', 'invites', s.invites] as [string, string, string, string, number]] : [])]],
     ['Money', [['Recurring', 'repeat', 'mint', 'recurring'], ['Debts', 'debt', 'butter', 'debts'], ['Savings', 'goal', 'lilac', 'goals'], ['Report', 'chart', 'lilac', 'report']]],
     ['Private', [['Vault', 'lock', 'rose', 'vault']]],
   ]
@@ -306,6 +310,7 @@ function Drawer() {
     ['Time', 'timer', 'mint', 'time', running ? 'Tracking now' : `${F.hours(trackedToday).toFixed(1)} h today`],
     ['Rentals', 'server', 'sky', 'rentals', renewSoon ? `${renewSoon} to renew` : `${activeRentals.length} active`],
     ['Invoices', 'invoice', 'orange', 'invoices', unpaidInvoices ? `${unpaidInvoices} unpaid` : `${data.invoice.length} total`],
+    ['Stock', 'box', 'butter', 'stock', `${data.item.filter(i => !i.archived).reduce((a, i) => a + Math.max(0, stockOf(i).qty), 0)} in stock`],
     ['Recurring', 'repeat', 'mint', 'recurring', `${data.recurring.filter(r => r.active).length} active`],
     ['Report', 'chart', 'lilac', 'report', `${new Date().getFullYear()} so far`],
     ['Vault', 'lock', 'rose', 'vault', `${data.secret.length} saved`],

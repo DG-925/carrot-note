@@ -108,10 +108,11 @@ class Repository(context: Context, val userId: String) {
     val receipts = Collection("receipt", JsonObject.serializer()) { it.id() }
     val secrets = Collection("secret", JsonObject.serializer()) { it.id() }
     val vault = Collection("vault", JsonObject.serializer()) { it.id() }
+    val items = Collection("item", JsonObject.serializer()) { it.id() }
 
     private val collections = listOf(
         projects, tasks, notes, txns, goals, customers, debts, events, time, budgets, rentals,
-        invoices, recurring, receipts, secrets, vault,
+        invoices, recurring, receipts, secrets, vault, items,
     )
         .associateBy { it.type }
 

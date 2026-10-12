@@ -54,6 +54,18 @@ function sample() {
       { id: id(), projectId: 'p1', start: now - (84 * 60 + 37) * 1000, end: null, note: '', createdAt: now },
       { id: id(), projectId: 'p3', start: now - 5 * 3600_000, end: now - 3 * 3600_000, note: 'Booking limits', createdAt: now },
     ],
+    item: [
+      { id: 'i1', name: 'Dell Latitude 7490 · i7 16GB', sku: 'DL7490-01', category: 'Laptops', condition: 'used', currency: 'EGP', sellPrice: 14500, lowStock: 1, notes: 'Battery 88%. Charger included.', photoId: null, createdAt: now,
+        moves: [
+          { id: 'm1', kind: 'buy', qty: 3, price: 11000, date: t - 20, person: 'Hany (wholesale)', note: '', createdAt: now - 20 * DAY },
+          { id: 'm2', kind: 'sell', qty: 1, price: 14500, unitCost: 11000, date: t - 6, person: 'Omar', note: '', createdAt: now - 6 * DAY },
+          { id: 'm3', kind: 'sell', qty: 1, price: 14000, unitCost: 11000, date: t, person: 'Sara', note: '', createdAt: now },
+        ] },
+      { id: 'i2', name: 'iPhone 13 128GB', sku: '', category: 'Phones', condition: 'used', currency: 'EGP', sellPrice: 21000, lowStock: 1, notes: '', photoId: null, createdAt: now,
+        moves: [{ id: 'm4', kind: 'buy', qty: 2, price: 18500, date: t - 9, person: '', note: '', createdAt: now - 9 * DAY }, { id: 'm5', kind: 'sell', qty: 2, price: 21000, unitCost: 18500, date: t - 2, person: 'Mona', note: '', createdAt: now - 2 * DAY }] },
+      { id: 'i3', name: 'Kingston 1TB NVMe SSD', sku: 'SNV2S/1000G', category: 'Parts', condition: 'new', currency: 'EGP', sellPrice: 3400, lowStock: 3, notes: '', photoId: null, createdAt: now,
+        moves: [{ id: 'm6', kind: 'buy', qty: 10, price: 2600, date: t - 30, person: 'Sigma', note: '', createdAt: now - 30 * DAY }, { id: 'm7', kind: 'sell', qty: 4, price: 3400, unitCost: 2600, date: t - 12, person: '', note: '', createdAt: now - 12 * DAY }] },
+    ],
     rental: [
       { id: 'r1', monitor: true, monitorUrl: '65.21.10.4:22', kind: 'vps', name: 'Bakery POS server', provider: 'Hetzner', customerId: 'c1', projectId: 'p1', clientName: 'Nour Bakery', startDate: t - 50, expiryDate: t + 2, expiryTime: null, period: 'monthly', cost: 350, costCurrency: 'EGP', price: 900, priceCurrency: 'EGP', reminder: true, remindDays: 3, status: 'active', details: 'IP 65.21.10.4\nUbuntu 24.04 · 4 GB RAM', renewals: [{ id: id(), date: t - 28, from: t - 28, to: t + 2, cost: 350, price: 900, note: '' }], createdAt: now },
       { id: 'r2', monitor: true, monitorUrl: 'https://linahassan.design', kind: 'domain', name: 'linahassan.design', provider: 'Namecheap', customerId: null, projectId: 'p2', clientName: 'Lina Hassan', startDate: t - 200, expiryDate: t + 165, expiryTime: null, period: 'yearly', cost: 15, costCurrency: 'USD', price: 25, priceCurrency: 'USD', reminder: true, remindDays: 14, status: 'active', details: 'Nameservers: Cloudflare', renewals: [], createdAt: now },
@@ -139,7 +151,7 @@ export function installMock() {
   }
   const params = new URLSearchParams(location.search)
   let data: Record<string, any[]> = store('data') ?? sample()
-  for (const k of ['rental', 'invoice', 'recurring', 'secret', 'vault']) if (!data[k]) data[k] = sample()[k]
+  for (const k of ['rental', 'invoice', 'recurring', 'secret', 'vault', 'item']) if (!data[k]) data[k] = sample()[k]
   const vaultKeys: Record<string, string> = {}
   let signedIn = params.has('auth') ? false : store('signedIn') ?? true
   let theme = Number(params.get('theme') ?? store('theme') ?? 1)
@@ -147,7 +159,7 @@ export function installMock() {
   let github: string = params.has('nogh') ? '' : 'adham-dev'
   const emit = (name: string, payload: unknown) => setTimeout(() => window.__native.emit(name, payload), 0)
   const state = () => ({
-    signedIn, locked, version: '1.9.1', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
+    signedIn, locked, version: '1.10.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
     user: { id: 'u1', email: 'you@example.com', name: 'Adham Kassem', username: 'adham', bio: 'Freelance Android and web developer.', github, avatarRev: 0 },
     settings: { currency: 'EGP', theme, autoUpdate: true },
     lock: { pinEnabled: true, pinLength: 4, biometric: false, biometricAvailable: false, delay: 30, secureScreen: false },

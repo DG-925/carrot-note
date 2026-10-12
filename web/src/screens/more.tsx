@@ -8,6 +8,7 @@ import { DebtCard, EventRow, GoalCard, NoteCard, TaskRow, TimeRow, TxnRow } from
 import { countries, defaultCountries, useHolidays, type Country } from '../holidays'
 import { WORK_MS, dropFocus, getFocus, startFocus, stopFocus, useFocus } from '../focus'
 import { setPrefs, useApp } from '../store'
+import { stockOf } from './stock'
 import { rentalKind } from '../types'
 import { debtRemaining, debtSettled, duration, goalProgress, goalSaved, isRunning, type Invite } from '../types'
 import {
@@ -539,12 +540,13 @@ export function SearchScreen() {
     ['Money', s.data.txn.filter(t => has(t.note, t.category, t.method)).sort((a, b) => b.date - a.date).slice(0, 30).map(t => ({ icon: categoryIcon(t.category), tint: t.kind === 'income' ? 'mint' : 'sky', title: t.note || t.category, sub: (t.kind === 'income' ? '+' : '−') + F.money(t.amount, t.currency) + ' · ' + F.dateShort(t.date), open: () => editTxn(t) }))],
     ['Events', s.data.event.filter(e => has(e.title, e.note)).map(e => ({ icon: 'calendar', tint: 'sky', title: e.title, sub: F.date(e.date) + (e.done ? ' · done' : ''), open: () => editEvent(e) }))],
     ['Rentals', s.data.rental.filter(r => has(r.name, r.clientName, r.provider, r.details)).map(r => ({ icon: rentalKind(r.kind).icon, tint: 'sky', title: r.name || rentalKind(r.kind).label, sub: [r.clientName, r.expiryDate != null ? 'Expires ' + F.dateShort(r.expiryDate) : ''].filter(Boolean).join(' · '), open: () => push({ name: 'rental', id: r.id }) }))],
+    ['Stock', s.data.item.filter(it => has(it.name, it.sku, it.category, it.notes)).map(it => ({ icon: 'box', tint: 'butter', title: it.name, sub: [it.category, `${Math.max(0, stockOf(it).qty)} in stock`].filter(Boolean).join(' · '), open: () => push({ name: 'item', id: it.id }) }))],
   ] as [string, Hit[]][]).filter(g => g[1].length)
   return (
     <div class="scroll">
       <PageHeader title="Search" onBack={popNav} />
       <div class="content no-tabbar">
-        <SearchBar i={1} inputRef={input} value={query} onInput={setQuery} placeholder="Projects, notes, tasks, customers, rentals…" />
+        <SearchBar i={1} inputRef={input} value={query} onInput={setQuery} placeholder="Projects, notes, tasks, customers, stock…" />
         {q.length < 2 && <Hint>Type at least 2 letters to search everything in Carrot Note.</Hint>}
         {q.length >= 2 && !groups.length && <Empty icon="search" title="Nothing found" text="Try another word." />}
         {groups.map(([title, hits]) => (

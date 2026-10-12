@@ -435,6 +435,25 @@ h1, h2, h3, h4 { margin: 0; font-family: var(--display); letter-spacing: -0.02em
   border: 0; outline: 0; background: transparent; padding: 2px 0; font-size: 16px; width: 100%; min-width: 0; resize: none;
 }
 .field select { appearance: none; -webkit-appearance: none; font-weight: 600; }
+.select-field { cursor: pointer; user-select: none; outline: none; }
+.select-field:focus-visible, .select-field.open { box-shadow: 0 0 0 2px var(--accent); }
+.select-field.open label { color: var(--accent); }
+.select-field .select-value { font-weight: 600; font-size: 16px; padding: 2px 22px 2px 0; min-height: 22px; }
+.select-field.open .trail svg { transform: rotate(180deg); }
+.select-field .trail svg { transition: transform .2s; }
+[dir="rtl"] .select-field .select-value { padding: 2px 0 2px 22px; }
+.dd-scrim { position: fixed; inset: 0; z-index: 400; }
+.dropdown {
+  position: fixed; z-index: 401; overflow-y: auto; background: var(--card); border-radius: 18px; padding: 6px;
+  box-shadow: 0 18px 50px -12px rgba(0,0,0,.35), 0 0 0 1px rgba(127,127,127,.14); animation: ddIn .16s var(--ease-out);
+  scrollbar-width: thin;
+}
+.dropdown.up { animation-name: ddUp; }
+@keyframes ddIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+@keyframes ddUp { from { opacity: 0; transform: translateY(6px) scale(.98); } }
+.dd-opt { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 12px; border-radius: 12px; font-weight: 600; font-size: 15px; color: var(--fg); text-align: start; }
+.dd-opt.active { background: var(--bg); }
+.dd-opt.on { color: var(--accent); }
 .field textarea { min-height: 76px; line-height: 1.45; }
 .field .hint { font-size: 12px; color: var(--muted); }
 .field .hint.good { color: var(--good); }
@@ -870,3 +889,14 @@ html.desktop button, html.desktop .press { cursor: pointer; }
 .kind-pick button { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 18px; background: var(--bg); color: var(--fg); text-align: start; border: 2px solid transparent; }
 .kind-pick button.on { border-color: var(--accent); }
 .kind-pick button svg { color: var(--accent); }
+
+/* ------------------------------------------------------------------ stock */
+
+.stock-thumb { border-radius: 16px; object-fit: cover; flex: none; display: grid; place-items: center; background: var(--bg); }
+.hero-thumb { width: 72px; height: 72px; border: 3px solid rgba(255,255,255,.35); }
+.stock-qty { font: 800 26px/1 var(--display); letter-spacing: -0.02em; }
+.warn { color: #E08A00; }
+.hero-btn:disabled { opacity: .55; }
+.stepper { display: flex; align-items: center; gap: 4px; background: var(--bg); border-radius: 14px; padding: 4px; }
+.stepper button { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: var(--card); color: var(--fg); }
+.stepper input { width: 52px; border: 0; outline: 0; background: none; text-align: center; font: 800 18px var(--display); color: var(--fg); }

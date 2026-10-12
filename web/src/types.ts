@@ -104,6 +104,22 @@ export interface Recurring {
 export interface Secret { id: string; title: string; kind: string; rentalId?: string | null; customerId?: string | null; iv: string; data: string; createdAt: number }
 export interface VaultMeta { id: string; salt: string; iv: string; check: string; createdAt: number }
 
+/** One change to an item's stock: bought, sold, or counted again ([qty] is the change, + or −). */
+export interface StockMove {
+  id: string; kind: string; qty: number; price: number; date: number
+  /** Who it was bought from or sold to. */
+  person: string; customerId?: string | null; note: string
+  /** For sales: the average cost of one unit when it was sold, so profit stays right later. */
+  unitCost?: number
+  txnId?: string | null; debtId?: string | null; createdAt: number
+}
+/** Something physical bought to sell again (a PC, a phone, parts…). */
+export interface StockItem {
+  id: string; name: string; sku: string; category: string; condition: string; currency: string
+  sellPrice: number; lowStock: number; notes: string; photoId?: string | null; archived?: boolean
+  moves: StockMove[]; createdAt: number
+}
+
 export interface SpaceMember { id: string; username: string; name: string; avatarRev: number; role: string }
 export interface SpaceInfo {
   id: string; kind: string; projectId?: string | null; ownerId: string; role: string
@@ -123,7 +139,7 @@ export interface GithubProfile {
 export interface Tables {
   project: Project[]; task: TaskItem[]; note: Note[]; txn: Txn[]; goal: Goal[]; customer: Customer[]
   debt: Debt[]; event: CalEvent[]; time: TimeEntry[]; budget: Budget[]; rental: Rental[]
-  invoice: Invoice[]; recurring: Recurring[]; secret: Secret[]; vault: VaultMeta[]
+  invoice: Invoice[]; recurring: Recurring[]; secret: Secret[]; vault: VaultMeta[]; item: StockItem[]
 }
 export type TableName = keyof Tables
 
@@ -146,8 +162,8 @@ export const statusLabel = (s: string) =>
   ({ active: 'Active', on_hold: 'On hold', done: 'Done', cancelled: 'Cancelled' } as Record<string, string>)[s] ?? s
 
 export const Categories = {
-  expense: ['Food', 'Transport', 'Bills', 'Rent', 'Shopping', 'Subscriptions', 'Hosting & domains', 'Equipment', 'Internet & Phone', 'Health', 'Entertainment', 'Education', 'Family', 'Other'],
-  income: ['Project payment', 'Rentals', 'Salary', 'Freelance', 'Bonus', 'Refund', 'Gift', 'Other'],
+  expense: ['Food', 'Transport', 'Bills', 'Rent', 'Shopping', 'Subscriptions', 'Hosting & domains', 'Stock purchase', 'Equipment', 'Internet & Phone', 'Health', 'Entertainment', 'Education', 'Family', 'Other'],
+  income: ['Project payment', 'Rentals', 'Sales', 'Salary', 'Freelance', 'Bonus', 'Refund', 'Gift', 'Other'],
   methods: ['Cash', 'Card', 'Bank transfer', 'USDT', 'Crypto', 'PayPal', 'InstaPay', 'Wallet', 'Other'],
   currencies: ['USD', 'EGP', 'EUR', 'USDT', 'GBP', 'SAR', 'AED', 'KWD', 'QAR', 'TRY'],
 }

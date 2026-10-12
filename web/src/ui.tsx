@@ -1,6 +1,7 @@
 // Shared building blocks for every screen.
 
 import type { ComponentChildren, JSX } from 'preact'
+import { createPortal } from 'preact/compat'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { call } from './bridge'
 import * as F from './format'
@@ -312,14 +313,73 @@ export function Field(p: FieldProps) {
 }
 
 export function SelectField<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const current = options.find(o => o.value === value)
   return (
-    <div class="field">
+    <div ref={ref} class={cx('field select-field', open && 'open')} tabIndex={0} role="button" aria-haspopup="listbox" aria-expanded={open}
+      onClick={() => setOpen(!open)}
+      onKeyDown={e => { if (!open && ['Enter', ' ', 'ArrowDown'].includes(e.key)) { e.preventDefault(); setOpen(true) } }}>
       <label>{label}</label>
-      <select value={value} onChange={e => onChange((e.target as HTMLSelectElement).value as T)}>
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
+      <div class="select-value ellipsis">{current?.label ?? value}</div>
       <div class="trail" style={{ color: 'var(--muted)' }}><Icon name="down" size={14} /></div>
+      {open && ref.current && createPortal(
+        <Dropdown anchor={ref.current} options={options} value={value}
+          onPick={v => { setOpen(false); if (v !== value) onChange(v as T); ref.current?.focus() }}
+          onClose={() => { setOpen(false); ref.current?.focus() }} />,
+        document.body,
+      )}
     </div>
+  )
+}
+
+/** The list that drops down under a select field, drawn above everything else. */
+function Dropdown({ anchor, options, value, onPick, onClose }: {
+  anchor: HTMLElement; options: { value: string; label: string }[]; value: string; onPick: (v: string) => void; onClose: () => void
+}) {
+  const [active, setActive] = useState(Math.max(0, options.findIndex(o => o.value === value)))
+  const activeRef = useRef(active)
+  activeRef.current = active
+  const list = useRef<HTMLDivElement>(null)
+  const r = anchor.getBoundingClientRect()
+  const height = Math.min(320, options.length * 44 + 12)
+  const below = innerHeight - r.bottom - 12
+  const up = below < height && r.top > below
+  const width = Math.max(r.width, 180)
+  const left = Math.min(Math.max(8, r.left), innerWidth - width - 8)
+  const style = { left, width, maxHeight: Math.max(160, Math.min(320, (up ? r.top : below) - 12)), ...(up ? { bottom: innerHeight - r.top + 6 } : { top: r.bottom + 6 }) }
+  useEffect(() => {
+    list.current?.querySelector<HTMLElement>('.dd-opt.on')?.scrollIntoView({ block: 'nearest' })
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose() }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => Math.min(options.length - 1, a + 1)) }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => Math.max(0, a - 1)) }
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(options[activeRef.current].value) }
+      else if (e.key.length === 1) {
+        const i = options.findIndex(o => o.label.toLowerCase().startsWith(e.key.toLowerCase()))
+        if (i >= 0) setActive(i)
+      }
+    }
+    const away = () => onClose()
+    addEventListener('keydown', key, true)
+    addEventListener('resize', away)
+    return () => { removeEventListener('keydown', key, true); removeEventListener('resize', away) }
+  }, [])
+  useEffect(() => { list.current?.querySelectorAll<HTMLElement>('.dd-opt')[active]?.scrollIntoView({ block: 'nearest' }) }, [active])
+  return (
+    <>
+      <div class="dd-scrim" onClick={e => { e.stopPropagation(); onClose() }} onWheel={onClose} />
+      <div ref={list} class={cx('dropdown', up && 'up')} role="listbox" style={style}>
+        {options.map((o, i) => (
+          <button key={o.value} type="button" role="option" aria-selected={o.value === value}
+            class={cx('dd-opt', o.value === value && 'on', i === active && 'active')}
+            onMouseEnter={() => setActive(i)} onClick={e => { e.stopPropagation(); onPick(o.value) }}>
+            <span class="grow ellipsis">{o.label}</span>
+            {o.value === value && <Icon name="check" size={14} stroke={2.6} />}
+          </button>
+        ))}
+      </div>
+    </>
   )
 }
 

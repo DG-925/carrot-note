@@ -17,7 +17,7 @@ declare const __APP_VERSION__: string
 const VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0'
 const API = 'https://carrot-note-api.carrot-note-api.workers.dev'
 const REPO = 'DG-925/carrot-note'
-const TYPES = ['project', 'task', 'note', 'txn', 'goal', 'customer', 'debt', 'event', 'time', 'budget', 'rental', 'invoice', 'recurring', 'receipt', 'secret', 'vault']
+const TYPES = ['project', 'task', 'note', 'txn', 'goal', 'customer', 'debt', 'event', 'time', 'budget', 'rental', 'invoice', 'recurring', 'receipt', 'secret', 'vault', 'item']
 const ALLOWED = ['https://date.nager.at/', 'https://open.er-api.com/', 'https://api.github.com/', 'https://rdap.org/']
 
 type Json = any

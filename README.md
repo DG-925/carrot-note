@@ -16,6 +16,13 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.10: Stock
+
+- **Stock** (in the menu, and "Sale" / "Stock item" under New): for selling physical things like PCs, phones or parts. Each item has a photo, condition (new, used, refurbished), category, serial number and selling price.
+- **Buy and sell**: buying adds pieces at the price you paid (the app keeps the average cost); selling takes them out and shows the profit of that sale. Sales and purchases can go straight into Money ("Sales" income, "Stock purchase" expense), and a customer who pays later is added to Debts.
+- **See where you stand**: stock value at cost, what it could sell for, pieces in stock, profit this month, items running low or sold out (with your own warning level), and "Fix the count" for broken, lost or recounted pieces.
+- **Dropdowns**: every dropdown (currency, status, customer, project…) now opens a list in the app's own style, which you can also use with the keyboard on PC.
+
 ### New in 1.9.1
 
 - Windows: rows of choices (categories, payment methods, filters) show every option instead of scrolling sideways, and anything that still scrolls sideways moves with the mouse wheel or by dragging.

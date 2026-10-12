@@ -33,7 +33,7 @@ function loadPrefs(): Prefs {
 }
 
 const emptyTables = (): Tables => ({
-  project: [], task: [], note: [], txn: [], goal: [], customer: [], debt: [], event: [], time: [], budget: [], rental: [], invoice: [], recurring: [], secret: [], vault: [],
+  project: [], task: [], note: [], txn: [], goal: [], customer: [], debt: [], event: [], time: [], budget: [], rental: [], invoice: [], recurring: [], secret: [], vault: [], item: [],
 })
 
 let state: AppState = {
@@ -140,7 +140,7 @@ export const save = <K extends TableName>(type: K, item: Tables[K][number]) => {
 const typeNames: Record<TableName, string> = {
   project: 'Project', task: 'Task', note: 'Note', txn: 'Transaction', goal: 'Goal', customer: 'Customer',
   debt: 'Debt', event: 'Event', time: 'Time entry', budget: 'Budget', rental: 'Rental',
-  invoice: 'Invoice', recurring: 'Recurring payment', secret: 'Vault item', vault: 'Vault',
+  invoice: 'Invoice', recurring: 'Recurring payment', secret: 'Vault item', vault: 'Vault', item: 'Stock item',
 }
 
 /** Deletes an item and offers Undo for a few seconds. */

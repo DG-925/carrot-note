@@ -8,6 +8,7 @@ import { expiresAt, productStats, rentalState } from './rentals'
 import { rentalKind } from '../types'
 import { togglePrivacy, useApp } from '../store'
 import { InMain } from './money'
+import { salesBetween, stockOf, stockState } from './stock'
 import { duration, isRunning, type Note, type Project } from '../types'
 import { Btn, Card, CountInt, CountMoney, Eyebrow, Hero, MainHeader, Ring, Spark, Tile, useNow, type TileColor } from '../ui'
 
@@ -161,6 +162,8 @@ export function HomeScreen() {
 
         <RentalsDue />
 
+        <StockAlert />
+
         <WeekInsights />
 
         {data.project.length > 0 && (
@@ -180,7 +183,7 @@ export function HomeScreen() {
 
         <div class="chips pop" style={{ '--i': 6 } as any}>
           {([['Calendar', 'calendar', 'sky', 'calendar'], ['Time', 'timer', 'mint', 'time'], ['Customers', 'users', 'rose', 'customers'],
-            ['Rentals', 'server', 'sky', 'rentals'], ['Debts', 'debt', 'butter', 'debts'], ['Savings', 'goal', 'lilac', 'goals']] as const).map(([label, icon, color, route]) => (
+            ['Rentals', 'server', 'sky', 'rentals'], ['Stock', 'box', 'butter', 'stock'], ['Debts', 'debt', 'butter', 'debts'], ['Savings', 'goal', 'lilac', 'goals']] as const).map(([label, icon, color, route]) => (
             <button key={label} class={`shortcut t-${color} press`} onClick={() => push({ name: route } as any)}>
               <span class="box"><Icon name={icon} size={16} /></span>{label}
             </button>
@@ -284,6 +287,26 @@ function RentalsDue() {
         )
       })}
       {due.length > 4 && <div class="small semibold">+{due.length - 4} more</div>}
+    </Tile>
+  )
+}
+
+/** Items running low, and what sales made today. */
+function StockAlert() {
+  const s = useApp()
+  const items = s.data.item.filter(i => !i.archived)
+  if (!items.length) return null
+  const low = items.filter(i => i.lowStock > 0 && stockState(i) !== 'ok')
+  const today = salesBetween(items, F.today(), F.today())
+  if (!low.length && !today.count) return null
+  return (
+    <Tile color="butter" i={4} onClick={() => push({ name: 'stock' })}>
+      <div class="row"><Icon name="box" size={16} /><h3 class="h-md grow">Stock</h3><Icon name="right" size={13} /></div>
+      {today.count > 0 && <div class="small semibold" style={{ marginTop: 6 }}>Sold {today.count} today · profit {F.totals(today.profit, s.settings.currency)}</div>}
+      {low.slice(0, 4).map(i => {
+        const q = stockOf(i).qty
+        return <div key={i.id} class="row small semibold" style={{ marginTop: 6 }}><span class="grow ellipsis">{i.name}</span><span class={q <= 0 ? 'bad' : ''}>{q <= 0 ? 'Sold out' : `${q} left`}</span></div>
+      })}
     </Tile>
   )
 }

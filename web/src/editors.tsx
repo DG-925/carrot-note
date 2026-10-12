@@ -876,6 +876,8 @@ export function quickAdd() {
     ['Rental', 'server', 'sky', () => import('./screens/rentals').then(m => m.editRental())],
     ['Debt', 'debt', 'butter', () => editDebt()],
     ['Invoice', 'invoice', 'orange', () => import('./screens/invoices').then(m => m.editInvoice())],
+    ['Sale', 'tag', 'mint', () => import('./screens/stock').then(m => m.quickSale())],
+    ['Stock item', 'box', 'butter', () => import('./screens/stock').then(m => m.editItem())],
     ['Recurring', 'repeat', 'mint', () => import('./screens/recurring').then(m => m.editRecurring())],
     ['Login', 'lock', 'lilac', () => push({ name: 'vault' })],
     ['Report', 'chart', 'sky', () => push({ name: 'report' })],

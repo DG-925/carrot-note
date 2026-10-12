@@ -18,6 +18,7 @@ const P: Record<string, string> = {
   down: 'M5 9l7 7 7-7',
   back: 'M19 12H5 M11 6l-6 6 6 6',
   close: 'M6 6l12 12 M18 6 6 18',
+  minus: 'M5 12h14',
   trash: 'M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13 M10 11v6 M14 11v6',
   edit: 'M4 20h4L19 9l-4-4L4 16z M13.5 6.5l4 4',
   share: 'M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M8.6 13.5l6.8 4 M15.4 6.5l-6.8 4',
@@ -124,7 +125,7 @@ const categoryIcons: Record<string, string> = {
   Food: 'food', Transport: 'car', Bills: 'bills', Rent: 'rent', Shopping: 'shopping', Subscriptions: 'repeat',
   Equipment: 'laptop', 'Internet & Phone': 'wifi', Health: 'health', Entertainment: 'film', Education: 'education',
   Family: 'family', 'Project payment': 'briefcase', Salary: 'coins', Freelance: 'laptop', Bonus: 'star', Refund: 'refund',
-  Gift: 'gift', Other: 'other', 'Hosting & domains': 'server', Rentals: 'server',
+  Gift: 'gift', Other: 'other', 'Hosting & domains': 'server', Rentals: 'server', Sales: 'tag', 'Stock purchase': 'box',
 }
 const methodIcons: Record<string, string> = {
   Cash: 'cash', Card: 'card', 'Bank transfer': 'bank', USDT: 'crypto', Crypto: 'crypto', PayPal: 'paypal',
