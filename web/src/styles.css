@@ -526,7 +526,7 @@ h1, h2, h3, h4 { margin: 0; font-family: var(--display); letter-spacing: -0.02em
 
 /* lock and auth */
 .lock { flex: 1; display: flex; flex-direction: column; align-items: center; padding: calc(var(--sat) + 24px) 24px calc(var(--sab) + 24px); }
-.logo { border-radius: 30%; background: linear-gradient(135deg, #2B2622, #141110); display: grid; place-items: center; overflow: hidden; box-shadow: 0 10px 24px -10px rgba(30,26,23,.55); }
+.logo { border-radius: 30%; background: #FFFFFF; display: grid; place-items: center; overflow: hidden; box-shadow: 0 0 0 1px rgba(30,26,23,.06), 0 10px 24px -12px rgba(255,107,31,.55); }
 .logo-pop { animation: logoPop .9s var(--spring) both; }
 @keyframes logoPop { from { transform: scale(0) rotate(-25deg); } }
 .pin-dots { display: flex; gap: 16px; }

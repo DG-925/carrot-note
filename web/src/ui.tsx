@@ -235,19 +235,22 @@ export function AvatarStack({ people, size = 26, max = 3 }: { people: { id: stri
   )
 }
 
-/** The Carrot Note mark: a carrot that is the long stroke of a check mark. */
+/** The Carrot Note mark: an orange fingerprint on white (same drawing as the launcher icon). */
 export function Logo({ size = 56, popIn }: { size?: number; popIn?: boolean }) {
   return (
     <div class={cx('logo', popIn && 'logo-pop')} style={{ width: size, height: size }}>
-      <svg viewBox="12 12 84 84" width={size} height={size} aria-hidden="true">
-        <path d="M27.5,61 L40,73.5" fill="none" stroke="#FFE58F" stroke-width="7.5" stroke-linecap="round" />
-        <g transform="translate(42,75) rotate(42) scale(0.92)">
-          <path fill="#FF6B1F" d="M-9,-40 Q-9,-46 -3,-46 H3 Q9,-46 9,-40 L2.4,-2 Q0,2.4 -2.4,-2 Z" />
-          <path fill="#FF9A5E" opacity=".6" d="M-3,-46 H0 V1 Q-1.4,0.6 -2.4,-2 L-9,-40 Q-9,-46 -3,-46 Z" />
-          <path fill="none" stroke="#C94A0B" stroke-width="2.6" stroke-linecap="round" d="M-5.5,-33 H0 M0.5,-23 H5 M-3.8,-13 H0.8" />
-          <path fill="#2FBF71" d="M0,-45 C-4,-51 -9,-53 -15,-52 C-12,-47 -6,-44.5 0,-45 Z" />
-          <path fill="#6EE7A0" d="M0,-45 C-1.5,-53 1,-59 6,-62 C7.5,-56 5,-49.5 0,-45 Z" />
-          <path fill="#2FBF71" d="M0,-45 C5,-50 11,-51 17,-48.5 C12.5,-44.5 6,-43.5 0,-45 Z" />
+      <svg viewBox="-3.5 -3.6 31 31" width={size} height={size} aria-hidden="true">
+        <g fill="none" stroke="#FF6B1F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12,11.2 V14.6 Q12,18.2 10.7,21" />
+          <path d="M9.6,16.6 V11.4 A2.4,2.4 0 0 1 14.4,11.4 V13.4" />
+          <path d="M14.4,16.2 Q14.3,18.9 13.3,21.4" />
+          <path d="M7.2,14.2 V11.4 A4.8,4.8 0 0 1 16.8,11.4 V15.4 Q16.8,17.8 16,19.8" />
+          <path d="M7.2,17.2 Q7.3,18.7 7.9,20" />
+          <path d="M4.8,16 V11.4 A7.2,7.2 0 0 1 17.6,6.8" />
+          <path d="M18.9,9 Q19.2,10.1 19.2,11.4 V13.2" />
+          <path d="M19.2,16 V17" />
+          <path d="M2.6,13 V11.4 A9.6,9.6 0 0 1 6.2,3.9" />
+          <path d="M8.6,2.5 A9.6,9.6 0 0 1 21.4,9.8" />
         </g>
       </svg>
     </div>

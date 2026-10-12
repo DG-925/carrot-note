@@ -18,7 +18,7 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 
 ### New in 1.5
 
-- **New logo**: a carrot that forms the long stroke of a check mark.
+- **New logo** (1.5.1): an orange fingerprint on white.
 - **Search everywhere**: a search button in every main header, plus search bars on Money, Projects, Notes, Calendar, Time, Debts and Savings.
 - **New menu**: profile card with quick stats, search, quick-add buttons, colourful section tiles with live counts, theme switch and *Hide amounts*.
 - **GitHub repos from your account**: a project's repository is picked from your linked GitHub account. Pasted links are checked, and only repos you own or contribute to are accepted. The project page shows stars, language, issues and the last push.
