@@ -3,8 +3,11 @@ package com.carrotnote.app
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
@@ -147,7 +150,26 @@ class MainActivity : AppCompatActivity() {
                 else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             }
         }
+        setupShortcuts()
         handleIntent(intent)
+    }
+
+    /** Long-press shortcuts on the launcher icon. */
+    private fun setupShortcuts() {
+        val sm = getSystemService(ShortcutManager::class.java) ?: return
+        fun shortcut(id: String, label: String, icon: Int) = ShortcutInfo.Builder(this, id)
+            .setShortLabel(label)
+            .setIcon(Icon.createWithResource(this, icon))
+            .setIntent(Intent(this, MainActivity::class.java).setAction(Intent.ACTION_VIEW).putExtra(EXTRA_SHORTCUT, id))
+            .build()
+        runCatching {
+            sm.dynamicShortcuts = listOf(
+                shortcut("expense", "New expense", R.drawable.ic_sc_expense),
+                shortcut("task", "New task", R.drawable.ic_sc_task),
+                shortcut("timer", "Start timer", R.drawable.ic_sc_timer),
+                shortcut("search", "Search", R.drawable.ic_sc_search),
+            )
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -167,11 +189,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        intent?.getStringExtra(EXTRA_SHORTCUT)?.let { id ->
+            intent.removeExtra(EXTRA_SHORTCUT)
+            bridge.emit("shortcut", org.json.JSONObject.quote(id))
+        }
         if (intent?.getBooleanExtra(Updater.EXTRA_SHOW_UPDATE, false) == true) {
             intent.removeExtra(Updater.EXTRA_SHOW_UPDATE)
             lifecycleScope.launch {
                 Updater.fetchLatest()?.let { if (Updater.isNewer(it.version, Updater.currentVersion)) Updater.showRelease(it) }
             }
         }
+    }
+
+    companion object {
+        const val EXTRA_SHORTCUT = "com.carrotnote.app.SHORTCUT"
     }
 }

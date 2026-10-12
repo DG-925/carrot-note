@@ -21,9 +21,56 @@ export function sumBy<T>(list: T[], currency: (t: T) => string, value: (t: T) =>
   return out
 }
 
+/** Reads an amount; also works out simple sums like "120+35*2" or "(300-40)/2". */
 export const parseAmount = (s: string): number | null => {
-  const v = parseFloat(s.replace(/,/g, '').trim())
-  return Number.isFinite(v) ? v : null
+  const v = calc(s)
+  return v != null && Number.isFinite(v) ? Math.round(v * 100) / 100 : null
+}
+
+/** True when [s] is a sum to work out rather than a plain number. */
+export const isExpression = (s: string) => /\d\s*[-+*/×÷]\s*[\d(.]/.test(s.replace(/,/g, ''))
+
+function calc(input: string): number | null {
+  const src = input.replace(/,/g, '').replace(/×/g, '*').replace(/÷/g, '/').replace(/\s+/g, '')
+  if (!src) return null
+  let i = 0
+  const peek = () => src[i]
+  function num(): number | null {
+    if (peek() === '(') {
+      i++
+      const v = sum()
+      if (peek() !== ')') return null
+      i++
+      return v
+    }
+    if (peek() === '-') { i++; const v = num(); return v == null ? null : -v }
+    const m = /^\d*\.?\d+|^\d+\.?/.exec(src.slice(i))
+    if (!m) return null
+    i += m[0].length
+    return parseFloat(m[0])
+  }
+  function product(): number | null {
+    let v = num()
+    while (v != null && (peek() === '*' || peek() === '/')) {
+      const op = src[i++]
+      const r = num()
+      if (r == null) return null
+      v = op === '*' ? v * r : r === 0 ? null : v / r
+    }
+    return v
+  }
+  function sum(): number | null {
+    let v = product()
+    while (v != null && (peek() === '+' || peek() === '-')) {
+      const op = src[i++]
+      const r = product()
+      if (r == null) return null
+      v = op === '+' ? v + r : v - r
+    }
+    return v
+  }
+  const v = sum()
+  return i === src.length ? v : null
 }
 export const amountText = (v: number) => (v === 0 ? '' : String(Math.round(v * 100) / 100))
 
@@ -100,3 +147,19 @@ export const hours = (ms: number) => ms / 3_600_000
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 export const initials = (name: string) =>
   name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]!.toUpperCase()).join('') || '?'
+
+/** Next due day of a repeating task. */
+export function nextRepeat(day: number, repeat: string): number {
+  if (repeat === 'daily') return day + 1
+  if (repeat === 'weekly') return day + 7
+  if (repeat === 'monthly') {
+    const d = fromEpochDay(day)
+    const target = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+    const last = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+    return toEpochDay(new Date(target.getFullYear(), target.getMonth(), Math.min(d.getDate(), last)))
+  }
+  return day
+}
+
+/** Country code to its flag emoji ("EG" → 🇪🇬). */
+export const flag = (cc: string) => cc.toUpperCase().replace(/./g, c => String.fromCodePoint(0x1f1a5 + c.charCodeAt(0)))

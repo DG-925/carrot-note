@@ -1,26 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Carrot Note mark: a carrot that is the long stroke of a check mark. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <!-- soft shadow -->
-    <path android:fillColor="#33B34D00"
-        android:pathData="M41,36 H63 L75,48 V78 Q75,84 69,84 H41 Q35,84 35,78 V42 Q35,36 41,36 Z" />
-    <!-- note body -->
-    <path android:fillColor="#FF6B1F"
-        android:pathData="M40,34 H62 L74,46 V76 Q74,82 68,82 H40 Q34,82 34,76 V40 Q34,34 40,34 Z" />
-    <!-- folded corner -->
-    <path android:fillColor="#FFB28A"
-        android:pathData="M62,34 V42 Q62,46 66,46 H74 Z" />
-    <!-- writing lines -->
-    <path android:strokeColor="#FFF4E8" android:strokeWidth="3" android:strokeLineCap="round"
-        android:pathData="M41,50 H56 M41,58 H67 M41,66 H67 M41,74 H58" />
-    <!-- carrot leaves -->
-    <path android:fillColor="#2E7D32"
-        android:pathData="M45,35 C40,31 36,31 33,32 C36,35 40,36 45,35 Z" />
-    <path android:fillColor="#43A047"
-        android:pathData="M46,35 C43,29 44,24 48,21 C50,26 49,31 46,35 Z" />
-    <path android:fillColor="#66BB6A"
-        android:pathData="M47,35 C49,29 53,26 58,26 C56,31 52,34 47,35 Z" />
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:strokeColor="#FFFFE58F" android:strokeWidth="7.5" android:strokeLineCap="round"
+        android:pathData="M27.5,61 L40,73.5" />
+    <group android:translateX="42" android:translateY="75" android:rotation="42" android:scaleX="0.92" android:scaleY="0.92">
+        <path android:fillColor="#FFFF6B1F"
+            android:pathData="M-9,-40 Q-9,-46 -3,-46 H3 Q9,-46 9,-40 L2.4,-2 Q0,2.4 -2.4,-2 Z" />
+        <path android:fillColor="#FFFF9A5E" android:fillAlpha="0.6"
+            android:pathData="M-3,-46 H0 V1 Q-1.4,0.6 -2.4,-2 L-9,-40 Q-9,-46 -3,-46 Z" />
+        <path android:strokeColor="#FFC94A0B" android:strokeWidth="2.6" android:strokeLineCap="round"
+            android:pathData="M-5.5,-33 H0 M0.5,-23 H5 M-3.8,-13 H0.8" />
+        <path android:fillColor="#FF2FBF71"
+            android:pathData="M0,-45 C-4,-51 -9,-53 -15,-52 C-12,-47 -6,-44.5 0,-45 Z" />
+        <path android:fillColor="#FF6EE7A0"
+            android:pathData="M0,-45 C-1.5,-53 1,-59 6,-62 C7.5,-56 5,-49.5 0,-45 Z" />
+        <path android:fillColor="#FF2FBF71"
+            android:pathData="M0,-45 C5,-50 11,-51 17,-48.5 C12.5,-44.5 6,-43.5 0,-45 Z" />
+    </group>
 </vector>

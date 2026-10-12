@@ -2,13 +2,31 @@
 
 import { useEffect, useState } from 'preact/hooks'
 import { call, on } from './bridge'
-import type { NativeState, SpaceInfo, TableName, Tables } from './types'
+import * as F from './format'
+import { newId, type NativeState, type SpaceInfo, type TableName, type TaskItem, type Tables } from './types'
+import { toast } from './ui'
+
+/** Choices kept on this phone only. */
+export interface Prefs {
+  /** Blur amounts on screen. */
+  privacy: boolean
+  /** Countries whose public holidays show in the calendar; null until the user picks (then the phone's region is used). */
+  holidays: string[] | null
+  /** Show phone contacts' birthdays in the calendar. */
+  birthdays: boolean
+}
 
 export interface AppState extends NativeState {
   loaded: boolean
   data: Tables
   spaces: SpaceInfo[]
   insets: { top: number; bottom: number; keyboard: number }
+  prefs: Prefs
+}
+
+function loadPrefs(): Prefs {
+  const base: Prefs = { privacy: false, holidays: null, birthdays: false }
+  try { return { ...base, ...JSON.parse(localStorage.getItem('carrot.prefs') ?? '{}') } } catch { return base }
 }
 
 const emptyTables = (): Tables => ({
@@ -31,6 +49,19 @@ let state: AppState = {
   data: emptyTables(),
   spaces: [],
   insets: { top: 24, bottom: 16, keyboard: 0 },
+  prefs: loadPrefs(),
+}
+document.documentElement.classList.toggle('private', state.prefs.privacy)
+
+export function setPrefs(patch: Partial<Prefs>) {
+  const prefs = { ...state.prefs, ...patch }
+  try { localStorage.setItem('carrot.prefs', JSON.stringify(prefs)) } catch { /* storage blocked */ }
+  document.documentElement.classList.toggle('private', prefs.privacy)
+  setState({ prefs })
+}
+export const togglePrivacy = () => {
+  setPrefs({ privacy: !state.prefs.privacy })
+  toast(state.prefs.privacy ? 'Amounts hidden' : 'Amounts shown')
 }
 
 const subs = new Set<() => void>()
@@ -93,10 +124,35 @@ export const save = <K extends TableName>(type: K, item: Tables[K][number]) => {
   return call('data.save', { type, item })
 }
 
-export const remove = (type: TableName, id: string) => {
-  setState({ data: { ...state.data, [type]: (state.data[type] as any[]).filter(x => x.id !== id) } })
-  return call('data.delete', { type, id })
+const typeNames: Record<TableName, string> = {
+  project: 'Project', task: 'Task', note: 'Note', txn: 'Transaction', goal: 'Goal', customer: 'Customer',
+  debt: 'Debt', event: 'Event', time: 'Time entry', budget: 'Budget',
 }
+
+/** Deletes an item and offers Undo for a few seconds. */
+export const remove = (type: TableName, id: string) => {
+  const item = (state.data[type] as any[]).find(x => x.id === id)
+  setState({ data: { ...state.data, [type]: (state.data[type] as any[]).filter(x => x.id !== id) } })
+  const done = call('data.delete', { type, id })
+  if (item) toast(`${typeNames[type]} deleted`, { label: 'Undo', run: () => { save(type, item).catch(e => toast(e.message)) } })
+  return done
+}
+
+/** Marks a task done or not done; a repeating task gets its next copy when it is done. */
+export async function setTaskDone(task: TaskItem, done: boolean) {
+  if (done) haptic()
+  await save('task', { ...task, done })
+  const repeat = task.repeat ?? ''
+  if (done && !task.done && repeat && task.dueDate != null) {
+    let next = F.nextRepeat(task.dueDate, repeat)
+    while (next < F.today()) next = F.nextRepeat(next, repeat)
+    await save('task', { ...task, id: newId(), done: false, dueDate: next, createdAt: Date.now() })
+    toast(`Next one: ${F.relativeDay(next)}`)
+  }
+}
+
+/** A short buzz for taps that finish something. */
+export const haptic = (ms: number | number[] = 12) => { try { navigator.vibrate?.(ms) } catch { /* not supported */ } }
 
 export const byId = <K extends TableName>(type: K, id: string | null | undefined): Tables[K][number] | undefined =>
   id ? (state.data[type] as any[]).find(x => x.id === id) : undefined

@@ -5,15 +5,18 @@ import { call } from './bridge'
 import * as F from './format'
 import { categoryIcon, Icon, methodIcon } from './icons'
 import { openOverlay } from './nav'
-import { byId, getState, remove, save, useApp } from './store'
+import { myRepos, repoPath, repoUrl, verifyRepo, languageColor, type GhRepo } from './github'
+import { ago, getJson } from './net'
+import { byId, getState, remove, save, setTaskDone, useApp } from './store'
+import { linkGithub } from './screens/account'
 import {
   Categories, newId, debtRemaining, goalSaved,
   type Budget, type CalEvent, type CheckItem, type Customer, type Debt, type Goal, type InfoItem, type Note,
   type PhoneContact, type Project, type TaskItem, type TimeEntry, type Txn,
 } from './types'
 import {
-  AmountBox, Btn, Chips, CurrencyField, DateField, Field, FieldLabel, Form, Hint, MoreOptions, Round, Seg,
-  SelectField, SheetTitle, SwitchRow, TimeField, attempt, openForm, openSheet, toast,
+  AmountBox, Btn, Chips, CurrencyField, DateField, Field, FieldLabel, Form, Hint, MoreOptions, Round, SearchBar, Seg,
+  SelectField, SheetTitle, SwitchRow, TimeField, attempt, matches, openForm, openSheet, toast,
 } from './ui'
 
 const now = () => Date.now()
@@ -39,7 +42,7 @@ export function editTask(item?: TaskItem, defaults: { projectId?: string | null;
 function TaskForm({ item, defaults, close }: { item?: TaskItem; defaults: { projectId?: string | null; date?: number | null }; close: () => void }) {
   const base: TaskItem = item ?? {
     id: newId(), title: '', notes: '', projectId: defaults.projectId ?? null, dueDate: defaults.date ?? null, dueTime: null,
-    reminder: false, done: false, priority: 1, createdAt: now(),
+    reminder: false, done: false, priority: 1, createdAt: now(), repeat: '',
   }
   const [t, set] = useState(base)
   const up = (p: Partial<TaskItem>) => set({ ...t, ...p })
@@ -47,12 +50,19 @@ function TaskForm({ item, defaults, close }: { item?: TaskItem; defaults: { proj
   return (
     <Form title={item ? 'Edit task' : 'New task'} close={close} saveEnabled={!!t.title.trim()}
       onSave={async () => {
-        await save('task', { ...t, title: t.title.trim(), notes: t.notes.trim(), dueTime: t.dueDate == null ? null : t.dueTime, reminder: t.reminder && t.dueDate != null })
+        const final = { ...t, title: t.title.trim(), notes: t.notes.trim(), dueTime: t.dueDate == null ? null : t.dueTime, reminder: t.reminder && t.dueDate != null }
+        if (item && !item.done && final.done) await setTaskDone({ ...final, done: false }, true)
+        else await save('task', final)
         close()
       }}
       onDelete={item ? () => { remove('task', item.id); close() } : undefined}>
       <Field label="What needs to be done?" value={t.title} onInput={v => up({ title: v })} autoFocus={!item} />
-      <DateField label="Due date" value={t.dueDate} onChange={v => up({ dueDate: v })} />
+      <DateField label="Due date" value={t.dueDate} onChange={v => up({ dueDate: v, repeat: v == null ? '' : t.repeat })} />
+      <FieldLabel>Repeat</FieldLabel>
+      <Chips options={['', 'daily', 'weekly', 'monthly']} value={t.repeat ?? ''} icon={v => (v ? 'repeat' : 'close')}
+        label={v => ({ '': 'Never', daily: 'Every day', weekly: 'Every week', monthly: 'Every month' } as any)[v]}
+        onChange={v => up({ repeat: v, dueDate: v && t.dueDate == null ? F.today() : t.dueDate })} />
+      {!!t.repeat && <Hint>When you tick it off, the next one is added for {t.dueDate != null ? F.relativeDay(F.nextRepeat(t.dueDate, t.repeat)).toLowerCase() : 'later'}.</Hint>}
       {item && <div class="card in-card"><SwitchRow title="Completed" on={t.done} onChange={v => up({ done: v })} /></div>}
       <MoreOptions startOpen={!!base.notes || base.reminder || base.priority !== 1 || base.dueTime != null}>
         <Field label="Details" multiline value={t.notes} onInput={v => up({ notes: v })} />
@@ -235,13 +245,13 @@ function ProjectForm({ item, defaults, close }: { item?: Project; defaults: { cu
       <SelectField label="Status" value={p.status} onChange={v => up({ status: v })}
         options={[{ value: 'active', label: 'Active' }, { value: 'on_hold', label: 'On hold' }, { value: 'done', label: 'Done' }, { value: 'cancelled', label: 'Cancelled' }]} />
       <DateField label="Deadline" value={p.deadline} onChange={v => up({ deadline: v })} />
-      <MoreOptions startOpen={!!item && (!!base.description || !!base.repo || base.info.length > 0 || base.billing === 'hourly')}>
+      <MoreOptions startOpen={!!base.repo || (!!item && (!!base.description || base.info.length > 0 || base.billing === 'hourly'))}>
         {isOwner && <CustomerPicker value={p.customerId} onChange={v => up({ customerId: v })} none="No saved customer" />}
         <FieldLabel>Billing</FieldLabel>
         <Seg options={[{ label: 'Fixed price', icon: 'tag' }, { label: 'Hourly', icon: 'timer' }]} value={hourly ? 1 : 0} onChange={i => up({ billing: i === 1 ? 'hourly' : 'fixed' })} />
         <DateField label="Start date" value={p.startDate} onChange={v => up({ startDate: v })} />
         <Field label="Description / scope" multiline value={p.description} onInput={v => up({ description: v })} />
-        <Field label="GitHub repository (optional)" value={p.repo} type="url" hint="e.g. github.com/you/project" onInput={v => up({ repo: v })} />
+        <RepoField value={p.repo} onChange={v => up({ repo: v })} />
         <FieldLabel>Project info (links, accounts, specs…)</FieldLabel>
         {p.info.map((it, i) => (
           <div class="row" key={i}>
@@ -253,6 +263,188 @@ function ProjectForm({ item, defaults, close }: { item?: Project; defaults: { cu
         <Btn kind="soft" icon="plus" onClick={() => up({ info: [...p.info, { label: '', value: '' }] })}>Add info field</Btn>
       </MoreOptions>
     </Form>
+  )
+}
+
+/** The project's repository, chosen from the user's own GitHub repos. */
+function RepoField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const path = repoPath(value)
+  return (
+    <div class="field with-icon press" onClick={() => pickRepo(onChange)}>
+      <Icon name="github" size={17} />
+      <div class="inner">
+        <label>GitHub repository (optional)</label>
+        <div class={path ? 'semibold ellipsis' : 'muted'} style={{ padding: '2px 0' }}>{path ?? (value ? value : 'Choose one of your repositories')}</div>
+      </div>
+      {value ? <Round icon="close" sm onBg label="Remove" onClick={() => onChange('')} /> : <Icon name="right" size={13} class="muted" />}
+    </div>
+  )
+}
+
+export function pickRepo(onPick: (url: string) => void) {
+  openSheet(close => <RepoPicker close={close} onPick={url => { onPick(url); close() }} />)
+}
+
+function RepoPicker({ close, onPick }: { close: () => void; onPick: (url: string) => void }) {
+  const s = useApp()
+  const login = s.user?.github ?? ''
+  const [repos, setRepos] = useState<GhRepo[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [q, setQ] = useState('')
+  const [link, setLink] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [linkError, setLinkError] = useState<string | null>(null)
+  useEffect(() => {
+    if (!login) return
+    setRepos(null); setError(null)
+    myRepos(login).then(setRepos).catch(e => setError(e.message))
+  }, [login])
+  if (!login) {
+    return (
+      <>
+        <SheetTitle title="Link your GitHub" sub="Projects can only use repositories from your own GitHub account, so link it first." />
+        <div class="body">
+          <div class="tile t-lilac row" style={{ flexDirection: 'row' }}><Icon name="github" size={28} /><div class="small semibold grow">Your repos show up here after linking. Nothing private is read: only public repositories.</div></div>
+          <Btn block icon="github" onClick={() => linkGithub('')}>Link GitHub account</Btn>
+          <Btn kind="soft" onClick={close}>Cancel</Btn>
+        </div>
+      </>
+    )
+  }
+  const shown = (repos ?? []).filter(r => matches(q, r.name, r.description, r.language))
+  const checkLink = async () => {
+    const path = repoPath(link)
+    if (!path) { setLinkError('Paste a GitHub link like github.com/owner/repo'); return }
+    setChecking(true); setLinkError(null)
+    try { onPick(repoUrl((await verifyRepo(path, login)).full_name)) } catch (e) { setLinkError((e as Error).message) } finally { setChecking(false) }
+  }
+  return (
+    <>
+      <SheetTitle title="Choose repository" sub={`Public repositories of @${login}`} />
+      <SearchBar value={q} onInput={setQ} placeholder="Search your repositories" />
+      <div class="body" style={{ minHeight: 220 }}>
+        {error && <div class="error-box"><Icon name="warning" size={16} />{error}</div>}
+        {!repos && !error && <div class="row" style={{ justifyContent: 'center', padding: 30 }}><span class="spinner" /></div>}
+        {repos && !shown.length && <Hint>{repos.length ? 'No repository matches.' : `@${login} has no public repositories yet.`}</Hint>}
+        {shown.length > 0 && <div class="card flush in-card">
+          {shown.map(r => (
+            <button key={r.full_name} class="item" style={{ width: '100%', textAlign: 'left' }} onClick={() => onPick(r.html_url)}>
+              <div class="badge-ico t-lilac"><Icon name="github" size={16} /></div>
+              <div class="main">
+                <div class="t">{r.owner.login.toLowerCase() === login.toLowerCase() ? r.name : r.full_name}{r.fork && <span class="muted small"> · fork</span>}</div>
+                <div class="s">{r.description || 'No description'}</div>
+                <div class="repo-meta">
+                  {r.language && <span><i style={{ background: languageColor(r.language) }} />{r.language}</span>}
+                  {r.stargazers_count > 0 && <span><Icon name="star" size={11} />{r.stargazers_count}</span>}
+                  <span>Updated {ago(r.pushed_at)}</span>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>}
+        <div class="field-label">Not listed? Paste its link</div>
+        <Field label="Repository link" value={link} icon="link" placeholder="github.com/owner/repo" onInput={v => { setLink(v); setLinkError(null) }}
+          hint={linkError ?? 'Only repositories you own or contribute to are accepted.'} hintTone={linkError ? 'bad' : undefined} />
+        <Btn kind="soft" icon="check" busy={checking} disabled={!link.trim()} onClick={checkLink}>Check and use</Btn>
+      </div>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------- payment reminder
+
+/** Sheet with a friendly "please pay" message to send on WhatsApp or anywhere else. */
+export function askForPayment(o: { person: string; amount: number; currency: string; customerId?: string | null; dueDate?: number | null; what?: string }) {
+  openSheet(close => <PaymentReminder o={o} close={close} />)
+}
+
+function PaymentReminder({ o, close }: { o: Parameters<typeof askForPayment>[0]; close: () => void }) {
+  const s = useApp()
+  const customer = byId('customer', o.customerId)
+  const first = (customer?.name || o.person).trim().split(' ')[0]
+  const me = s.user?.name.trim().split(' ')[0]
+  const due = o.dueDate != null ? (o.dueDate < F.today() ? `, which was due on ${F.date(o.dueDate)}` : `, due on ${F.date(o.dueDate)}`) : ''
+  const [text, setText] = useState(
+    `Hi ${first}, hope you're doing well! Just a friendly reminder about the ${F.money(o.amount, o.currency)}${o.what ? ` for ${o.what}` : ''}${due}. ` +
+    `Let me know if you have any questions. Thank you!${me ? `\n\n${me}` : ''}`)
+  const phone = customer?.phone ?? ''
+  return (
+    <>
+      <SheetTitle title="Ask for payment" sub={`${F.money(o.amount, o.currency)} from ${customer?.name || o.person}`} />
+      <div class="body">
+        <Field label="Message" multiline value={text} onInput={setText} />
+        <Btn block kind="t-mint" class="t-mint" icon="whatsapp" onClick={() => { call('app.whatsapp', { phone, text }); close() }}>
+          {phone ? `WhatsApp ${first}` : 'Send on WhatsApp'}
+        </Btn>
+        <div class="grid2">
+          <Btn kind="soft" icon="share" onClick={() => { call('app.share', { subject: 'Payment reminder', text }); close() }}>Share</Btn>
+          <Btn kind="soft" icon="copy" onClick={() => { call('app.copy', { text }); close() }}>Copy</Btn>
+        </div>
+        {!phone && <Hint>Tip: save {first} as a customer with a phone number to open the chat directly.</Hint>}
+      </div>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------- currency converter
+
+interface Rates { result: string; base_code: string; time_last_update_unix: number; rates: Record<string, number> }
+const ratesFor = (cur: string) => getJson<Rates>(`https://open.er-api.com/v6/latest/${cur}`, `fx.${cur}`, 6 * 3_600_000)
+/** USDT follows the US dollar. */
+const fxCode = (c: string) => (c === 'USDT' ? 'USD' : c)
+
+export function openConverter() {
+  openSheet(close => <Converter close={close} />)
+}
+
+function Converter({ close }: { close: () => void }) {
+  const s = useApp()
+  const [amount, setAmount] = useState('100')
+  const [from, setFrom] = useState(s.settings.currency === 'USD' ? 'EUR' : s.settings.currency)
+  const [to, setTo] = useState('USD')
+  const [rates, setRates] = useState<Rates | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    let live = true
+    setError(null)
+    ratesFor(fxCode(from)).then(r => { if (live) { if (r.result !== 'success') throw new Error('No rates for ' + from); setRates(r) } })
+      .catch(e => { if (live) { setRates(null); setError(e.message) } })
+    return () => { live = false }
+  }, [from])
+  const value = F.parseAmount(amount)
+  const rate = rates?.rates[fxCode(to)]
+  const result = value != null && rate != null ? value * rate : null
+  const codes = rates ? [...new Set([...Categories.currencies, ...Object.keys(rates.rates).sort()])] : Categories.currencies
+  const opts = (keep: string) => (codes.includes(keep) ? codes : [keep, ...codes]).map(c => ({ value: c, label: c }))
+  const others = Categories.currencies.filter(c => c !== from && c !== to && rates?.rates[fxCode(c)] != null).slice(0, 6)
+  return (
+    <>
+      <SheetTitle title="Currency converter" sub="Live rates from open.er-api.com" />
+      <div class="body">
+        <AmountBox value={amount} onInput={setAmount} currency={from} onCurrency={setFrom} color="var(--fg)" />
+        <div class="row">
+          <div class="grow"><SelectField label="Convert to" value={to} options={opts(to)} onChange={setTo} /></div>
+          <Round icon="sync" label="Swap" onClick={() => { setFrom(to); setTo(from) }} />
+        </div>
+        {error && <div class="error-box"><Icon name="warning" size={16} />{error}</div>}
+        {!rates && !error && <div class="row" style={{ justifyContent: 'center', padding: 16 }}><span class="spinner" /></div>}
+        {result != null && (
+          <div class="hero" style={{ gap: 4 }}>
+            <div class="eyebrow">{F.money(value!, from)} is</div>
+            <div class="h-display num">{F.money(result, to)}</div>
+            <div class="small" style={{ opacity: .85 }}>1 {from} = {rate! < 1 ? Number(rate!.toPrecision(3)) : F.amount(rate!)} {to}</div>
+          </div>
+        )}
+        {value != null && others.length > 0 && <div class="card flush in-card">
+          {others.map(c => (
+            <div key={c} class="item"><div class="badge-ico t-sky" style={{ fontSize: 11, fontWeight: 800 }}>{c}</div>
+              <div class="main"><div class="t num">{F.money(value * rates!.rates[fxCode(c)], c)}</div></div></div>
+          ))}
+        </div>}
+        {rates && <Hint>Updated {new Date(rates.time_last_update_unix * 1000).toLocaleString()}. {from === 'USDT' || to === 'USDT' ? 'USDT is counted as 1 USD.' : ''}</Hint>}
+        <Btn kind="soft" onClick={close}>Done</Btn>
+      </div>
+    </>
   )
 }
 

@@ -61,6 +61,8 @@ data class TaskItem(
     val reminder: Boolean = false,
     val done: Boolean = false,
     val priority: Int = 1,
+    /** "", "daily", "weekly" or "monthly": a new copy is made when this one is done. */
+    val repeat: String = "",
     val createdAt: Long = nowMs(),
 )
 

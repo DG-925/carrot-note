@@ -16,6 +16,27 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.5
+
+- **New logo**: a carrot that forms the long stroke of a check mark.
+- **Search everywhere**: a search button in every main header, plus search bars on Money, Projects, Notes, Calendar, Time, Debts and Savings.
+- **New menu**: profile card with quick stats, search, quick-add buttons, colourful section tiles with live counts, theme switch and *Hide amounts*.
+- **GitHub repos from your account**: a project's repository is picked from your linked GitHub account. Pasted links are checked, and only repos you own or contribute to are accepted. The project page shows stars, language, issues and the last push.
+- **Public holidays around the world** in the calendar from [Nager.Date](https://date.nager.at), a free API. Pick any countries; the list is kept for offline use.
+- **10 more features**:
+  1. Repeating tasks: daily, weekly or monthly.
+  2. Undo after deleting anything.
+  3. A calculator in amount fields (`120+35*2`).
+  4. *Hide amounts* privacy mode.
+  5. A weekly insights card on Home.
+  6. A focus (Pomodoro) timer.
+  7. Payment reminders on WhatsApp for debts and unpaid projects.
+  8. A live currency converter ([open.er-api.com](https://open.er-api.com)).
+  9. Contacts' birthdays in the calendar.
+  10. Long-press launcher shortcuts: New expense, New task, Start timer, Search.
+  
+  Also new: a full JSON backup export in Settings.
+
 ## Design
 
 Since 1.4 the whole interface is a **TypeScript + CSS** web app (`web/`) shown inside the Android app in a WebView. Kotlin keeps doing everything the phone needs: the offline database and sync, notifications and reminders, PIN and fingerprint lock, the work timer, invoices, contacts, sharing and updates. The two talk through a small bridge (`app/src/main/java/com/carrotnote/app/web/WebBridge.kt` ↔ `web/src/bridge.ts`).

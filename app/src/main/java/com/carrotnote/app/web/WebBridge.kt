@@ -357,6 +357,19 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
             Invoice.share(activity, p); ok
         }
         "money.exportCsv" -> { exportCsv(); ok }
+        "backup.export" -> { exportBackup(); ok }
+
+        // ---- free public web APIs (holidays, exchange rates, GitHub)
+        "net.get" -> {
+            val url = a.str("url")
+            require(allowedHosts.any { url.startsWith(it) }) { "That address is not allowed" }
+            withContext(Dispatchers.IO) { AppJson.parseToJsonElement(httpGet(url)) }
+        }
+        "contacts.birthdays" -> {
+            val granted = ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+            if (!granted && !(a.boolOrNull("ask") == true && activity.ensurePermission(Manifest.permission.READ_CONTACTS))) JsonNull
+            else withContext(Dispatchers.IO) { readBirthdays() }
+        }
 
         // ---- phone
         "contacts.all" -> {
@@ -384,7 +397,11 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
             open(Intent(Intent.ACTION_VIEW, Uri.parse(if (url.startsWith("http")) url else "https://$url"))); ok
         }
         "app.dial" -> { open(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(a.str("phone"))))); ok }
-        "app.whatsapp" -> { open(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/" + a.str("phone").filter { it.isDigit() }))); ok }
+        "app.whatsapp" -> {
+            val digits = a.strOrNull("phone").orEmpty().filter { it.isDigit() }
+            val text = a.strOrNull("text")?.let { "?text=" + Uri.encode(it) }.orEmpty()
+            open(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits$text"))); ok
+        }
         "app.email" -> { open(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:" + a.str("to")))); ok }
         "app.share" -> {
             open(
@@ -420,6 +437,79 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
     } }
 
     private var started = false
+
+    private val allowedHosts = listOf("https://date.nager.at/", "https://open.er-api.com/", "https://api.github.com/")
+
+    private fun httpGet(url: String): String {
+        val conn = (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {
+            connectTimeout = 15_000
+            readTimeout = 20_000
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("User-Agent", "CarrotNote/${com.carrotnote.app.BuildConfig.VERSION_NAME}")
+        }
+        try {
+            val code = conn.responseCode
+            if (code == 404) error("Not found")
+            if (code == 204) return "null"
+            if (code !in 200..299) error("The service answered $code. Try again later.")
+            return conn.inputStream.bufferedReader().use { it.readText() }
+        } catch (e: java.io.IOException) {
+            error("Can't reach the internet. Check your connection.")
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /** Birthdays saved on phone contacts, as month/day (and year when known). */
+    private fun readBirthdays(): JsonArray {
+        val names = HashMap<Long, String>()
+        activity.contentResolver.query(
+            ContactsContract.Contacts.CONTENT_URI,
+            arrayOf(ContactsContract.Contacts._ID, ContactsContract.Contacts.DISPLAY_NAME_PRIMARY),
+            null, null, null,
+        )?.use { c -> while (c.moveToNext()) names[c.getLong(0)] = c.getString(1).orEmpty() }
+        return buildJsonArray {
+            activity.contentResolver.query(
+                ContactsContract.Data.CONTENT_URI,
+                arrayOf(ContactsContract.Data.CONTACT_ID, ContactsContract.CommonDataKinds.Event.START_DATE),
+                ContactsContract.Data.MIMETYPE + " = ? AND " + ContactsContract.CommonDataKinds.Event.TYPE + " = ?",
+                arrayOf(ContactsContract.CommonDataKinds.Event.CONTENT_ITEM_TYPE, ContactsContract.CommonDataKinds.Event.TYPE_BIRTHDAY.toString()),
+                null,
+            )?.use { c ->
+                // Dates look like "1990-05-14" or "--05-14" (no year).
+                val re = Regex("""^(\d{4}|-)?-?(\d{2})-(\d{2})""")
+                while (c.moveToNext()) {
+                    val name = names[c.getLong(0)]?.takeIf { it.isNotBlank() } ?: continue
+                    val m = re.find(c.getString(1).orEmpty().trim()) ?: continue
+                    add(buildJsonObject {
+                        put("name", name)
+                        put("month", m.groupValues[2].toInt())
+                        put("day", m.groupValues[3].toInt())
+                        m.groupValues[1].toIntOrNull()?.let { put("year", it) }
+                    })
+                }
+            }
+        }
+    }
+
+    /** Every record as one JSON file, shared through the share sheet. */
+    private suspend fun exportBackup() {
+        val repo = Graph.repo
+        val file = withContext(Dispatchers.IO) {
+            val body = repo.allCollections.entries.joinToString(",", "{", "}") { (type, col) -> "\"$type\":${col.listJson()}" }
+            val dir = File(activity.cacheDir, "exports").apply { mkdirs() }
+            File(dir, "carrot-note-backup-${LocalDate.now()}.json").apply {
+                writeText("{\"app\":\"Carrot Note\",\"version\":\"${Updater.currentVersion}\",\"exportedAt\":${System.currentTimeMillis()},\"data\":$body}")
+            }
+        }
+        val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.files", file)
+        open(
+            Intent.createChooser(
+                Intent(Intent.ACTION_SEND).setType("application/json").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                "Save backup",
+            ),
+        )
+    }
 
     private fun open(intent: Intent) {
         try {

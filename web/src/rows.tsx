@@ -1,10 +1,10 @@
 // List rows and cards used on several screens.
 
 import * as F from './format'
-import { editDebt, editEvent, editGoal, editNote, editTask, editTime, editTxn, moveGoal, payDebt } from './editors'
+import { askForPayment, editDebt, editEvent, editGoal, editNote, editTask, editTime, editTxn, moveGoal, payDebt } from './editors'
 import { categoryIcon, Icon } from './icons'
 import { push } from './nav'
-import { save, useApp } from './store'
+import { setTaskDone, useApp } from './store'
 import {
   debtPaid, debtRemaining, debtSettled, duration, goalProgress, goalSaved, isRunning,
   type CalEvent, type Debt, type Goal, type Note, type Project, type SpaceInfo, type TaskItem, type TimeEntry, type Txn,
@@ -19,7 +19,7 @@ export function TaskRow({ task, project }: { task: TaskItem; project?: string })
   ].filter(Boolean).join(' · ')
   return (
     <div class={'item' + (task.done ? ' task-done' : '')} onClick={() => editTask(task)}>
-      <button class={'check' + (task.done ? ' on' : '')} aria-label="Done" onClick={e => { e.stopPropagation(); save('task', { ...task, done: !task.done }) }}>
+      <button class={'check' + (task.done ? ' on' : '')} aria-label="Done" onClick={e => { e.stopPropagation(); setTaskDone(task, !task.done) }}>
         <i>{task.done && <Icon name="check" size={12} stroke={3} />}</i>
       </button>
       <div class="main">
@@ -27,6 +27,7 @@ export function TaskRow({ task, project }: { task: TaskItem; project?: string })
         {meta && <div class="s" style={overdue ? { color: 'var(--bad)', fontWeight: 600 } : undefined}>{meta}</div>}
       </div>
       {task.priority === 2 && !task.done && <span class="dot" />}
+      {!!task.repeat && !task.done && <Icon name="repeat" size={13} class="muted" />}
       {task.reminder && !task.done && <Icon name="bell" size={13} class="muted" />}
     </div>
   )
@@ -45,7 +46,7 @@ export function TxnRow({ t, extra }: { t: Txn; extra?: string }) {
         <div class="t">{t.note || t.category}</div>
         <div class="s">{[t.note ? t.category : null, t.method, ex].filter(Boolean).join(' · ')}</div>
       </div>
-      <div class="num bold" style={{ color: income ? 'var(--good)' : 'var(--fg)', fontWeight: 800 }}>{(income ? '+' : '−') + F.money(t.amount, t.currency)}</div>
+      <div class="num bold amt" style={{ color: income ? 'var(--good)' : 'var(--fg)', fontWeight: 800 }}>{(income ? '+' : '−') + F.money(t.amount, t.currency)}</div>
     </div>
   )
 }
@@ -94,12 +95,15 @@ export function DebtCard({ d, i }: { d: Debt; i?: number }) {
         <Ring value={d.amount > 0 ? debtPaid(d) / d.amount : 0} size={46} color={color}><Icon name={owed ? 'income' : 'expense'} size={13} /></Ring>
         <div class="grow"><div class="h-sm ellipsis">{d.person}</div><div class="small semibold" style={{ color }}>{owed ? 'Owes you' : 'You owe'}</div></div>
         <div style={{ textAlign: 'right' }}>
-          <div class="num h-sm" style={{ fontWeight: 800, color: debtSettled(d) ? 'var(--muted)' : undefined }}>{F.money(debtRemaining(d), d.currency)}</div>
-          <div class="small muted">of {F.money(d.amount, d.currency)}</div>
+          <div class="num h-sm amt" style={{ fontWeight: 800, color: debtSettled(d) ? 'var(--muted)' : undefined }}>{F.money(debtRemaining(d), d.currency)}</div>
+          <div class="small muted amt">of {F.money(d.amount, d.currency)}</div>
         </div>
       </div>
       <div class="row" style={{ marginTop: 12 }}>
         <div class={'small grow semibold' + (late ? ' bad' : ' muted')}>{debtSettled(d) ? 'Settled ✓' : d.dueDate != null ? F.daysLeft(d.dueDate) : 'No due date'}</div>
+        {!debtSettled(d) && owed && <Btn kind="t-butter" class="t-butter" sm icon="bell" onClick={() => askForPayment({
+          person: d.person, amount: debtRemaining(d), currency: d.currency, customerId: d.customerId, dueDate: d.dueDate, what: d.note,
+        })}>Remind</Btn>}
         {!debtSettled(d) && <Btn kind="ink" sm onClick={() => payDebt(d)}>{owed ? 'Got paid' : 'I paid'}</Btn>}
       </div>
     </div>
@@ -114,7 +118,7 @@ export function GoalCard({ g, i }: { g: Goal; i?: number }) {
         <Ring value={goalProgress(g)} size={54} stroke={5} color="var(--good)">{Math.round(goalProgress(g) * 100)}%</Ring>
         <div class="grow">
           <div class="h-sm ellipsis">{g.name}</div>
-          <div class="small muted num semibold">{F.money(goalSaved(g), g.currency)} of {F.money(g.target, g.currency)}</div>
+          <div class="small muted num semibold amt">{F.money(goalSaved(g), g.currency)} of {F.money(g.target, g.currency)}</div>
         </div>
       </div>
       <div class="row" style={{ marginTop: 12 }}>
@@ -150,7 +154,7 @@ export function ProjectCard({ p, space, i }: { p: Project; space?: SpaceInfo; i?
       {value > 0 && <>
         <div style={{ marginTop: 14 }}><Bar value={progress} color={color} /></div>
         <div class="row between small" style={{ marginTop: 8 }}>
-          <span class="num bold">Paid {F.money(received, p.currency)}</span><span class="muted">of {F.money(value, p.currency)}</span>
+          <span class="num bold amt">Paid {F.money(received, p.currency)}</span><span class="muted amt">of {F.money(value, p.currency)}</span>
         </div>
       </>}
       {(open > 0 || p.deadline != null || (space && space.members.length > 1)) && <div class="row" style={{ marginTop: 12, gap: 8 }}>

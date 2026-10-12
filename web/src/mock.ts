@@ -59,6 +59,44 @@ const contacts = [
   emails: i % 3 === 0 ? [name.toLowerCase().replace(/\s+/g, '.') + '@example.com'] : [], company: i % 4 === 0 ? 'Studio ' + name.split(' ')[1] : '',
 }))
 
+function netGet(url: string): unknown {
+  if (url.includes('AvailableCountries')) return [['EG', 'Egypt'], ['US', 'United States'], ['GB', 'United Kingdom'], ['DE', 'Germany'], ['FR', 'France'], ['MA', 'Morocco'], ['JP', 'Japan'], ['BR', 'Brazil']].map(([countryCode, name]) => ({ countryCode, name }))
+  const hol = /PublicHolidays\/(\d{4})\/([A-Z]{2})/.exec(url)
+  if (hol) {
+    const yr = hol[1], cc = hol[2]
+    const list: Record<string, [string, string, string][]> = {
+      EG: [['01-07', 'عيد الميلاد المجيد', 'Coptic Christmas'], ['01-25', 'عيد الثورة', 'Revolution Day'], ['04-25', 'عيد تحرير سيناء', 'Sinai Liberation Day'], ['05-01', 'عيد العمال', 'Labour Day'], ['06-30', 'ثورة 30 يونيو', 'June 30 Revolution'], ['07-23', 'عيد الثورة', 'Revolution Day'], ['10-06', 'عيد القوات المسلحة', 'Armed Forces Day']],
+      US: [['01-01', "New Year's Day", "New Year's Day"], ['07-04', 'Independence Day', 'Independence Day'], ['11-11', 'Veterans Day', 'Veterans Day'], ['11-26', 'Thanksgiving Day', 'Thanksgiving Day'], ['12-25', 'Christmas Day', 'Christmas Day']],
+    }
+    return (list[cc] ?? [['01-01', 'New Year', "New Year's Day"], ['12-25', 'Christmas', 'Christmas Day']]).map(([d, localName, name]) => ({ date: `${yr}-${d}`, localName, name, countryCode: cc, global: true, types: ['Public'] }))
+  }
+  if (url.includes('open.er-api.com')) {
+    const base = url.split('/').pop()!
+    const usd: Record<string, number> = { USD: 1, EUR: 0.92, EGP: 48.6, GBP: 0.79, SAR: 3.75, AED: 3.67, KWD: 0.31, QAR: 3.64, TRY: 34.2, JPY: 151 }
+    const k = usd[base] ?? 1
+    return { result: 'success', base_code: base, time_last_update_unix: Math.floor(Date.now() / 1000) - 3600, rates: Object.fromEntries(Object.entries(usd).map(([c, v]) => [c, v / k])) }
+  }
+  if (url.includes('/users/') && url.includes('/repos')) {
+    const owner = url.split('/users/')[1].split('/')[0]
+    return [
+      ['carrot-note', 'Notes, money and projects for freelancers', 'Kotlin', 12, 1],
+      ['bakery-pos', 'Point of sale app with offline mode', 'TypeScript', 4, 3],
+      ['portfolio', 'My personal website', 'HTML', 1, 9],
+      ['gym-booking-api', 'Booking API for FitZone', 'Python', 0, 30],
+    ].map(([name, description, language, stars, days]) => ({
+      name, full_name: `${owner}/${name}`, html_url: `https://github.com/${owner}/${name}`, description, language, stargazers_count: stars, forks_count: 1,
+      open_issues_count: 2, pushed_at: new Date(Date.now() - (days as number) * DAY).toISOString(), fork: false, owner: { login: owner },
+    }))
+  }
+  const repo = /api\.github\.com\/repos\/([^/]+)\/([^/?]+)$/.exec(url)
+  if (repo) {
+    if (repo[2] === 'missing') throw new Error('Not found')
+    return { name: repo[2], full_name: `${repo[1]}/${repo[2]}`, html_url: `https://github.com/${repo[1]}/${repo[2]}`, description: 'Point of sale app with offline mode and Arabic receipts', language: 'TypeScript', stargazers_count: 4, forks_count: 1, open_issues_count: 2, pushed_at: new Date(Date.now() - 3 * DAY).toISOString(), fork: false, owner: { login: repo[1] } }
+  }
+  if (url.includes('/contributors')) return [{ login: 'someone-else' }]
+  throw new Error('Not found')
+}
+
 export function installMock() {
   const store = (k: string, v?: unknown) => {
     try {
@@ -72,10 +110,11 @@ export function installMock() {
   let signedIn = params.has('auth') ? false : store('signedIn') ?? true
   let theme = Number(params.get('theme') ?? store('theme') ?? 1)
   let locked = params.has('lock')
+  let github: string = params.has('nogh') ? '' : 'adham-dev'
   const emit = (name: string, payload: unknown) => setTimeout(() => window.__native.emit(name, payload), 0)
   const state = () => ({
-    signedIn, locked, version: '1.4.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
-    user: { id: 'u1', email: 'you@example.com', name: 'Adham Kassem', username: 'adham', bio: 'Freelance Android and web developer.', github: '', avatarRev: 0 },
+    signedIn, locked, version: '1.5.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
+    user: { id: 'u1', email: 'you@example.com', name: 'Adham Kassem', username: 'adham', bio: 'Freelance Android and web developer.', github, avatarRev: 0 },
     settings: { currency: 'EGP', theme, autoUpdate: true },
     lock: { pinEnabled: true, pinLength: 4, biometric: false, biometricAvailable: false, delay: 30, secureScreen: false },
     sync: { syncing: false, lastSync: Date.now() - 120_000, error: null },
@@ -109,6 +148,10 @@ export function installMock() {
     'github.profile': () => null,
     'update.check': () => null,
     'sync.now': () => true,
+    'profile.update': a => { if (a.github != null) github = a.github; push(); return true },
+    'net.get': a => netGet(a.url),
+    'contacts.birthdays': () => [{ name: 'Lina Hassan', month: new Date().getMonth() + 1, day: Math.min(28, new Date().getDate() + 2), year: 1996 }, { name: 'Karim Adel', month: 3, day: 14, year: null }],
+    'backup.export': () => true,
   }
   return {
     call(callId: string, method: string, args: string) {

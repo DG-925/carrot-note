@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'preact/hooks'
 import { call } from '../bridge'
 import * as F from '../format'
-import { editEvent, editNote, editProject, editTask, editTime, editTxn } from '../editors'
+import { askForPayment, editEvent, editNote, editProject, editTask, editTime, editTxn } from '../editors'
+import { languageColor, repoInfo, repoPath, type GhRepo } from '../github'
+import { ago } from '../net'
 import { Icon } from '../icons'
 import { pop as popNav, push } from '../nav'
 import { EventRow, NoteCard, ProjectCard, TaskRow, TimeRow, TxnRow, projectReceived, projectValue } from '../rows'
 import { useApp } from '../store'
 import { duration, isRunning, type Project, type PublicUser, type SpaceInfo, type SpaceMember } from '../types'
 import {
-  Avatar, AvatarStack, Bar, Btn, Card, Chips, Empty, Eyebrow, Hero, Hint, MainHeader, PageHeader, Round, Seg, SheetTitle,
-  StatusChip, Tile, attempt, openSheet, toast, useNow,
+  Avatar, AvatarStack, Bar, Btn, Card, Chips, Empty, Eyebrow, Hero, Hint, MainHeader, PageHeader, Round, SearchBar, Seg, SheetTitle,
+  StatusChip, Tile, attempt, matches, openSheet, toast, useNow,
 } from '../ui'
 
 let savedFilter = 'open'
@@ -19,12 +21,12 @@ export function ProjectsScreen() {
   const [filter, setFilterState] = useState(savedFilter)
   const [query, setQuery] = useState('')
   const setFilter = (f: string) => { savedFilter = f; setFilterState(f) }
-  const q = query.trim().toLowerCase()
+  const customers = Object.fromEntries(s.data.customer.map(c => [c.id, c.name]))
   const shown = s.data.project
     .filter(p => filter === 'open' ? p.status === 'active' || p.status === 'on_hold'
       : filter === 'done' ? p.status === 'done'
       : filter === 'shared' ? s.spaces.some(sp => sp.projectId === p.id) : true)
-    .filter(p => !q || p.name.toLowerCase().includes(q) || p.clientName.toLowerCase().includes(q))
+    .filter(p => matches(query, p.name, p.clientName, p.description, p.repo, customers[p.customerId ?? '']))
     .sort((a, b) => (a.deadline ?? 1e12) - (b.deadline ?? 1e12) || b.createdAt - a.createdAt)
   const activeCount = s.data.project.filter(p => p.status === 'active').length
   return (
@@ -32,15 +34,13 @@ export function ProjectsScreen() {
       <div class="scroll">
         <MainHeader title="Projects" sub={`${activeCount} active · ${s.data.project.length} total`} />
         <div class="content">
-          {s.data.project.length > 6 && (
-            <div class="search pop" style={{ '--i': 1 } as any}><Icon name="search" size={17} />
-              <input placeholder="Search projects or clients" value={query} onInput={e => setQuery((e.target as HTMLInputElement).value)} /></div>
-          )}
+          <SearchBar i={1} value={query} onInput={setQuery} placeholder="Search projects, clients or repos" />
           <div class="pop" style={{ '--i': 2 } as any}>
             <Chips options={['open', 'done', 'shared', 'all']} value={filter} onChange={setFilter}
               label={v => ({ open: 'In progress', done: 'Done', shared: 'Shared', all: 'All' } as any)[v]} />
           </div>
-          {!shown.length && <Empty icon="project" title="No projects here" text="Add your freelance projects to track price, payments, time, tasks and notes, and invite your team." />}
+          {!shown.length && query.trim() && <Empty icon="search" title="No matches" text="Try another name, or switch the filter to All." />}
+          {!shown.length && !query.trim() && <Empty icon="project" title="No projects here" text="Add your freelance projects to track price, payments, time, tasks and notes, and invite your team." />}
           {shown.map((p, i) => <ProjectCard key={p.id} p={p} space={s.spaces.find(sp => sp.projectId === p.id)} i={Math.min(i, 8) + 3} />)}
         </div>
       </div>
@@ -100,7 +100,7 @@ export function ProjectDetail({ id }: { id: string }) {
               {(p.billing === 'hourly'
                 ? [['Hours', `${F.hours(trackedMs).toFixed(1)} h`], ['Rate', F.money(p.hourlyRate, p.currency)], ['Earned', F.money(value, p.currency)]]
                 : [['Price', F.money(p.price, p.currency)], ['Received', F.money(received, p.currency)], ['Remaining', F.money(Math.max(0, p.price - received), p.currency)]]
-              ).map(([l, v]) => <div key={l} class="grow"><div class="eyebrow">{l}</div><div class="num h-sm ellipsis" style={{ fontWeight: 800 }}>{v}</div></div>)}
+              ).map(([l, v]) => <div key={l} class="grow"><div class="eyebrow">{l}</div><div class="num h-sm ellipsis amt" style={{ fontWeight: 800 }}>{v}</div></div>)}
             </div>
             {value > 0 && <div style={{ marginTop: 12 }}><Bar value={received / value} height={10} /></div>}
             <div class="small" style={{ marginTop: 12, opacity: .88 }}>
@@ -124,11 +124,7 @@ export function ProjectDetail({ id }: { id: string }) {
             </Tile>
           </div>
 
-          {p.repo && (
-            <Card i={3} onClick={() => call('app.openUrl', { url: p.repo })}>
-              <div class="row"><Icon name="github" size={20} /><span class="grow ellipsis num">{p.repo.replace(/^https?:\/\//, '')}</span><Icon name="open" size={13} class="muted" /></div>
-            </Card>
-          )}
+          {p.repo && <RepoCard repo={p.repo} />}
 
           <Seg i={4} options={[{ label: 'Tasks' }, { label: 'Notes' }, { label: 'Money' }, { label: 'Info' }]} value={tab} onChange={setTab} />
 
@@ -146,9 +142,12 @@ export function ProjectDetail({ id }: { id: string }) {
           {tab === 2 && <>
             <div class="card row">
               {[['Received', F.money(received, p.currency), 'var(--good)'], ['Costs', F.money(costs, p.currency), 'var(--bad)'], ['Profit', F.money(received - costs, p.currency), undefined]]
-                .map(([l, v, c]) => <div key={l} class="grow"><div class="tiny muted semibold">{l}</div><div class="num h-sm ellipsis" style={{ fontWeight: 800, color: c }}>{v}</div></div>)}
+                .map(([l, v, c]) => <div key={l} class="grow"><div class="tiny muted semibold">{l}</div><div class="num h-sm ellipsis amt" style={{ fontWeight: 800, color: c }}>{v}</div></div>)}
             </div>
-            <div class="row">
+            <div class="row wrap">
+              {p.billing !== 'hourly' && p.price - received > 0 && <Btn kind="t-butter" class="t-butter" sm icon="bell" onClick={() => askForPayment({
+                person: customer?.name ?? (p.clientName || 'there'), amount: p.price - received, currency: p.currency, customerId: p.customerId, dueDate: p.deadline, what: `“${p.name}”`,
+              })}>Ask for payment</Btn>}
               <Btn kind="t-rose" class="t-rose" sm icon="expense" onClick={() => editTxn(undefined, { kind: 'expense', projectId: id })}>Add cost</Btn>
               <Btn kind="t-sky" class="t-sky" sm icon="invoice" onClick={() => attempt(() => call('invoice.share', { projectId: id }))}>Invoice PDF</Btn>
             </div>
@@ -173,6 +172,27 @@ export function ProjectDetail({ id }: { id: string }) {
       </div>
       <button key={tab} class="add-fab low" onClick={fab[tab][1]}><Icon name="plus" size={15} />{fab[tab][0]}</button>
     </>
+  )
+}
+
+/** The project's GitHub repository with live stats. */
+function RepoCard({ repo }: { repo: string }) {
+  const path = repoPath(repo)
+  const [info, setInfo] = useState<GhRepo | null>(null)
+  useEffect(() => { if (path) repoInfo(path).then(setInfo).catch(() => setInfo(null)) }, [path])
+  const url = path ? `https://github.com/${path}` : repo
+  return (
+    <Card i={3} onClick={() => call('app.openUrl', { url: url.startsWith('http') ? url : 'https://' + url })}>
+      <div class="row"><Icon name="github" size={20} /><span class="grow ellipsis semibold">{path ?? repo}</span><Icon name="open" size={13} class="muted" /></div>
+      {info?.description && <div class="small muted" style={{ marginTop: 6 }}>{info.description}</div>}
+      {info && <div class="repo-meta" style={{ marginTop: 8 }}>
+        {info.language && <span><i style={{ background: languageColor(info.language) }} />{info.language}</span>}
+        <span><Icon name="star" size={11} />{info.stargazers_count}</span>
+        <span><Icon name="share" size={11} />{info.forks_count} forks</span>
+        <span><Icon name="info" size={11} />{info.open_issues_count} open issues</span>
+        <span>Last push {ago(info.pushed_at)}</span>
+      </div>}
+    </Card>
   )
 }
 

@@ -144,7 +144,7 @@ function EditProfile({ close }: { close: () => void }) {
   )
 }
 
-function linkGithub(current: string) {
+export function linkGithub(current: string) {
   openSheet(close => <LinkGithub current={current} close={close} />)
 }
 
@@ -237,6 +237,15 @@ export function SettingsScreen() {
             <button class="link" style={{ marginTop: 6 }} onClick={() => call('lock.now')}>Lock now</button>
           </>}
           <SwitchRow title="Hide in recent apps" sub="Blocks screenshots and hides content in the app switcher" on={lock.secureScreen} onChange={on => attempt(() => call('lock.setSecure', { on }))} />
+        </Card>
+
+        <Card i={4}>
+          <h3 class="h-md">Your data</h3>
+          <div class="muted small" style={{ margin: '2px 0 10px' }}>Everything is synced to your account. You can also keep your own copy.</div>
+          <div class="row wrap">
+            <Btn sm icon="backup" onClick={() => attempt(() => call('backup.export'))}>Full backup (JSON)</Btn>
+            <Btn sm kind="soft-bg" icon="download" onClick={() => attempt(() => call('money.exportCsv'))}>Money (CSV)</Btn>
+          </div>
         </Card>
 
         <Card i={4}>

@@ -1,12 +1,13 @@
 import { useState } from 'preact/hooks'
 import { call } from '../bridge'
 import * as F from '../format'
-import { editBudget, editTxn } from '../editors'
+import { editBudget, editTxn, openConverter } from '../editors'
 import { categoryIcon, Icon, methodIcon } from '../icons'
 import { TxnRow } from '../rows'
 import { useApp } from '../store'
 import type { Txn } from '../types'
-import { Bar, Btn, Card, Chips, CountMoney, Empty, Eyebrow, Hero, MainHeader, Round, Seg, attempt } from '../ui'
+import { Bar, Btn, Card, Chips, CountMoney, Empty, Eyebrow, Hero, MainHeader, Round, SearchBar, Seg, attempt, matches } from '../ui'
+import { PrivacyButton } from './home'
 
 let savedMonth: number | null = null
 let savedTab = 0
@@ -32,9 +33,7 @@ export function MoneyScreen() {
 
   return (
     <div class="scroll">
-      <MainHeader title="Money" sub="Income, spending and budgets">
-        <Round icon="download" label="Export CSV" onClick={() => attempt(() => call('money.exportCsv'))} />
-      </MainHeader>
+      <MainHeader title="Money" sub="Income, spending and budgets" />
       <div class="content">
         <div class="card pop row" style={{ '--i': 1, padding: 6, borderRadius: 99 } as any}>
           <Round icon="left" sm onBg label="Previous month" onClick={() => setMonth(F.addMonths(month, -1))} />
@@ -43,8 +42,13 @@ export function MoneyScreen() {
         </div>
 
         <Hero i={2}>
-          <Eyebrow>Balance</Eyebrow>
-          <CountMoney totals={net} currency={cur} sign class="h-display" />
+          <div class="row"><div class="grow"><Eyebrow>Balance</Eyebrow></div>
+            <div class="hero-tools">
+              <button class="hero-eye press" aria-label="Currency converter" onClick={openConverter}><Icon name="convert" size={16} /></button>
+              <PrivacyButton />
+            </div>
+          </div>
+          <CountMoney totals={net} currency={cur} sign class="h-display amt" />
           <div class="row" style={{ marginTop: 14, gap: 3, height: 12 }}>
             {inc + exp > 0
               ? <>
@@ -54,8 +58,8 @@ export function MoneyScreen() {
               : <i style={{ flex: 1, height: '100%', borderRadius: 6, background: 'rgba(255,255,255,.22)' }} />}
           </div>
           <div class="row" style={{ marginTop: 12 }}>
-            <div class="grow"><div class="eyebrow">↓ Income</div><div class="num h-sm ellipsis" style={{ fontWeight: 800 }}>{F.totals(incomeSum, cur)}</div></div>
-            <div class="grow"><div class="eyebrow">↑ Spent</div><div class="num h-sm ellipsis" style={{ fontWeight: 800 }}>{F.totals(expenseSum, cur)}</div></div>
+            <div class="grow"><div class="eyebrow">↓ Income</div><div class="num h-sm ellipsis amt" style={{ fontWeight: 800 }}>{F.totals(incomeSum, cur)}</div></div>
+            <div class="grow"><div class="eyebrow">↑ Spent</div><div class="num h-sm ellipsis amt" style={{ fontWeight: 800 }}>{F.totals(expenseSum, cur)}</div></div>
           </div>
           <div class="row" style={{ marginTop: 16 }}>
             <button class="hero-btn" onClick={() => editTxn(undefined, { kind: 'expense' })}><Icon name="expense" size={13} />Expense</button>
@@ -73,14 +77,24 @@ export function MoneyScreen() {
   )
 }
 
-function Transactions({ list, filter, setFilter }: { list: Txn[]; filter: string; setFilter: (f: string) => void }) {
+let savedQuery = ''
+
+function Transactions({ list: all, filter, setFilter }: { list: Txn[]; filter: string; setFilter: (f: string) => void }) {
   const s = useApp()
   const cur = s.settings.currency
+  const [query, setQueryState] = useState(savedQuery)
+  const setQuery = (q: string) => { savedQuery = q; setQueryState(q) }
+  const names = Object.fromEntries([...s.data.project, ...s.data.customer].map(x => [x.id, x.name]))
+  const list = all.filter(t => matches(query, t.note, t.category, t.method, F.amount(t.amount), t.amount, names[t.projectId ?? ''], names[t.customerId ?? '']))
   const days = [...new Set(list.map(t => t.date))].sort((a, b) => b - a)
   return (
     <>
+      <SearchBar value={query} onInput={setQuery} placeholder="Search by note, category, amount…" />
       <Chips options={['all', 'expense', 'income']} value={filter} onChange={setFilter} label={v => ({ all: 'All', expense: 'Expenses', income: 'Income' } as any)[v]} />
-      {!list.length && <Empty icon="receipt" title="Nothing this month" text="Use + Expense or + Income above to add one." />}
+      {query.trim() && <div class="small muted semibold" style={{ padding: '0 4px' }}>{F.plural(list.length, 'result')} this month</div>}
+      {!list.length && (query.trim()
+        ? <Empty icon="search" title="No matches" text="Try another word, or check another month." />
+        : <Empty icon="receipt" title="Nothing this month" text="Use + Expense or + Income above to add one." />)}
       {days.map((d, i) => {
         const dayTx = list.filter(t => t.date === d).sort((a, b) => b.createdAt - a.createdAt)
         const got = F.sumBy(dayTx.filter(t => t.kind === 'income'), t => t.currency, t => t.amount)
@@ -89,8 +103,8 @@ function Transactions({ list, filter, setFilter }: { list: Txn[]; filter: string
           <div key={d} class="col tight pop" style={{ '--i': Math.min(i, 6) + 4 } as any}>
             <div class="row" style={{ padding: '6px 4px 0' }}>
               <div class="h-sm grow">{F.relativeDay(d)}</div>
-              {Object.keys(got).length > 0 && <span class="num good small" style={{ fontWeight: 800 }}>+{F.totals(got, cur)}</span>}
-              {Object.keys(spent).length > 0 && <span class="num muted small" style={{ fontWeight: 800 }}>−{F.totals(spent, cur)}</span>}
+              {Object.keys(got).length > 0 && <span class="num good small amt" style={{ fontWeight: 800 }}>+{F.totals(got, cur)}</span>}
+              {Object.keys(spent).length > 0 && <span class="num muted small amt" style={{ fontWeight: 800 }}>−{F.totals(spent, cur)}</span>}
             </div>
             <div class="card flush">{dayTx.map(t => <TxnRow key={t.id} t={t} />)}</div>
           </div>
@@ -138,6 +152,7 @@ function Summary({ expense, month, end }: { expense: Txn[]; month: number; end: 
       <RankCard i={5} title="Where your money went" items={groupTop(main, t => t.category)} icon={categoryIcon} color="var(--accent)" empty="No spending this month" footer={others.length ? 'Also in other currencies: ' + F.totals(F.sumBy(others, t => t.currency, t => t.amount), cur) : undefined} />
       <RankCard i={6} title="How you paid" items={groupTop(main, t => t.method)} icon={methodIcon} color="#7C5CE0" empty="Nothing yet" />
       <Budgets expense={expense} />
+      <Btn kind="soft-bg" icon="download" onClick={() => attempt(() => call('money.exportCsv'))}>Export all transactions (CSV)</Btn>
     </>
   )
 }

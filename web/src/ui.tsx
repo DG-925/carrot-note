@@ -10,7 +10,7 @@ import { useApp } from './store'
 import { Categories } from './types'
 
 type Kids = { children?: ComponentChildren }
-const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ')
+export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ')
 
 /** Delay index for the staggered pop-in. */
 export const pop = (i: number) => ({ class: 'pop', style: { '--i': i } as any })
@@ -235,16 +235,20 @@ export function AvatarStack({ people, size = 26, max = 3 }: { people: { id: stri
   )
 }
 
+/** The Carrot Note mark: a carrot that is the long stroke of a check mark. */
 export function Logo({ size = 56, popIn }: { size?: number; popIn?: boolean }) {
   return (
     <div class={cx('logo', popIn && 'logo-pop')} style={{ width: size, height: size }}>
-      <svg viewBox="0 0 108 108" width={size * 1.5} height={size * 1.5}>
-        <path fill="#FF6B1F" d="M40,34 H62 L74,46 V76 Q74,82 68,82 H40 Q34,82 34,76 V40 Q34,34 40,34 Z" />
-        <path fill="#FFB28A" d="M62,34 V42 Q62,46 66,46 H74 Z" />
-        <path stroke="#FFF4E8" stroke-width="3" stroke-linecap="round" d="M41,50 H56 M41,58 H67 M41,66 H67 M41,74 H58" />
-        <path fill="#2E7D32" d="M45,35 C40,31 36,31 33,32 C36,35 40,36 45,35 Z" />
-        <path fill="#43A047" d="M46,35 C43,29 44,24 48,21 C50,26 49,31 46,35 Z" />
-        <path fill="#66BB6A" d="M47,35 C49,29 53,26 58,26 C56,31 52,34 47,35 Z" />
+      <svg viewBox="12 12 84 84" width={size} height={size} aria-hidden="true">
+        <path d="M27.5,61 L40,73.5" fill="none" stroke="#FFE58F" stroke-width="7.5" stroke-linecap="round" />
+        <g transform="translate(42,75) rotate(42) scale(0.92)">
+          <path fill="#FF6B1F" d="M-9,-40 Q-9,-46 -3,-46 H3 Q9,-46 9,-40 L2.4,-2 Q0,2.4 -2.4,-2 Z" />
+          <path fill="#FF9A5E" opacity=".6" d="M-3,-46 H0 V1 Q-1.4,0.6 -2.4,-2 L-9,-40 Q-9,-46 -3,-46 Z" />
+          <path fill="none" stroke="#C94A0B" stroke-width="2.6" stroke-linecap="round" d="M-5.5,-33 H0 M0.5,-23 H5 M-3.8,-13 H0.8" />
+          <path fill="#2FBF71" d="M0,-45 C-4,-51 -9,-53 -15,-52 C-12,-47 -6,-44.5 0,-45 Z" />
+          <path fill="#6EE7A0" d="M0,-45 C-1.5,-53 1,-59 6,-62 C7.5,-56 5,-49.5 0,-45 Z" />
+          <path fill="#2FBF71" d="M0,-45 C5,-50 11,-51 17,-48.5 C12.5,-44.5 6,-43.5 0,-45 Z" />
+        </g>
       </svg>
     </div>
   )
@@ -344,20 +348,48 @@ export function CurrencyField({ value, onChange }: { value: string; onChange: (v
   return <SelectField label="Currency" value={value} options={opts.map(c => ({ value: c, label: c }))} onChange={onChange} />
 }
 
-/** Big centered amount entry with a currency picker under it. */
+/** Big centered amount entry with a currency picker under it. Takes sums too: 120+35*2. */
 export function AmountBox({ value, onInput, currency, onCurrency, color }: { value: string; onInput: (v: string) => void; currency: string; onCurrency: (c: string) => void; color: string }) {
+  const sum = F.isExpression(value) ? F.parseAmount(value) : null
   return (
     <div class="amount-box in-card pop">
       <div class="eyebrow muted">Amount</div>
-      <input value={value} inputMode="decimal" placeholder="0" style={{ color }}
+      <input value={value} inputMode="decimal" placeholder="0" style={{ color, fontSize: value.length > 9 ? 30 : undefined }}
         onInput={e => {
           const v = (e.target as HTMLInputElement).value
-          if (/^[0-9.,]*$/.test(v) && v.length <= 14) onInput(v)
+          if (/^[0-9.,+\-*/×÷() ]*$/.test(v) && v.length <= 40) onInput(v)
           else (e.target as HTMLInputElement).value = value
         }} />
+      {F.isExpression(value) && <div class="calc-result">{sum != null ? <>= <b>{F.amount(sum)}</b></> : 'Keep typing…'}</div>}
+      <div class="calc-keys">
+        {['+', '−', '×', '÷'].map(k => (
+          <button key={k} type="button" onClick={() => onInput(value + (k === '−' ? '-' : k === '×' ? '*' : k === '÷' ? '/' : k))}>{k}</button>
+        ))}
+        {sum != null && <button type="button" class="eq" onClick={() => onInput(F.amountText(sum))}>=</button>}
+      </div>
       <div class="cur"><CurrencyField value={currency} onChange={onCurrency} /></div>
     </div>
   )
+}
+
+/** Search box with a clear button. */
+export function SearchBar({ value, onInput, placeholder, i, autoFocus, inputRef }: { value: string; onInput: (v: string) => void; placeholder: string; i?: number; autoFocus?: boolean; inputRef?: any }) {
+  const own = useRef<HTMLInputElement>(null)
+  const ref = inputRef ?? own
+  useEffect(() => { if (autoFocus) setTimeout(() => ref.current?.focus(), 350) }, [])
+  return (
+    <div class={cx('search', i != null && 'pop')} style={i != null ? ({ '--i': i } as any) : undefined}>
+      <Icon name="search" size={17} />
+      <input ref={ref} placeholder={placeholder} value={value} onInput={e => onInput((e.target as HTMLInputElement).value)} />
+      {value && <button class="muted" aria-label="Clear" onClick={() => { onInput(''); ref.current?.focus() }}><Icon name="close" size={14} /></button>}
+    </div>
+  )
+}
+
+/** Case-insensitive "does any of these contain the query" check used by every list search. */
+export const matches = (q: string, ...fields: (string | number | null | undefined)[]) => {
+  const t = q.trim().toLowerCase()
+  return !t || fields.some(f => f != null && String(f).toLowerCase().includes(t))
 }
 
 export function Switch({ on, onChange, disabled }: { on: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
@@ -401,6 +433,7 @@ export function MainHeader({ title, sub, big, children }: Kids & { title: string
         <div class={cx('title', big && 'big')}>{title}</div>
       </div>
       {children}
+      <Round icon="search" label="Search" onClick={() => push({ name: 'search' })} />
       {s.invites > 0 && <Round icon="bell" label="Invitations" badge={s.invites} onClick={() => push({ name: 'invites' })} />}
       <button class="press" onClick={() => push({ name: 'profile' })} aria-label="Profile">
         <Avatar userId={u?.id} rev={u?.avatarRev ?? 0} name={u?.name || u?.username || '?'} size={42} />
@@ -482,12 +515,14 @@ export function confirm(title: string, text: string, ok = 'OK', danger = true): 
 
 // ---------------------------------------------------------------- toast
 
-let toastSet: ((t: string | null) => void) | null = null
-export function toast(text: string) {
-  toastSet?.(text)
+type ToastAction = { label: string; run: () => void }
+type ToastMsg = { text: string; action?: ToastAction }
+let toastSet: ((t: ToastMsg | null) => void) | null = null
+export function toast(text: string, action?: ToastAction) {
+  toastSet?.({ text, action })
 }
 export function ToastHost() {
-  const [t, setT] = useState<string | null>(null)
+  const [t, setT] = useState<ToastMsg | null>(null)
   const [key, setKey] = useState(0)
   useLayoutEffect(() => {
     toastSet = v => { setT(v); setKey(k => k + 1) }
@@ -495,10 +530,16 @@ export function ToastHost() {
   }, [])
   useEffect(() => {
     if (!t) return
-    const id = setTimeout(() => setT(null), 2400)
+    const id = setTimeout(() => setT(null), t.action ? 4500 : 2400)
     return () => clearTimeout(id)
   }, [key])
-  return t ? <div key={key} class="toast">{t}</div> : null
+  if (!t) return null
+  return (
+    <div key={key} class={cx('toast', t.action && 'with-action')}>
+      <span>{t.text}</span>
+      {t.action && <button onClick={() => { t.action!.run(); setT(null) }}>{t.action.label}</button>}
+    </div>
+  )
 }
 
 /** Runs an async native action and shows its error as a toast. */

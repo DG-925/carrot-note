@@ -11,6 +11,8 @@ export interface Project {
 export interface TaskItem {
   id: string; title: string; notes: string; projectId?: string | null; dueDate?: number | null; dueTime?: number | null
   reminder: boolean; done: boolean; priority: number; createdAt: number
+  /** "", "daily", "weekly" or "monthly". */
+  repeat?: string
 }
 
 export interface CheckItem { id: string; text: string; done: boolean }

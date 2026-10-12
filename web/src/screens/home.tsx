@@ -4,9 +4,65 @@ import { editEvent, editNote, editProject, editTask, editTxn } from '../editors'
 import { Icon } from '../icons'
 import { goTab, push } from '../nav'
 import { EventRow, projectReceived, projectValue, TaskRow } from '../rows'
-import { useApp } from '../store'
+import { togglePrivacy, useApp } from '../store'
 import { duration, isRunning, type Note, type Project } from '../types'
-import { Btn, Card, CountInt, CountMoney, Eyebrow, Hero, MainHeader, Ring, Round, Spark, Tile, useNow, type TileColor } from '../ui'
+import { Btn, Card, CountInt, CountMoney, Eyebrow, Hero, MainHeader, Ring, Spark, Tile, useNow, type TileColor } from '../ui'
+
+/** Eye button that blurs every amount on screen (for working in public). */
+export function PrivacyButton() {
+  const s = useApp()
+  return (
+    <button class="hero-eye press" aria-label={s.prefs.privacy ? 'Show amounts' : 'Hide amounts'} onClick={e => { e.stopPropagation(); togglePrivacy() }}>
+      <Icon name={s.prefs.privacy ? 'eyeOff' : 'eye'} size={16} />
+    </button>
+  )
+}
+
+/** This week against last week: spending, top category, hours and tasks. */
+function WeekInsights() {
+  const s = useApp()
+  const { data } = s
+  const cur = s.settings.currency
+  const today = F.today()
+  const dow = (F.fromEpochDay(today).getDay() + 6) % 7
+  const start = today - dow
+  const spent = (from: number, to: number) => data.txn.filter(t => t.kind === 'expense' && t.currency === cur && t.date >= from && t.date <= to).reduce((a, t) => a + t.amount, 0)
+  const now = spent(start, today)
+  const before = spent(start - 7, today - 7)
+  const cats = new Map<string, number>()
+  for (const t of data.txn) if (t.kind === 'expense' && t.currency === cur && t.date >= start && t.date <= today) cats.set(t.category, (cats.get(t.category) ?? 0) + t.amount)
+  const top = [...cats.entries()].sort((a, b) => b[1] - a[1])[0]
+  const hours = data.time.filter(t => F.dayOfMs(t.start) >= start).reduce((a, t) => a + duration(t), 0)
+  const weekTasks = data.task.filter(t => t.dueDate != null && t.dueDate >= start && t.dueDate < start + 7)
+  const doneTasks = weekTasks.filter(t => t.done).length
+  if (!now && !before && !hours && !weekTasks.length) return null
+  const change = before > 0 ? Math.round(((now - before) / before) * 100) : null
+  const line = change == null ? (now > 0 ? `You spent ${F.money(now, cur)} so far this week.` : 'No spending yet this week.')
+    : change === 0 ? 'Same spending as this time last week.'
+    : change < 0 ? `You spent ${-change}% less than this time last week. Nice!` : `You spent ${change}% more than this time last week.`
+  const stats: [string, string, string, boolean][] = [
+    ['expense', 'Spent', F.money(now, cur), true],
+    ['tag', 'Top category', top ? top[0] : '—', false],
+    ['timer', 'Tracked', `${F.hours(hours).toFixed(1)} h`, false],
+    ['tasks', 'Tasks done', weekTasks.length ? `${doneTasks}/${weekTasks.length}` : '—', false],
+  ]
+  return (
+    <Tile color="sky" i={4}>
+      <div class="row"><Icon name="chart" size={16} /><h3 class="h-md grow">This week</h3>
+        {change != null && <span class={'trend ' + (change <= 0 ? 'down' : 'up')}><Icon name={change <= 0 ? 'income' : 'expense'} size={11} stroke={2.6} />{Math.abs(change)}%</span>}</div>
+      <div class="small semibold" style={{ opacity: .8, margin: '4px 0 10px' }}>{line}</div>
+      <div class="insights">
+        {stats.map(([icon, label, value, money]) => (
+          <div key={label} class="insight">
+            <Icon name={icon} size={14} />
+            <div class="tiny" style={{ opacity: .7 }}>{label}</div>
+            <div class={'semibold ellipsis num' + (money ? ' amt' : '')}>{value}</div>
+          </div>
+        ))}
+      </div>
+    </Tile>
+  )
+}
 
 export function HomeScreen() {
   const s = useApp()
@@ -46,17 +102,15 @@ export function HomeScreen() {
 
   return (
     <div class="scroll">
-      <MainHeader title={`${greeting}, ${first}`} sub={F.longDay(today)} big>
-        <Round icon="search" label="Search" onClick={() => push({ name: 'search' })} />
-      </MainHeader>
+      <MainHeader title={`${greeting}, ${first}`} sub={F.longDay(today)} big />
       <div class="content">
         <Hero i={1} onClick={() => goTab('money')}>
-          <div class="row"><div class="grow"><Eyebrow>{F.monthName(today)}, so far</Eyebrow></div><Icon name="right" size={14} /></div>
-          <CountMoney totals={net} currency={cur} sign class="h-display" />
+          <div class="row"><div class="grow"><Eyebrow>{F.monthName(today)}, so far</Eyebrow></div><PrivacyButton /></div>
+          <CountMoney totals={net} currency={cur} sign class="h-display amt" />
           {trend.some(v => v !== 0) && <div style={{ marginTop: 10 }}><Spark values={trend} /></div>}
           <div class="row" style={{ marginTop: 12, gap: 8 }}>
-            <span class="hero-pill">↓ {F.totals(income, cur)} in</span>
-            <span class="hero-pill">↑ {F.totals(expense, cur)} out</span>
+            <span class="hero-pill amt">↓ {F.totals(income, cur)} in</span>
+            <span class="hero-pill amt">↑ {F.totals(expense, cur)} out</span>
           </div>
           <div class="row" style={{ marginTop: 14 }}>
             <button class="hero-btn" onClick={e => { e.stopPropagation(); editTxn(undefined, { kind: 'expense' }) }}><Icon name="expense" size={13} />Expense</button>
@@ -99,6 +153,8 @@ export function HomeScreen() {
               </>}
           </div>
         </Card>
+
+        <WeekInsights />
 
         {data.project.length > 0 && (
           <Card i={4}>
