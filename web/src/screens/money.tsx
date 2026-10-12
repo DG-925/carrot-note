@@ -37,7 +37,7 @@ export function MoneyScreen() {
     <div class="scroll">
       <MainHeader title="Money" sub="Income, spending and budgets" />
       <div class="content">
-        <div class="card pop row" style={{ '--i': 1, padding: 6, borderRadius: 99 } as any}>
+        <div class="card pop row wide" style={{ '--i': 1, padding: 6, borderRadius: 99 } as any}>
           <Round icon="left" sm onBg label="Previous month" onClick={() => setMonth(F.addMonths(month, -1))} />
           <div key={month} class={'grow center h-sm ' + (dir === 'l' ? 'slide-l' : dir === 'r' ? 'slide-r' : '')}>{F.month(month)}</div>
           <Round icon="right" sm onBg label="Next month" onClick={() => setMonth(F.addMonths(month, 1))} />
@@ -139,7 +139,7 @@ function Summary({ expense, month, end }: { expense: Txn[]; month: number; end: 
   const others = expense.filter(t => t.currency !== cur)
   return (
     <>
-      <div class="card pop" style={{ '--i': 4 } as any}>
+      <div class="card pop wide" style={{ '--i': 4 } as any}>
         <div class="row"><div class="grow"><h3 class="h-md">Daily spending</h3><div class="tiny muted">In {cur} · tap a day</div></div>
           {sel >= 0 && <div style={{ textAlign: 'end' }}><div class="tiny muted">Day {sel + 1}</div><div class="num h-sm" style={{ fontWeight: 800 }}>{F.money(daily[sel], cur)}</div></div>}
         </div>

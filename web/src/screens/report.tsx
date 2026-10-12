@@ -102,7 +102,7 @@ export function ReportScreen() {
         <Round icon="download" label="Export PDF" onClick={exportPdf} />
       </PageHeader>
       <div class="content no-tabbar">
-        <div class="card pop row" style={{ '--i': 1, padding: 6, borderRadius: 99 } as any}>
+        <div class="card pop row wide" style={{ '--i': 1, padding: 6, borderRadius: 99 } as any}>
           <Round icon="left" sm onBg label="Previous year" onClick={() => setYear(year - 1)} />
           <div class="grow center h-sm">{year}</div>
           <Round icon="right" sm onBg label="Next year" onClick={() => year < thisYear && setYear(year + 1)} />
@@ -116,7 +116,7 @@ export function ReportScreen() {
           </div>
         </Hero>
         {!r.count && <Hint>Nothing recorded in {year}.</Hint>}
-        <Card i={3}>
+        <Card i={3} class="wide">
           <div class="row" style={{ marginBottom: 12 }}><h3 class="h-md grow">By month</h3>
             <span class="legend-dot" style={{ background: 'var(--good)' }} /><span class="tiny muted">In</span>
             <span class="legend-dot" style={{ background: 'var(--accent)' }} /><span class="tiny muted">Out</span></div>

@@ -174,7 +174,7 @@ export function CalendarScreen() {
               ))}
             </div>}
           </> : <>
-          <Card i={2}>
+          <Card i={2} class="wide">
             <div class="row" style={{ marginBottom: 8 }}>
               <Round icon="left" sm onBg label="Previous month" onClick={() => setMonth(F.addMonths(month, -1))} />
               <div key={month} class={'grow center h-md ' + dir}>{F.month(month)}</div>

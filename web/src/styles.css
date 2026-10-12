@@ -758,12 +758,76 @@ h1, h2, h3, h4 { margin: 0; font-family: var(--display); letter-spacing: -0.02em
 [dir="rtl"] div.countdown-hero.cd { text-align: right; }
 
 /* ------------------------------------------------------------------ desktop (Tauri) */
-html.desktop { background: #E9E4DE; }
-:root[data-theme="dark"].desktop { background: #0B0A09; }
-html.desktop body { background: transparent; }
-html.desktop #app { left: 0; right: 0; margin: 0 auto; width: 100%; max-width: 560px; background: var(--bg); }
-@media (min-width: 600px) {
-  html.desktop #app { box-shadow: 0 0 0 1px rgba(0,0,0,.05), 0 20px 60px -20px rgba(0,0,0,.25); }
-}
-html.desktop .scroll { scrollbar-width: thin; }
+html.desktop .scroll { scrollbar-width: thin; scrollbar-color: var(--track) transparent; }
 html.desktop button, html.desktop .press { cursor: pointer; }
+.sidebar { display: none; }
+
+/* Wide windows: sidebar on the left, screens fill the rest, cards flow in columns. */
+@media (min-width: 960px) {
+  html.desktop { --side: 268px; }
+  html.desktop .sidebar {
+    display: flex; flex-direction: column; gap: 10px; position: absolute; top: 0; bottom: 0; left: 0; width: var(--side); z-index: 30;
+    background: var(--card); border-inline-end: 1px solid rgba(127,127,127,.12); padding: 18px 14px 14px; overflow-y: auto; scrollbar-width: none;
+  }
+  html.desktop[dir="rtl"] .sidebar { left: auto; right: 0; }
+  html.desktop .layer { left: var(--side); }
+  html.desktop[dir="rtl"] .layer { left: 0; right: var(--side); }
+  html.desktop .tabbar, html.desktop .menu-btn, html.desktop .drawer { display: none !important; }
+
+  html.desktop .sidebar > * { flex-shrink: 0; }
+  .side-brand { display: flex; align-items: center; gap: 10px; padding: 2px 6px 6px; }
+  .side-new { display: flex; align-items: center; justify-content: center; gap: 8px; height: 46px; border-radius: 16px; background: var(--accent); color: #fff; font: 700 15px var(--display); box-shadow: 0 10px 22px -12px var(--accent); }
+  .side-search { height: 42px; min-height: 42px; border-radius: 14px; background: var(--bg); width: 100%; }
+  .side-nav { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+  .side-label { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 14px 10px 6px; }
+  .side-item { display: flex; align-items: center; gap: 11px; width: 100%; padding: 7px 8px; border-radius: 13px; font-weight: 600; font-size: 14.5px; color: var(--fg); transition: background .15s; text-align: start; }
+  .side-item:hover { background: var(--bg); }
+  .side-item.on { background: var(--ink); color: var(--on-ink); }
+  :root[data-theme="dark"] .side-item.on { background: var(--accent); }
+  .side-item .box { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+  .side-item .box:not([class*="t-"]) { background: var(--bg); }
+  .side-item.on .box { box-shadow: 0 0 0 2px rgba(255,255,255,.25); }
+  .side-count { min-width: 22px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: #fff; font: 700 11.5px/20px var(--display); text-align: center; }
+  .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding-top: 10px; }
+  .side-profile { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 16px; background: var(--bg); width: 100%; }
+  .sync-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--good); flex: none; }
+  .sync-dot.busy { background: var(--warn, #E8A100); animation: pulseDot 1s infinite; }
+  .sync-dot.bad { background: var(--bad); }
+
+  html.desktop .topbar { padding: 22px 36px 14px; }
+  html.desktop .topbar .title { font-size: 30px; }
+  html.desktop .topbar .title.big { font-size: 34px; }
+  html.desktop .content, html.desktop .content.no-tabbar {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; align-items: start;
+    padding: 6px 36px 120px; max-width: 1500px;
+  }
+  /* Everything spans the full width, except cards and tiles, which flow side by side. */
+  html.desktop .content > * { grid-column: 1 / -1; }
+  html.desktop .content > .card:not(.flush):not(.wide), html.desktop .content > .tile:not(.wide), html.desktop .content > .grid2 { grid-column: auto; }
+  html.desktop .notes { columns: 4 240px; column-gap: 14px; }
+  html.desktop .hero { padding: 28px 30px; }
+  html.desktop .add-fab, html.desktop .add-fab.low { bottom: 28px; right: 36px; }
+  html.desktop .toast { bottom: 40px; }
+  html.desktop .board { grid-auto-columns: minmax(300px, 1fr); margin: 0; padding: 2px 0 8px; }
+  html.desktop .cal-grid .day { aspect-ratio: auto; height: 64px; }
+
+  /* Forms open as a panel on the right, sheets as centred windows. */
+  html.desktop .page-overlay {
+    left: auto; right: 0; width: min(620px, calc(100% - var(--side)));
+    box-shadow: 0 0 0 100vmax rgba(20,16,12,.38), -24px 0 60px rgba(0,0,0,.18); animation-name: panelIn;
+  }
+  html.desktop[dir="rtl"] .page-overlay { right: auto; left: 0; }
+  html.desktop .page-overlay.closing { animation-name: panelOut; }
+  @keyframes panelIn { from { transform: translateX(48px); opacity: 0; } }
+  @keyframes panelOut { to { transform: translateX(48px); opacity: 0; } }
+  html.desktop .form-head { padding: 18px 20px 10px; }
+  html.desktop .form-body { padding: 6px 22px 40px; }
+  html.desktop .sheet {
+    left: 50%; right: auto; top: 50%; bottom: auto; width: min(560px, calc(100% - 48px)); max-height: 86vh;
+    border-radius: 28px; transform: translate(-50%, -50%); animation-name: modalIn; padding-bottom: 20px;
+  }
+  html.desktop .sheet.closing { animation-name: modalOut; }
+  html.desktop .sheet .grab { display: none; }
+  @keyframes modalIn { from { opacity: 0; transform: translate(-50%, -46%) scale(.97); } }
+  @keyframes modalOut { to { opacity: 0; transform: translate(-50%, -48%) scale(.98); } }
+}

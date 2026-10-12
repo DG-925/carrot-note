@@ -430,7 +430,7 @@ export function MainHeader({ title, sub, big, children }: Kids & { title: string
   const u = s.user
   return (
     <div class="topbar">
-      <Round icon="menu" label="Menu" onClick={() => setDrawer(true)} />
+      <Round icon="menu" label="Menu" class="menu-btn" onClick={() => setDrawer(true)} />
       <div class="titles pop">
         {sub && <div class="sub ellipsis">{sub}</div>}
         <div class={cx('title', big && 'big')}>{title}</div>

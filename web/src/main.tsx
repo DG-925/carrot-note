@@ -160,6 +160,7 @@ function Main() {
       {nav.stack.map((r, i) => (
         <div key={i + JSON.stringify(r)} class={'layer ' + (i === nav.stack.length - 1 && nav.dir === 'push' ? 'enter-push' : '')}>{routeScreen(r)}</div>
       ))}
+      {isDesktop && <Sidebar />}
       <TabBar tab={nav.tab} away={nav.stack.length > 0} open={quickOpen} />
       {nav.drawer && <Drawer />}
       {nav.overlays.map((o, i) => {
@@ -205,6 +206,61 @@ function TabBtn({ t, on }: { t: (typeof tabs)[number]; on: boolean }) {
     <button class={'tab' + (on ? ' on' : '')} onClick={() => goTab(t.tab)}>
       <Icon name={t.icon} size={19} />{t.label}
     </button>
+  )
+}
+
+const isDesktop = document.documentElement.classList.contains('desktop')
+
+/** Desktop: navigation always on the left (shown on wide windows instead of the tab bar). */
+function Sidebar() {
+  const s = useApp()
+  const nav = getNav()
+  const u = s.user!
+  const { data } = s
+  const current = nav.stack.length ? nav.stack[nav.stack.length - 1].name : nav.tab
+  const go = (r: string) => {
+    if (['home', 'money', 'projects', 'notes'].includes(r)) goTab(r as Tab)
+    else { goTab(nav.tab); push({ name: r } as Route) }
+  }
+  const renew = data.rental.filter(r => ['expired', 'soon'].includes(rentalState(r))).length
+  const unpaid = data.invoice.filter(i => ['sent', 'partial', 'overdue'].includes(invoiceState(i))).length
+  const dueToday = data.task.filter(t => !t.done && t.dueDate != null && t.dueDate <= F.today()).length
+  const groups: [string, [string, string, string, string, number?][]][] = [
+    ['', [['Home', 'home', 'orange', 'home'], ['Money', 'wallet', 'mint', 'money'], ['Projects', 'project', 'sky', 'projects'], ['Notes', 'note', 'lilac', 'notes'],
+      ['Calendar', 'calendar', 'butter', 'calendar', dueToday]]],
+    ['Work', [['Time', 'timer', 'mint', 'time'], ['Invoices', 'invoice', 'orange', 'invoices', unpaid], ['Rentals', 'server', 'sky', 'rentals', renew],
+      ['Customers', 'users', 'rose', 'customers'], ...(s.invites > 0 ? [['Invitations', 'inbox', 'orange', 'invites', s.invites] as [string, string, string, string, number]] : [])]],
+    ['Money', [['Recurring', 'repeat', 'mint', 'recurring'], ['Debts', 'debt', 'butter', 'debts'], ['Savings', 'goal', 'lilac', 'goals'], ['Report', 'chart', 'lilac', 'report']]],
+    ['Private', [['Vault', 'lock', 'rose', 'vault']]],
+  ]
+  return (
+    <aside class="sidebar">
+      <div class="side-brand"><Logo size={36} /><div><div class="h-sm">Carrot Note</div><div class="tiny muted">Freelancer workspace</div></div></div>
+      <button class="side-new press" onClick={() => quickAdd()}><Icon name="plus" size={17} stroke={2.6} />New</button>
+      <button class="search side-search press" onClick={() => push({ name: 'search' })}><Icon name="search" size={16} /><span class="muted grow" style={{ textAlign: 'start' }}>Search everything…</span></button>
+      <nav class="side-nav">
+        {groups.map(([title, items]) => (
+          <div key={title || 'main'}>
+            {title && <div class="side-label">{title}</div>}
+            {items.map(([label, icon, color, r, n]) => (
+              <button key={r} class={cx('side-item', current === r && 'on')} onClick={() => go(r)}>
+                <span class={`box t-${color}`}><Icon name={icon} size={15} /></span>
+                <span class="grow">{label}</span>
+                {!!n && <span class="side-count">{n}</span>}
+              </button>
+            ))}
+          </div>
+        ))}
+      </nav>
+      <div class="side-foot">
+        <button class="side-item" onClick={() => go('settings')}><span class="box"><Icon name="settings" size={15} /></span><span class="grow">Settings</span></button>
+        <button class="side-profile press" onClick={() => go('profile')}>
+          <Avatar userId={u.id} rev={u.avatarRev} name={u.name || u.username} size={38} />
+          <div class="grow" style={{ minWidth: 0, textAlign: 'start' }}><div class="semibold ellipsis">{u.name || '@' + u.username}</div><div class="tiny muted ellipsis">@{u.username}</div></div>
+          <span class={'sync-dot' + (s.sync.error ? ' bad' : s.sync.syncing ? ' busy' : '')} title={s.sync.error ?? (s.sync.syncing ? 'Syncing…' : 'Synced')} />
+        </button>
+      </div>
+    </aside>
   )
 }
 
