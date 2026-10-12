@@ -4,7 +4,7 @@ import * as F from './format'
 import { askForPayment, editDebt, editEvent, editGoal, editNote, editTask, editTime, editTxn, moveGoal, payDebt } from './editors'
 import { categoryIcon, Icon } from './icons'
 import { push } from './nav'
-import { setTaskDone, useApp } from './store'
+import { setEventDone, setTaskDone, useApp } from './store'
 import {
   debtPaid, debtRemaining, debtSettled, duration, goalProgress, goalSaved, isRunning,
   type CalEvent, type Debt, type Goal, type Note, type Project, type SpaceInfo, type TaskItem, type TimeEntry, type Txn,
@@ -77,10 +77,13 @@ export function EventRow({ e, showDate }: { e: CalEvent; showDate?: boolean }) {
   const parts = e.time != null ? F.time(e.time).split(/[\s  ]+/) : null
   const meta = [showDate ? F.relativeDay(e.date) : null, e.note.split('\n')[0] || null].filter(Boolean).join(' · ')
   return (
-    <div class="item" onClick={() => editEvent(e)}>
+    <div class={'item' + (e.done ? ' task-done event-done' : '')} onClick={() => editEvent(e)}>
       <div class="event-time"><b>{parts ? parts[0] : 'All'}</b><span>{parts ? parts[1] ?? '' : 'day'}</span></div>
-      <div class="main"><div class="t">{e.title}</div>{meta && <div class="s">{meta}</div>}</div>
-      {e.reminder && <Icon name="bell" size={13} class="muted" />}
+      <div class="main"><div class="t">{e.title}</div>{(meta || e.done) && <div class="s">{[e.done ? 'Done' : null, meta].filter(Boolean).join(' · ')}</div>}</div>
+      {e.reminder && !e.done && <Icon name="bell" size={13} class="muted" />}
+      <button class={'check' + (e.done ? ' on' : '')} aria-label={e.done ? 'Mark as not done' : 'Mark as done'} onClick={ev => { ev.stopPropagation(); setEventDone(e, !e.done) }}>
+        <i>{e.done && <Icon name="check" size={12} stroke={3} />}</i>
+      </button>
     </div>
   )
 }

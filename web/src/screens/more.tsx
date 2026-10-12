@@ -88,7 +88,7 @@ export function CalendarScreen() {
   const { data } = s
   const today = F.today()
   const has = (days: (number | null | undefined)[]) => new Set(days.filter((d): d is number => d != null))
-  const taskDays = has(data.task.map(t => t.dueDate)), eventDays = has(data.event.map(e => e.date)), noteDays = has(data.note.map(n => n.date))
+  const taskDays = has(data.task.map(t => t.dueDate)), eventDays = has(data.event.filter(e => !e.done).map(e => e.date)), noteDays = has(data.note.map(n => n.date))
   const moneyDays = has(data.txn.map(t => t.date))
   const dueDays = has([...data.project.map(p => p.deadline), ...data.debt.filter(d => !debtSettled(d)).map(d => d.dueDate), ...data.rental.filter(r => r.status === 'active').map(r => r.expiryDate)])
 
@@ -103,7 +103,7 @@ export function CalendarScreen() {
   }
 
   const dayTasks = data.task.filter(t => t.dueDate === selected).sort((a, b) => Number(a.done) - Number(b.done) || (a.dueTime ?? 9999) - (b.dueTime ?? 9999))
-  const dayEvents = data.event.filter(e => e.date === selected).sort((a, b) => (a.time ?? -1) - (b.time ?? -1))
+  const dayEvents = data.event.filter(e => e.date === selected).sort((a, b) => Number(!!a.done) - Number(!!b.done) || (a.time ?? -1) - (b.time ?? -1))
   const dayNotes = data.note.filter(n => n.date === selected)
   const dayTx = data.txn.filter(t => t.date === selected)
   const deadlines = data.project.filter(p => p.deadline === selected)
@@ -141,7 +141,7 @@ export function CalendarScreen() {
   // search across everything with a date
   type Hit = { day: number; icon: string; tint: string; title: string; sub: string }
   const hits: Hit[] = !query.trim() ? [] : [
-    ...data.event.filter(e => matches(query, e.title, e.note)).map(e => ({ day: e.date, icon: 'calendar', tint: 'sky', title: e.title, sub: 'Event' })),
+    ...data.event.filter(e => matches(query, e.title, e.note)).map(e => ({ day: e.date, icon: 'calendar', tint: 'sky', title: e.title, sub: e.done ? 'Event · done' : 'Event' })),
     ...data.task.filter(t => t.dueDate != null && matches(query, t.title, t.notes)).map(t => ({ day: t.dueDate!, icon: 'tasks', tint: 'butter', title: t.title, sub: t.done ? 'Task · done' : 'Task' })),
     ...data.note.filter(n => n.date != null && matches(query, n.title, n.body)).map(n => ({ day: n.date!, icon: 'note', tint: 'lilac', title: n.title || n.body.slice(0, 40), sub: 'Note' })),
     ...data.project.filter(p => p.deadline != null && matches(query, p.name, p.clientName)).map(p => ({ day: p.deadline!, icon: 'flag', tint: 'rose', title: p.name, sub: 'Deadline' })),
@@ -533,7 +533,7 @@ export function SearchScreen() {
     ['Tasks', s.data.task.filter(t => has(t.title, t.notes)).map(t => ({ icon: 'tasks', tint: 'butter', title: t.title, sub: (t.done ? 'Done' : 'Open') + (t.dueDate != null ? ' · ' + F.dateShort(t.dueDate) : ''), open: () => editTask(t) }))],
     ['Customers', s.data.customer.filter(c => has(c.name, c.phone, c.company, c.email)).map(c => ({ icon: 'user', tint: 'rose', title: c.name, sub: [c.company, c.phone].filter(Boolean).join(' · '), open: () => push({ name: 'customer', id: c.id }) }))],
     ['Money', s.data.txn.filter(t => has(t.note, t.category, t.method)).sort((a, b) => b.date - a.date).slice(0, 30).map(t => ({ icon: categoryIcon(t.category), tint: t.kind === 'income' ? 'mint' : 'sky', title: t.note || t.category, sub: (t.kind === 'income' ? '+' : '−') + F.money(t.amount, t.currency) + ' · ' + F.dateShort(t.date), open: () => editTxn(t) }))],
-    ['Events', s.data.event.filter(e => has(e.title, e.note)).map(e => ({ icon: 'calendar', tint: 'sky', title: e.title, sub: F.date(e.date), open: () => editEvent(e) }))],
+    ['Events', s.data.event.filter(e => has(e.title, e.note)).map(e => ({ icon: 'calendar', tint: 'sky', title: e.title, sub: F.date(e.date) + (e.done ? ' · done' : ''), open: () => editEvent(e) }))],
     ['Rentals', s.data.rental.filter(r => has(r.name, r.clientName, r.provider, r.details)).map(r => ({ icon: rentalKind(r.kind).icon, tint: 'sky', title: r.name || rentalKind(r.kind).label, sub: [r.clientName, r.expiryDate != null ? 'Expires ' + F.dateShort(r.expiryDate) : ''].filter(Boolean).join(' · '), open: () => push({ name: 'rental', id: r.id }) }))],
   ] as [string, Hit[]][]).filter(g => g[1].length)
   return (

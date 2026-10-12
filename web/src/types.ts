@@ -44,6 +44,8 @@ export interface Debt {
 export interface CalEvent {
   id: string; title: string; date: number; time?: number | null; note: string; reminder: boolean
   projectId?: string | null; customerId?: string | null; createdAt: number
+  /** Ticked off once it happened. */
+  done?: boolean
 }
 
 export interface TimeEntry { id: string; projectId?: string | null; start: number; end?: number | null; note: string; createdAt: number }

@@ -16,6 +16,10 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.6.1
+
+- **Mark events as done**: tick an event off in any list (Home, Calendar, a project or a customer), or use the *Done* switch when editing it. Done events are crossed out, sorted to the bottom, left out of the counts, and send no reminder.
+
 ### New in 1.6: Rentals
 
 Track the VPS, hosting, bots and domains you rent to clients:

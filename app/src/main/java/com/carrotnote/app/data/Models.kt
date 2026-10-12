@@ -165,6 +165,8 @@ data class CalEvent(
     val projectId: String? = null,
     val customerId: String? = null,
     val createdAt: Long = nowMs(),
+    /** Ticked off: it happened, so no reminder is needed. */
+    val done: Boolean = false,
 )
 
 object Categories {

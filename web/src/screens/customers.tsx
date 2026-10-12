@@ -189,7 +189,7 @@ export function CustomerDetail({ id }: { id: string }) {
   const paid = F.sumBy(txns.filter(t => t.kind === 'income'), t => t.currency, t => t.amount)
   const rentals = s.data.rental.filter(r => r.customerId === id)
   const debts = s.data.debt.filter(d => d.customerId === id).sort((a, b) => Number(debtSettled(a)) - Number(debtSettled(b)))
-  const events = s.data.event.filter(e => e.customerId === id && e.date >= F.today()).sort((a, b) => a.date - b.date)
+  const events = s.data.event.filter(e => e.customerId === id && e.date >= F.today() && !e.done).sort((a, b) => a.date - b.date)
   return (
     <div class="scroll">
       <PageHeader title={c.name} onBack={popNav}><Round icon="edit" label="Edit" onClick={() => editCustomer(c)} /></PageHeader>

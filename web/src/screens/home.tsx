@@ -92,7 +92,8 @@ export function HomeScreen() {
   const due = data.task.filter(t => !t.done && t.dueDate != null && t.dueDate <= today)
     .sort((a, b) => a.dueDate! - b.dueDate! || (a.dueTime ?? 9999) - (b.dueTime ?? 9999))
   const late = due.filter(t => t.dueDate! < today).length
-  const events = data.event.filter(e => e.date === today).sort((a, b) => (a.time ?? -1) - (b.time ?? -1))
+  const events = data.event.filter(e => e.date === today).sort((a, b) => Number(!!a.done) - Number(!!b.done) || (a.time ?? -1) - (b.time ?? -1))
+  const openEvents = events.filter(e => !e.done)
   const notes = [...data.note].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt - a.createdAt).slice(0, 3)
   const running = data.time.filter(isRunning).sort((a, b) => b.start - a.start)[0]
   const todayMs = data.time.filter(t => !isRunning(t) && F.dayOfMs(t.start) === today).reduce((a, t) => a + duration(t), 0)
@@ -126,7 +127,7 @@ export function HomeScreen() {
             <Eyebrow>Due today</Eyebrow>
             <CountInt value={due.length} class="big-count" />
             <div class="small semibold">{!due.length ? 'Nothing due' : `task${due.length === 1 ? '' : 's'}${late ? `, ${late} late` : ''}`}</div>
-            {events.length > 0 && <div class="small semibold">+ {F.plural(events.length, 'event')}</div>}
+            {openEvents.length > 0 && <div class="small semibold">+ {F.plural(openEvents.length, 'event')}</div>}
           </Tile>
         </div>
 

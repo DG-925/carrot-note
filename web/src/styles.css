@@ -668,3 +668,7 @@ h1, h2, h3, h4 { margin: 0; font-family: var(--display); letter-spacing: -0.02em
 .money-input { width: 100%; border: 0; outline: 0; background: transparent; font: 800 26px var(--display); padding: 0; color: var(--fg); min-width: 0; }
 .money-input.good { color: var(--good); }
 .money-input::placeholder { color: currentColor; opacity: .3; }
+
+/* ticked-off events */
+.event-done .event-time { background: var(--track); color: var(--muted); }
+.item .check:last-child { margin-left: 4px; }

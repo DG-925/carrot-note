@@ -180,7 +180,7 @@ function Drawer() {
   const net = data.txn.filter(t => t.date >= mStart && t.currency === cur).reduce((a, t) => a + (t.kind === 'income' ? t.amount : -t.amount), 0)
   const activeProjects = data.project.filter(p => p.status === 'active').length
   const dueToday = data.task.filter(t => !t.done && t.dueDate != null && t.dueDate <= today).length
-  const eventsToday = data.event.filter(e => e.date === today).length
+  const eventsToday = data.event.filter(e => e.date === today && !e.done).length
   const running = data.time.find(isRunning)
   const trackedToday = data.time.filter(t => F.dayOfMs(t.start) === today).reduce((a, t) => a + duration(t), 0)
   const openDebts = data.debt.filter(d => !debtSettled(d)).length

@@ -73,7 +73,7 @@ export function ProjectDetail({ id }: { id: string }) {
   const tasks = s.data.task.filter(t => t.projectId === id).sort((a, b) => Number(a.done) - Number(b.done) || (a.dueDate ?? 1e12) - (b.dueDate ?? 1e12))
   const notes = s.data.note.filter(n => n.projectId === id).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt - a.createdAt)
   const txns = s.data.txn.filter(t => t.projectId === id).sort((a, b) => b.date - a.date)
-  const events = s.data.event.filter(e => e.projectId === id).sort((a, b) => a.date - b.date)
+  const events = s.data.event.filter(e => e.projectId === id).sort((a, b) => Number(!!a.done) - Number(!!b.done) || a.date - b.date)
   const costs = txns.filter(t => t.kind === 'expense' && t.currency === p.currency).reduce((a, t) => a + t.amount, 0)
   const fab: [string, () => void][] = [
     ['Task', () => editTask(undefined, { projectId: id })],

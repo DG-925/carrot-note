@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { call, on } from './bridge'
 import * as F from './format'
-import { newId, type NativeState, type SpaceInfo, type TableName, type TaskItem, type Tables } from './types'
+import { newId, type CalEvent, type NativeState, type SpaceInfo, type TableName, type TaskItem, type Tables } from './types'
 import { toast } from './ui'
 
 /** Choices kept on this phone only. */
@@ -149,6 +149,12 @@ export async function setTaskDone(task: TaskItem, done: boolean) {
     await save('task', { ...task, id: newId(), done: false, dueDate: next, createdAt: Date.now() })
     toast(`Next one: ${F.relativeDay(next)}`)
   }
+}
+
+/** Ticks an event off (or back on). */
+export async function setEventDone(event: CalEvent, done: boolean) {
+  if (done) haptic()
+  await save('event', { ...event, done })
 }
 
 /** A short buzz for taps that finish something. */

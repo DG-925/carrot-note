@@ -44,7 +44,7 @@ object Reminders {
     }
 
     fun schedule(context: Context, event: CalEvent) {
-        val at = if (event.reminder) triggerAt(event.date, event.time) else null
+        val at = if (event.reminder && !event.done) triggerAt(event.date, event.time) else null
         enqueue(context, "event_${event.id}", at, event.title, event.note.ifBlank { "Calendar event" })
     }
 

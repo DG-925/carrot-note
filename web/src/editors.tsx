@@ -697,7 +697,10 @@ function EventForm({ item, defaults, close }: { item?: CalEvent; defaults: { dat
       <Field label="Title (meeting, call, delivery…)" value={e.title} onInput={v => up({ title: v })} autoFocus={!item} />
       <DateField label="Date" value={e.date} onChange={v => up({ date: v ?? F.today() })} clearable={false} />
       <TimeField label="Time" value={e.time} onChange={v => up({ time: v })} />
-      <div class="card in-card"><SwitchRow title="Remind me" sub="Notification at the event time (9:00 AM if no time)" on={e.reminder} onChange={v => up({ reminder: v })} /></div>
+      <div class="card in-card">
+        <SwitchRow title="Remind me" sub="Notification at the event time (9:00 AM if no time)" on={e.reminder && !e.done} disabled={!!e.done} onChange={v => up({ reminder: v })} />
+        {item && <SwitchRow title="Done" sub="It happened. Ticked-off events don't send reminders." on={!!e.done} onChange={v => up({ done: v })} />}
+      </div>
       <MoreOptions startOpen={!!base.note || base.customerId != null || (!!item && base.projectId != null)}>
         <Field label="Note" multiline value={e.note} onInput={v => up({ note: v })} />
         <ProjectPicker value={e.projectId} onChange={v => up({ projectId: v })} />
