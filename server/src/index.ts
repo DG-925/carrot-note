@@ -19,7 +19,7 @@ const MAX_AVATAR_BASE64 = 400_000;
 const MAX_FAILED_LOGINS = 10;
 const LOCKOUT_MS = 15 * 60 * 1000;
 /** Record types that follow their project into a shared space. */
-const PROJECT_SCOPED = new Set(["task", "note", "event"]);
+const PROJECT_SCOPED = new Set(["task", "note", "event", "rental"]);
 
 class HttpError extends Error {
   constructor(public status: number, message: string) {
@@ -420,7 +420,7 @@ async function invite(req: Request, env: Env, projectId: string) {
       env.DB.prepare(
         `UPDATE records SET space_id = ?1, rev = 1
          WHERE space_id = ?2 AND ((type = 'project' AND id = ?3)
-           OR (type IN ('task', 'note', 'event') AND json_extract(data, '$.projectId') = ?3))`,
+           OR (type IN ('task', 'note', 'event', 'rental') AND json_extract(data, '$.projectId') = ?3))`,
       ).bind(spaceId, user.id, projectId),
     ]);
   } else if (space.owner_id !== user.id) {
@@ -527,6 +527,37 @@ function parseChanges(v: unknown): Change[] {
   });
 }
 
+/**
+ * Rentals linked to a shared project before rentals were shared (or before the project was shared)
+ * still sit in the user's personal space: move them in so the whole team sees them.
+ * Returns true when something moved.
+ */
+async function adoptIntoShared(env: Env, userId: string, spaces: SpaceRow[]): Promise<boolean> {
+  const shared = spaces.filter((s) => s.kind === "project" && s.project_id);
+  if (!shared.length) return false;
+  const waiting = await env.DB.prepare(
+    `SELECT DISTINCT json_extract(data, '$.projectId') AS pid FROM records
+     WHERE space_id = ?1 AND type = 'rental' AND deleted = 0
+       AND json_extract(data, '$.projectId') IN (SELECT value FROM json_each(?2))`,
+  )
+    .bind(userId, JSON.stringify(shared.map((s) => s.project_id)))
+    .all<{ pid: string }>();
+  if (!waiting.results.length) return false;
+  const stmts: D1PreparedStatement[] = [];
+  for (const { pid } of waiting.results) {
+    const space = "p_" + pid;
+    stmts.push(env.DB.prepare("UPDATE spaces SET rev = rev + 1 WHERE id = ?").bind(space));
+    stmts.push(
+      env.DB.prepare(
+        `UPDATE OR IGNORE records SET space_id = ?1, rev = (SELECT rev FROM spaces WHERE id = ?1)
+         WHERE space_id = ?2 AND type = 'rental' AND deleted = 0 AND json_extract(data, '$.projectId') = ?3`,
+      ).bind(space, userId, pid),
+    );
+  }
+  await env.DB.batch(stmts);
+  return true;
+}
+
 function projectIdOf(c: Change): string | null {
   if (c.type === "project") return c.id;
   if (!PROJECT_SCOPED.has(c.type) || !c.data) return null;
@@ -546,6 +577,7 @@ async function sync(req: Request, env: Env) {
 
   let spaces = await memberSpaces(env, user.id);
   const member = new Set(spaces.map((s) => s.id));
+  if (!legacy && (await adoptIntoShared(env, user.id, spaces))) spaces = await memberSpaces(env, user.id);
 
   if (changes.length > 0) {
     // Where does each (type, id) live today, in the spaces this user can see?

@@ -61,7 +61,7 @@ class SyncManager(private val context: Context, private val scope: CoroutineScop
                 repo.cursors = cursors
                 Graph.setInviteCount(resp.invites)
                 resp.user?.let { Graph.session.updateUser(it) }
-                if (resp.changes.any { it.type == "task" || it.type == "event" }) {
+                if (resp.changes.any { it.type == "task" || it.type == "event" || it.type == "rental" }) {
                     Reminders.rescheduleAll(context, repo)
                 }
                 if (resp.changes.any { it.type == "time" }) TimeTracker.refreshNotification(context)

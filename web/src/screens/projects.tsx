@@ -333,7 +333,7 @@ function TeamSheet({ project, initialSpace, isOwner, close }: { project: Project
 
   return (
     <>
-      <SheetTitle title="Team" sub={`Members can see and add tasks, notes and events in “${project.name}”. Your money stays private.`} />
+      <SheetTitle title="Team" sub={`Members can see and add tasks, notes, events, rentals and partner earnings in “${project.name}”. The rest of your money stays private.`} />
       <div class="body">
         <div class="card flush in-card">
           {[...members].sort((a, b) => Number(a.role !== 'owner') - Number(b.role !== 'owner')).map(m => (

@@ -927,7 +927,9 @@ const ar: Record<string, string> = {
  "Stock purchase": "شراء مخزون",
  "Laptops": "لابتوبات",
  "Phones": "هواتف",
- "Parts": "قطع"
+ "Parts": "قطع",
+ "This project is shared, so everyone in its team sees this rental and its money.": "هذا المشروع مشترك، لذا يرى كل أعضاء فريقه هذا الإيجار وأمواله.",
+ "Only you see this rental. Link it to a shared project to show it to your team.": "أنت فقط ترى هذا الإيجار. اربطه بمشروع مشترك ليراه فريقك."
 }
 
 export default ar

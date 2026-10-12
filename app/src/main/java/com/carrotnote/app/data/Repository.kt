@@ -141,7 +141,7 @@ class Repository(context: Context, val userId: String) {
     private fun spaceHint(type: String, id: String, json: String): String {
         val projectId = when (type) {
             "project" -> id
-            "task", "note", "event" -> runCatching {
+            "task", "note", "event", "rental" -> runCatching {
                 (AppJson.parseToJsonElement(json) as JsonObject)["projectId"]?.jsonPrimitive?.contentOrNull
             }.getOrNull()
             else -> null

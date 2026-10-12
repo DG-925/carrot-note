@@ -115,7 +115,7 @@ class Repo {
     return projectId ? this.spaces.find(s => s.kind === 'project' && s.projectId === projectId)?.id : undefined
   }
   private spaceHint(type: string, id: string, item: Json): string {
-    const projectId = type === 'project' ? id : ['task', 'note', 'event'].includes(type) ? item?.projectId : null
+    const projectId = type === 'project' ? id : ['task', 'note', 'event', 'rental'].includes(type) ? item?.projectId : null
     return this.spaceFor(projectId) ?? this.userId
   }
 

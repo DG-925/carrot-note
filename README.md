@@ -16,6 +16,10 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.10.1
+
+- **Rentals in shared projects are shared**: a rental linked to a shared project (and its costs, price and renewals) shows for everyone in the team, and anyone can renew or edit it. Rentals not linked to a shared project stay private. Needs the updated API (see "Backend": run the "Deploy API" workflow or `npx wrangler deploy`); rentals added before then move in on the next sync.
+
 ### New in 1.10: Stock
 
 - **Stock** (in the menu, and "Sale" / "Stock item" under New): for selling physical things like PCs, phones or parts. Each item has a photo, condition (new, used, refurbished), category, serial number and selling price.
@@ -154,6 +158,8 @@ npx wrangler deploy                                     # deploy the API
 ```
 
 The API is live at `https://carrot-note-api.carrot-note-api.workers.dev` (set in `gradle.properties` as `carrot.apiUrl`).
+
+**Deploying from GitHub:** add two repository secrets, `CLOUDFLARE_API_TOKEN` (Cloudflare dashboard → My Profile → API Tokens → "Edit Cloudflare Workers" template, plus D1 → Edit) and `CLOUDFLARE_ACCOUNT_ID` (shown on the Workers & Pages overview). The "Deploy API" workflow then deploys `server/` whenever it changes, or on demand from the Actions tab.
 
 ## Building locally
 

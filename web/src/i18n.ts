@@ -48,6 +48,7 @@ const patterns: [RegExp, (m: RegExpExecArray) => string | null][] = [
   [/^(\d+) active$/, m => `${m[1]} نشط`],
   [/^Product · (.+)$/, m => `منتج · ${tr(m[1])}`],
   [/^(\d+) in stock$/, m => `${m[1]} في المخزون`],
+  [/^Members can see and add tasks, notes, events, rentals and partner earnings in “(.+)”\. The rest of your money stays private\.$/, m => `يمكن للأعضاء رؤية وإضافة المهام والملاحظات والمواعيد والإيجارات وأرباح الشركاء في «${m[1]}». باقي أموالك تبقى خاصة.`],
   [/^(\d+) in stock now$/, m => `${m[1]} في المخزون الآن`],
   [/^(\d+) left$/, m => `باقي ${m[1]}`],
   [/^(\d+) or fewer$/, m => `${m[1]} أو أقل`],

@@ -463,7 +463,9 @@ function RentalForm({ item, defaults, close }: { item?: Rental; defaults: Partia
       </div>
       <ProjectPicker value={r.projectId} onChange={v => up({ projectId: v })} none="No project" />
       <Field label={domain ? 'Details (DNS, nameservers, login…)' : 'Details (IP, panel, login, specs…)'} multiline value={r.details} onInput={v => up({ details: v })} />
-      <Hint>Only you can see rentals and their money, even in shared projects.</Hint>
+      <Hint>{getState().spaces.some(sp => sp.kind === 'project' && sp.projectId === r.projectId)
+        ? "This project is shared, so everyone in its team sees this rental and its money."
+        : 'Only you see this rental. Link it to a shared project to show it to your team.'}</Hint>
     </Form>
   )
 }
