@@ -107,10 +107,13 @@ const P: Record<string, string> = {
 
 export type IconName = keyof typeof P | string
 
+/** Icons that point left or right, mirrored in right-to-left layout. */
+const flip = new Set(['back', 'right', 'left', 'signOut', 'convert'])
+
 export function Icon({ name, size = 18, class: cls, stroke = 2 }: { name: IconName; size?: number; class?: string; stroke?: number }) {
   const d = P[name] ?? P.other
   return (
-    <svg class={'ico ' + (cls ?? '')} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg class={'ico ' + (flip.has(name) ? 'flip ' : '') + (cls ?? '')} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width={stroke} stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       {d.split(' M').map((seg, i) => <path key={i} d={i === 0 ? seg : 'M' + seg} />)}
     </svg>

@@ -21,6 +21,7 @@ import com.carrotnote.app.data.nowMs
 object TimeTracker {
     private const val NOTIFICATION_ID = 7001
     const val ACTION_STOP = "com.carrotnote.app.STOP_TIMER"
+    const val ACTION_KEEP = "com.carrotnote.app.KEEP_TIMER"
 
     fun running(): TimeEntry? = Graph.repoOrNull?.time?.value?.filter { it.running }?.maxByOrNull { it.start }
 
@@ -29,13 +30,17 @@ object TimeTracker {
         stop(context, notify = false)
         repo.time.save(TimeEntry(projectId = projectId, start = nowMs(), note = note))
         refreshNotification(context)
+        TimerCheck.schedule(context)
+        com.carrotnote.app.widget.TodayWidget.refresh(context)
     }
 
     fun stop(context: Context, notify: Boolean = true) {
         val repo = Graph.repoOrNull ?: return
         val now = nowMs()
         repo.time.value.filter { it.running }.forEach { repo.time.save(it.copy(end = now)) }
+        TimerCheck.cancel(context)
         if (notify) refreshNotification(context)
+        com.carrotnote.app.widget.TodayWidget.refresh(context)
     }
 
     fun format(ms: Long): String {
@@ -86,6 +91,12 @@ object TimeTracker {
 
 class TimerReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == TimeTracker.ACTION_STOP) TimeTracker.stop(context)
+        when (intent.action) {
+            TimeTracker.ACTION_STOP -> TimeTracker.stop(context)
+            TimeTracker.ACTION_KEEP -> {
+                androidx.core.app.NotificationManagerCompat.from(context).cancel(TimerCheck.NOTIFICATION_ID)
+                TimerCheck.schedule(context, TimerCheck.AGAIN_HOURS)
+            }
+        }
     }
 }

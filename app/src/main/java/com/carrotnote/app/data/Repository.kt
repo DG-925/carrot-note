@@ -14,6 +14,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
+private fun JsonObject.id(): String = this["id"]?.jsonPrimitive?.contentOrNull ?: error("Record without an id")
+
 val AppJson = Json {
     ignoreUnknownKeys = true
     encodeDefaults = true
@@ -100,8 +102,17 @@ class Repository(context: Context, val userId: String) {
     val time = Collection("time", TimeEntry.serializer()) { it.id }
     val budgets = Collection("budget", Budget.serializer()) { it.id }
     val rentals = Collection("rental", Rental.serializer()) { it.id }
+    // Records the app only stores and syncs; the web UI owns their shape.
+    val invoices = Collection("invoice", JsonObject.serializer()) { it.id() }
+    val recurring = Collection("recurring", JsonObject.serializer()) { it.id() }
+    val receipts = Collection("receipt", JsonObject.serializer()) { it.id() }
+    val secrets = Collection("secret", JsonObject.serializer()) { it.id() }
+    val vault = Collection("vault", JsonObject.serializer()) { it.id() }
 
-    private val collections = listOf(projects, tasks, notes, txns, goals, customers, debts, events, time, budgets, rentals)
+    private val collections = listOf(
+        projects, tasks, notes, txns, goals, customers, debts, events, time, budgets, rentals,
+        invoices, recurring, receipts, secrets, vault,
+    )
         .associateBy { it.type }
 
     private val spaceList = ListSerializer(SpaceInfo.serializer())

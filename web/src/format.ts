@@ -1,4 +1,5 @@
 // Port of util/Format.kt: amounts, epoch-day dates and times.
+import { dateLocale } from './i18n'
 
 const amountFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
 
@@ -88,7 +89,7 @@ export const monthStart = (e: number) => { const d = fromEpochDay(e); return toE
 export const addMonths = (e: number, n: number) => { const d = fromEpochDay(e); return toEpochDay(new Date(d.getFullYear(), d.getMonth() + n, 1)) }
 export const monthEnd = (e: number) => addMonths(e, 1) - 1
 
-const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(undefined, o)
+const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(dateLocale(), o)
 const fullFmt = fmt({ weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 const shortFmt = fmt({ day: 'numeric', month: 'short' })
 const monthFmt = fmt({ month: 'long', year: 'numeric' })
@@ -125,7 +126,7 @@ export function daysLeft(e: number): string {
 
 export function time(minutes: number): string {
   const d = new Date(2000, 0, 1, Math.floor(minutes / 60), minutes % 60)
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return d.toLocaleTimeString(dateLocale() ?? [], { hour: 'numeric', minute: '2-digit' })
 }
 export const timeInput = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 export const fromTimeInput = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m }
@@ -169,9 +170,10 @@ export function countdown(ms: number, seconds = false): string {
   const s = Math.max(0, Math.floor(ms / 1000))
   const d = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24, m = Math.floor(s / 60) % 60, sec = s % 60
   const p2 = (n: number) => String(n).padStart(2, '0')
-  if (d > 0) return seconds ? `${d}d ${p2(h)}h ${p2(m)}m ${p2(sec)}s` : `${d}d ${h}h ${p2(m)}m`
-  if (h > 0) return `${h}h ${p2(m)}m${seconds ? ` ${p2(sec)}s` : ''}`
-  return `${m}m ${p2(sec)}s`
+  const [D, H, M, S] = dateLocale() ? ['ي', 'س', 'د', 'ث'] : ['d', 'h', 'm', 's']
+  if (d > 0) return seconds ? `${d}${D} ${p2(h)}${H} ${p2(m)}${M} ${p2(sec)}${S}` : `${d}${D} ${h}${H} ${p2(m)}${M}`
+  if (h > 0) return `${h}${H} ${p2(m)}${M}${seconds ? ` ${p2(sec)}${S}` : ''}`
+  return `${m}${M} ${p2(sec)}${S}`
 }
 
 /** Country code to its flag emoji ("EG" → 🇪🇬). */

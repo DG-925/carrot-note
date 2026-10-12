@@ -6,12 +6,10 @@ import * as F from '../format'
 import { Icon } from '../icons'
 import { pop as popNav, push } from '../nav'
 import { duration, Categories, type GithubProfile } from '../types'
-import { useApp } from '../store'
-import {
-  Avatar, Btn, Card, Chips, Field, FieldLabel, Hint, PageHeader, Round, SelectField, SheetTitle, SwitchRow, Tile,
-  attempt, confirm, openDialog, openSheet, toast,
-} from '../ui'
+import { useApp, setLanguage } from '../store'
+import { Avatar, Btn, Card, Chips, Field, FieldLabel, Hint, PageHeader, Round, SelectField, SheetTitle, SwitchRow, Tile, attempt, confirm, openDialog, openSheet, toast } from '../ui'
 import { PinSetup } from './auth'
+import { dateLocale } from '../i18n'
 
 const cleanUsername = (s: string) => s.trim().replace(/^@/, '').toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 20)
 const usernameRule = /^[a-z0-9_.]{3,20}$/
@@ -202,7 +200,7 @@ export function SettingsScreen() {
             <div class="grow"><div class="h-sm">{s.user?.name || 'Carrot Note user'}</div><div class="small muted ellipsis">{s.user?.email}</div></div>
           </div>
           <div class="small" style={{ marginTop: 10, color: sync.error ? 'var(--bad)' : 'var(--muted)' }}>
-            {sync.syncing ? 'Syncing…' : sync.error ? `Sync problem: ${sync.error}` : sync.lastSync > 0 ? `Last synced ${new Date(sync.lastSync).toLocaleString()}` : 'Not synced yet'}
+            {sync.syncing ? 'Syncing…' : sync.error ? `Sync problem: ${sync.error}` : sync.lastSync > 0 ? `Last synced ${new Date(sync.lastSync).toLocaleString(dateLocale())}` : 'Not synced yet'}
           </div>
           <div class="row" style={{ marginTop: 12 }}>
             <Btn sm icon="sync" busy={sync.syncing} onClick={() => attempt(() => call('sync.now'))}>Sync now</Btn>
@@ -215,6 +213,11 @@ export function SettingsScreen() {
           <div class="col">
             <SelectField label="Main currency" value={s.settings.currency} onChange={v => set({ currency: v })}
               options={(Categories.currencies.includes(s.settings.currency) ? Categories.currencies : [s.settings.currency, ...Categories.currencies]).map(c => ({ value: c, label: c }))} />
+            <FieldLabel>Language</FieldLabel>
+            <div class="chips" data-notr>
+              <button class={'chip' + (s.prefs.lang === 'en' ? ' on' : '')} onClick={() => setLanguage('en')}>English</button>
+              <button class={'chip' + (s.prefs.lang === 'ar' ? ' on' : '')} onClick={() => setLanguage('ar')}>العربية</button>
+            </div>
             <FieldLabel>Theme</FieldLabel>
             <Chips wrap options={['1', '2', '0']} value={String(s.settings.theme)} onChange={v => set({ theme: Number(v) })}
               label={v => ({ '0': 'System', '1': 'Light', '2': 'Dark' } as any)[v]} icon={v => ({ '0': 'settings', '1': 'star', '2': 'moon' } as any)[v]} />
@@ -245,6 +248,7 @@ export function SettingsScreen() {
           <div class="row wrap">
             <Btn sm icon="backup" onClick={() => attempt(() => call('backup.export'))}>Full backup (JSON)</Btn>
             <Btn sm kind="soft-bg" icon="download" onClick={() => attempt(() => call('money.exportCsv'))}>Money (CSV)</Btn>
+            <Btn sm kind="soft-bg" icon="sync" onClick={restoreBackup}>Restore backup</Btn>
           </div>
         </Card>
 
@@ -267,6 +271,14 @@ export function SettingsScreen() {
       </div>
     </div>
   )
+}
+
+async function restoreBackup() {
+  if (!(await confirm('Restore a backup?', 'Pick a Carrot Note backup file. Everything in it is added back; items that still exist are replaced by the backup copy. Nothing else is deleted.', 'Choose file', false))) return
+  const r = await attempt(() => call<Record<string, number> | null>('backup.import'))
+  if (!r) return
+  const total = Object.values(r).reduce((a, n) => a + n, 0)
+  toast(total ? `Restored ${total} item${total === 1 ? '' : 's'}` : 'Nothing to restore in that file')
 }
 
 function setPin() {

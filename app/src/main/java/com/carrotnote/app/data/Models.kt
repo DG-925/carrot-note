@@ -64,6 +64,11 @@ data class TaskItem(
     /** "", "daily", "weekly" or "monthly": a new copy is made when this one is done. */
     val repeat: String = "",
     val createdAt: Long = nowMs(),
+    /** In progress (the middle column of the task board). */
+    val doing: Boolean = false,
+    val subtasks: List<CheckItem> = emptyList(),
+    /** User id of the team member the task is assigned to. */
+    val assignee: String? = null,
 )
 
 @Serializable
@@ -97,6 +102,8 @@ data class Txn(
     val projectId: String? = null,
     val customerId: String? = null,
     val createdAt: Long = nowMs(),
+    /** Id of the "receipt" record holding a photo of the receipt. */
+    val receiptId: String? = null,
 )
 
 @Serializable
@@ -246,6 +253,9 @@ data class Rental(
     val details: String = "",
     val renewals: List<RentalRenewal> = emptyList(),
     val createdAt: Long = nowMs(),
+    /** Check that it is online every 15 minutes: an http(s) address, or host[:port] (port 22 by default). */
+    val monitor: Boolean = false,
+    val monitorUrl: String = "",
 )
 
 @Serializable

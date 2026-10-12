@@ -9,6 +9,9 @@ import { pop as popNav, push } from '../nav'
 import { EventRow, NoteCard, ProjectCard, TaskRow, TimeRow, TxnRow, projectReceived, projectValue } from '../rows'
 import { useApp } from '../store'
 import { RentalCard, editRental } from './rentals'
+import { InvoiceCard, editInvoice } from './invoices'
+import { setTaskDone, save as saveItem } from '../store'
+import type { TaskItem } from '../types'
 import { duration, isRunning, type Project, type PublicUser, type SpaceInfo, type SpaceMember } from '../types'
 import {
   Avatar, AvatarStack, Bar, Btn, Card, Chips, Empty, Eyebrow, Hero, Hint, MainHeader, PageHeader, Round, SearchBar, Seg, SheetTitle,
@@ -16,6 +19,7 @@ import {
 } from '../ui'
 
 let savedFilter = 'open'
+let savedTaskView = 0
 
 export function ProjectsScreen() {
   const s = useApp()
@@ -53,6 +57,8 @@ export function ProjectsScreen() {
 export function ProjectDetail({ id }: { id: string }) {
   const s = useApp()
   const [tab, setTab] = useState(0)
+  const [taskView, setTaskViewState] = useState(savedTaskView)
+  const setTaskView = (v: number) => { savedTaskView = v; setTaskViewState(v) }
   const p = s.data.project.find(x => x.id === id)
   const space = s.spaces.find(sp => sp.kind === 'project' && sp.projectId === id)
   const pTime = s.data.time.filter(t => t.projectId === id).sort((a, b) => b.start - a.start)
@@ -85,7 +91,7 @@ export function ProjectDetail({ id }: { id: string }) {
     <>
       <div class="scroll">
         <PageHeader title={p.name} onBack={popNav}>
-          <Round icon="invoice" label="Invoice" onClick={() => attempt(() => call('invoice.share', { projectId: id }))} />
+          <Round icon="invoice" label="New invoice" onClick={() => editInvoice(undefined, { projectId: id, customerId: p.customerId })} />
           <Round icon="edit" label="Edit" onClick={() => editProject(p)} />
         </PageHeader>
         <div class="content no-tabbar">
@@ -131,9 +137,15 @@ export function ProjectDetail({ id }: { id: string }) {
 
           {tab === 0 && <>
             {!tasks.length ? <Hint>No tasks yet. Break the project into steps.</Hint> : <>
-              <div class="row small muted" style={{ padding: '0 4px' }}><span class="grow semibold">{tasks.filter(t => t.done).length} of {tasks.length} done</span></div>
+              <div class="row small muted" style={{ padding: '0 4px' }}>
+                <span class="grow semibold">{tasks.filter(t => t.done).length} of {tasks.length} done</span>
+                <div class="mini-seg">
+                  <button class={taskView === 0 ? 'on' : ''} onClick={() => setTaskView(0)}><Icon name="list" size={13} />List</button>
+                  <button class={taskView === 1 ? 'on' : ''} onClick={() => setTaskView(1)}><Icon name="chart" size={13} />Board</button>
+                </div>
+              </div>
               <Bar value={tasks.filter(t => t.done).length / tasks.length} />
-              <div class="card flush">{tasks.map(t => <TaskRow key={t.id} task={t} />)}</div>
+              {taskView === 0 ? <div class="card flush">{tasks.map(t => <TaskRow key={t.id} task={t} />)}</div> : <TaskBoard tasks={tasks} projectId={id} />}
             </>}
           </>}
           {tab === 1 && <>
@@ -150,8 +162,12 @@ export function ProjectDetail({ id }: { id: string }) {
                 person: customer?.name ?? (p.clientName || 'there'), amount: p.price - received, currency: p.currency, customerId: p.customerId, dueDate: p.deadline, what: `“${p.name}”`,
               })}>Ask for payment</Btn>}
               <Btn kind="t-rose" class="t-rose" sm icon="expense" onClick={() => editTxn(undefined, { kind: 'expense', projectId: id })}>Add cost</Btn>
-              <Btn kind="t-sky" class="t-sky" sm icon="invoice" onClick={() => attempt(() => call('invoice.share', { projectId: id }))}>Invoice PDF</Btn>
+              <Btn kind="t-sky" class="t-sky" sm icon="invoice" onClick={() => editInvoice(undefined, { projectId: id, customerId: p.customerId })}>New invoice</Btn>
             </div>
+            {s.data.invoice.some(x => x.projectId === id) && <>
+              <div class="section-h"><h3>Invoices</h3></div>
+              {s.data.invoice.filter(x => x.projectId === id).sort((a, b) => b.issueDate - a.issueDate).map(x => <InvoiceCard key={x.id} inv={x} />)}
+            </>}
             {!txns.length ? <Hint>Payments you receive for this project show here (only you see your money).</Hint>
               : <div class="card flush">{txns.map(t => <TxnRow key={t.id} t={t} extra={F.dateShort(t.date)} />)}</div>}
             <div class="section-h"><h3>Time logged</h3><button class="link" onClick={() => editTime(undefined, { projectId: id })}>+ Add</button></div>
@@ -177,6 +193,53 @@ export function ProjectDetail({ id }: { id: string }) {
       </div>
       <button key={tab} class="add-fab low" onClick={fab[tab][1]}><Icon name="plus" size={15} />{fab[tab][0]}</button>
     </>
+  )
+}
+
+/** Three columns: to do, doing, done. Arrows move a task to the next or previous column. */
+function TaskBoard({ tasks, projectId }: { tasks: TaskItem[]; projectId: string }) {
+  const s = useApp()
+  const cols: [string, string, (t: TaskItem) => boolean][] = [
+    ['To do', 'square', t => !t.done && !t.doing],
+    ['Doing', 'play', t => !t.done && !!t.doing],
+    ['Done', 'checkSquare', t => t.done],
+  ]
+  const move = (t: TaskItem, to: number) => {
+    if (to === 2) setTaskDone({ ...t, doing: false }, true)
+    else attempt(() => saveItem('task', { ...t, done: false, doing: to === 1 }))
+  }
+  const members = s.spaces.flatMap(sp => sp.members)
+  return (
+    <div class="board">
+      {cols.map(([title, icon, test], ci) => {
+        const list = tasks.filter(test)
+        return (
+          <div key={title} class={`board-col col-${ci}`}>
+            <div class="board-head"><Icon name={icon} size={13} /><b class="grow">{title}</b><span class="tiny muted bold">{list.length}</span></div>
+            {list.map(t => {
+              const steps = t.subtasks ?? []
+              const who = members.find(m => m.id === t.assignee)
+              return (
+                <div key={t.id} class="board-card press" onClick={() => editTask(t)}>
+                  <div class={'semibold' + (t.done ? ' muted' : '')} style={{ textDecoration: t.done ? 'line-through' : undefined }}>{t.title}</div>
+                  <div class="tiny muted" style={{ marginTop: 4 }}>
+                    {[t.dueDate != null ? F.relativeDay(t.dueDate) : null, steps.length ? `${steps.filter(x => x.done).length}/${steps.length} steps` : null].filter(Boolean).join(' · ')}
+                  </div>
+                  <div class="row" style={{ marginTop: 6, gap: 4 }}>
+                    {who && <Avatar userId={who.id} rev={who.avatarRev} name={who.name || who.username} size={22} />}
+                    <span class="grow" />
+                    {ci > 0 && <button class="board-move" aria-label="Move back" onClick={e => { e.stopPropagation(); move(t, ci - 1) }}><Icon name="left" size={12} /></button>}
+                    {ci < 2 && <button class="board-move fwd" aria-label="Move forward" onClick={e => { e.stopPropagation(); move(t, ci + 1) }}><Icon name="right" size={12} /></button>}
+                  </div>
+                </div>
+              )
+            })}
+            {ci === 0 && <button class="board-add" onClick={() => editTask(undefined, { projectId })}><Icon name="plus" size={13} />Task</button>}
+            {ci === 1 && <button class="board-add" onClick={() => editTask(undefined, { projectId, doing: true })}><Icon name="plus" size={13} />Task</button>}
+          </div>
+        )
+      })}
+    </div>
   )
 }
 

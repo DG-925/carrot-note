@@ -18,7 +18,8 @@ function sample() {
   return {
     project: projects,
     task: [
-      { id: id(), title: 'Send invoice to Nour Bakery', notes: '', projectId: 'p1', dueDate: t, dueTime: 18 * 60, reminder: true, done: false, priority: 2, createdAt: now },
+      { id: id(), title: 'Send invoice to Nour Bakery', notes: '', projectId: 'p1', dueDate: t, dueTime: 18 * 60, reminder: true, done: false, priority: 2, createdAt: now, subtasks: [{ id: 'st1', text: 'Export PDF', done: true }, { id: 'st2', text: 'Send on WhatsApp', done: false }] },
+      { id: id(), title: 'Offline sync for orders', notes: '', projectId: 'p1', dueDate: t + 4, dueTime: null, reminder: false, done: false, doing: true, priority: 1, createdAt: now },
       { id: id(), title: 'Fix login crash on Android 10', notes: '', projectId: 'p3', dueDate: t - 1, dueTime: null, reminder: false, done: false, priority: 1, createdAt: now },
       { id: id(), title: 'Reply to Lina about the hero photo', notes: '', projectId: 'p2', dueDate: t, dueTime: null, reminder: false, done: false, priority: 1, createdAt: now },
     ],
@@ -48,10 +49,22 @@ function sample() {
       { id: id(), projectId: 'p3', start: now - 5 * 3600_000, end: now - 3 * 3600_000, note: 'Booking limits', createdAt: now },
     ],
     rental: [
-      { id: 'r1', kind: 'vps', name: 'Bakery POS server', provider: 'Hetzner', customerId: 'c1', projectId: 'p1', clientName: 'Nour Bakery', startDate: t - 50, expiryDate: t + 2, expiryTime: null, period: 'monthly', cost: 350, costCurrency: 'EGP', price: 900, priceCurrency: 'EGP', reminder: true, remindDays: 3, status: 'active', details: 'IP 65.21.10.4\nUbuntu 24.04 · 4 GB RAM', renewals: [{ id: id(), date: t - 28, from: t - 28, to: t + 2, cost: 350, price: 900, note: '' }], createdAt: now },
-      { id: 'r2', kind: 'domain', name: 'linahassan.design', provider: 'Namecheap', customerId: null, projectId: 'p2', clientName: 'Lina Hassan', startDate: t - 200, expiryDate: t + 165, expiryTime: null, period: 'yearly', cost: 15, costCurrency: 'USD', price: 25, priceCurrency: 'USD', reminder: true, remindDays: 14, status: 'active', details: 'Nameservers: Cloudflare', renewals: [], createdAt: now },
+      { id: 'r1', monitor: true, monitorUrl: '65.21.10.4:22', kind: 'vps', name: 'Bakery POS server', provider: 'Hetzner', customerId: 'c1', projectId: 'p1', clientName: 'Nour Bakery', startDate: t - 50, expiryDate: t + 2, expiryTime: null, period: 'monthly', cost: 350, costCurrency: 'EGP', price: 900, priceCurrency: 'EGP', reminder: true, remindDays: 3, status: 'active', details: 'IP 65.21.10.4\nUbuntu 24.04 · 4 GB RAM', renewals: [{ id: id(), date: t - 28, from: t - 28, to: t + 2, cost: 350, price: 900, note: '' }], createdAt: now },
+      { id: 'r2', monitor: true, monitorUrl: 'https://linahassan.design', kind: 'domain', name: 'linahassan.design', provider: 'Namecheap', customerId: null, projectId: 'p2', clientName: 'Lina Hassan', startDate: t - 200, expiryDate: t + 165, expiryTime: null, period: 'yearly', cost: 15, costCurrency: 'USD', price: 25, priceCurrency: 'USD', reminder: true, remindDays: 14, status: 'active', details: 'Nameservers: Cloudflare', renewals: [], createdAt: now },
       { id: 'r3', kind: 'bot', name: 'FitZone booking bot', provider: 'Contabo', customerId: null, projectId: null, clientName: 'FitZone', startDate: t - 95, expiryDate: t - 1, expiryTime: null, period: 'quarterly', cost: 600, costCurrency: 'EGP', price: 1800, priceCurrency: 'EGP', reminder: true, remindDays: 7, status: 'active', details: '', renewals: [], createdAt: now },
     ],
+    invoice: [
+      { id: 'i1', number: 'INV-0001', customerId: 'c1', projectId: 'p1', clientName: 'Nour Bakery', clientDetails: '', issueDate: t - 20, dueDate: t - 6, currency: 'EGP',
+        items: [{ id: 'it1', description: 'POS app · milestone 2', qty: 1, price: 6000 }, { id: 'it2', description: 'Receipt printer setup', qty: 2, price: 500 }],
+        discount: 0, discountPercent: false, taxPercent: 14, total: 7980, status: 'sent', payments: [{ id: 'pp1', amount: 3000, date: t - 10, method: 'InstaPay', txnId: null }], notes: 'InstaPay: adham@instapay', createdAt: now },
+      { id: 'i2', number: 'INV-0002', customerId: null, projectId: 'p2', clientName: 'Lina Hassan', clientDetails: '', issueDate: t - 3, dueDate: t + 11, currency: 'EGP',
+        items: [{ id: 'it3', description: 'Portfolio site · deposit', qty: 1, price: 4000 }], discount: 0, discountPercent: false, taxPercent: 0, total: 4000, status: 'sent', payments: [], notes: '', createdAt: now },
+    ],
+    recurring: [
+      { id: 'rc1', kind: 'expense', amount: 750, currency: 'EGP', category: 'Subscriptions', method: 'Card', note: 'Figma Professional', projectId: null, customerId: null, period: 'monthly', nextDate: t + 18, active: true, createdAt: now },
+      { id: 'rc2', kind: 'income', amount: 3000, currency: 'EGP', category: 'Freelance', method: 'Bank transfer', note: 'Café Kanaka care plan', projectId: null, customerId: null, period: 'monthly', nextDate: t + 5, active: true, createdAt: now },
+    ],
+    secret: [], vault: [],
     budget: [{ id: id(), category: '', limit: 15000, currency: 'EGP', createdAt: now }, { id: id(), category: 'Food', limit: 1500, currency: 'EGP', createdAt: now }],
   } as Record<string, any[]>
 }
@@ -74,6 +87,12 @@ function netGet(url: string): unknown {
       US: [['01-01', "New Year's Day", "New Year's Day"], ['07-04', 'Independence Day', 'Independence Day'], ['11-11', 'Veterans Day', 'Veterans Day'], ['11-26', 'Thanksgiving Day', 'Thanksgiving Day'], ['12-25', 'Christmas Day', 'Christmas Day']],
     }
     return (list[cc] ?? [['01-01', 'New Year', "New Year's Day"], ['12-25', 'Christmas', 'Christmas Day']]).map(([d, localName, name]) => ({ date: `${yr}-${d}`, localName, name, countryCode: cc, global: true, types: ['Public'] }))
+  }
+  if (url.includes('rdap.org/domain/')) {
+    const d = url.split('/domain/')[1]
+    if (d.startsWith('free')) throw new Error('Not found')
+    return { events: [{ eventAction: 'registration', eventDate: '2019-03-02T10:00:00Z' }, { eventAction: 'expiration', eventDate: `${new Date().getFullYear() + 1}-03-02T10:00:00Z` }],
+      entities: [{ roles: ['registrar'], vcardArray: ['vcard', [['version', {}, 'text', '4.0'], ['fn', {}, 'text', 'NameCheap, Inc.']]] }] }
   }
   if (url.includes('open.er-api.com')) {
     const base = url.split('/').pop()!
@@ -112,14 +131,15 @@ export function installMock() {
   }
   const params = new URLSearchParams(location.search)
   let data: Record<string, any[]> = store('data') ?? sample()
-  if (!data.rental) data.rental = sample().rental
+  for (const k of ['rental', 'invoice', 'recurring', 'secret', 'vault']) if (!data[k]) data[k] = sample()[k]
+  const vaultKeys: Record<string, string> = {}
   let signedIn = params.has('auth') ? false : store('signedIn') ?? true
   let theme = Number(params.get('theme') ?? store('theme') ?? 1)
   let locked = params.has('lock')
   let github: string = params.has('nogh') ? '' : 'adham-dev'
   const emit = (name: string, payload: unknown) => setTimeout(() => window.__native.emit(name, payload), 0)
   const state = () => ({
-    signedIn, locked, version: '1.6.1', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
+    signedIn, locked, version: '1.7.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
     user: { id: 'u1', email: 'you@example.com', name: 'Adham Kassem', username: 'adham', bio: 'Freelance Android and web developer.', github, avatarRev: 0 },
     settings: { currency: 'EGP', theme, autoUpdate: true },
     lock: { pinEnabled: true, pinLength: 4, biometric: false, biometricAvailable: false, delay: 30, secureScreen: false },
@@ -128,7 +148,7 @@ export function installMock() {
   })
   const push = () => {
     emit('state', state())
-    for (const [type, items] of Object.entries(data)) emit('table', { type, items })
+    for (const [type, items] of Object.entries(data)) if (type !== 'receipt') emit('table', { type, items })
     emit('spaces', [])
     store('data', data)
   }
@@ -158,6 +178,17 @@ export function installMock() {
     'net.get': a => netGet(a.url),
     'contacts.birthdays': () => [{ name: 'Lina Hassan', month: new Date().getMonth() + 1, day: Math.min(28, new Date().getDate() + 2), year: 1996 }, { name: 'Karim Adel', month: 3, day: 14, year: null }],
     'backup.export': () => true,
+    'backup.import': () => ({ task: 3, note: 2 }),
+    'pdf.share': () => true,
+    'receipt.capture': () => 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><rect width="300" height="400" fill="#fff"/><text x="30" y="60" font-size="24">RECEIPT</text><text x="30" y="120" font-size="18">Coffee  45.00</text><text x="30" y="150" font-size="18">Total   45.00</text></svg>'),
+    'receipt.get': a => (data.receipt ?? []).find((x: any) => x.id === a.id) ?? null,
+    'uptime.status': () => ({ r1: { up: true, at: Date.now() - 240_000, ms: 182, error: '', since: Date.now() - 86_400_000 * 3 }, r2: { up: false, at: Date.now() - 60_000, ms: 10000, error: 'connect timed out', since: Date.now() - 1_800_000 } }),
+    'uptime.check': () => ({ up: true, at: Date.now(), ms: 143, error: '', since: Date.now() }),
+    'uptime.probe': a => (String(a.target).includes('down') ? { up: false, at: Date.now(), ms: 0, error: 'connect timed out', since: 0 } : { up: true, at: Date.now(), ms: 151, error: '', since: 0 }),
+    'vault.hasKey': () => !!vaultKeys.k,
+    'vault.saveKey': a => { vaultKeys.k = a.key; return true },
+    'vault.loadKey': () => vaultKeys.k ?? null,
+    'vault.clearKey': () => { delete vaultKeys.k; return true },
   }
   return {
     call(callId: string, method: string, args: string) {

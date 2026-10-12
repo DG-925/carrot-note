@@ -5,8 +5,9 @@ import { call, on, ready } from './bridge'
 import { editNote, editTask, editTxn, quickAdd } from './editors'
 import * as F from './format'
 import { Icon } from './icons'
-import { closeAllOverlays, closeOverlay, getNav, goTab, onNav, push, setDrawer, type Route, type Tab } from './nav'
-import { getState, isDark, setPrefs, useApp } from './store'
+import { closeAllOverlays, closeOverlay, getNav, goTab, onNav, openOverlay, push, setDrawer, type Route, type Tab } from './nav'
+import { getState, isDark, setLanguage, setPrefs, useApp } from './store'
+import { currentLang, startArabic } from './i18n'
 import { debtSettled, duration, isRunning } from './types'
 import { Avatar, Btn, Logo, ToastHost, attempt, cx } from './ui'
 import { ProfileScreen, SettingsScreen, signOut } from './screens/account'
@@ -17,6 +18,11 @@ import { MoneyScreen } from './screens/money'
 import { CalendarScreen, DebtsScreen, GoalsScreen, InvitesScreen, NotesScreen, SearchScreen, TimeScreen } from './screens/more'
 import { ProjectDetail, ProjectsScreen } from './screens/projects'
 import { RentalDetail, RentalsScreen, rentalState } from './screens/rentals'
+import { InvoiceDetail, InvoicesScreen, invoiceState } from './screens/invoices'
+import { ReportScreen } from './screens/report'
+import { VaultScreen } from './screens/vault'
+import { RecurringScreen } from './screens/recurring'
+import { runRecurring } from './recurring'
 
 function useNav() {
   const [, setTick] = useState(0)
@@ -68,6 +74,11 @@ function routeScreen(r: Route) {
     case 'customer': return <CustomerDetail id={r.id} />
     case 'rental': return <RentalDetail id={r.id} />
     case 'rentals': return <RentalsScreen />
+    case 'invoices': return <InvoicesScreen />
+    case 'invoice': return <InvoiceDetail id={r.id} />
+    case 'report': return <ReportScreen />
+    case 'vault': return <VaultScreen />
+    case 'recurring': return <RecurringScreen />
     case 'calendar': return <CalendarScreen />
     case 'time': return <TimeScreen />
     case 'customers': return <CustomersScreen />
@@ -99,9 +110,49 @@ function runShortcut() {
   }, 250)
 }
 
+// Text or a link shared from another app ("Share → Carrot Note").
+let pendingShare: { text: string; subject: string } | null = null
+on('shared', (p: { text: string; subject: string }) => { pendingShare = p; runShare() })
+
+function runShare() {
+  const s = getState()
+  if (!pendingShare || !s.loaded || !s.signedIn || s.locked || !s.user?.username) return
+  const { text, subject } = pendingShare
+  pendingShare = null
+  closeAllOverlays()
+  setTimeout(() => openOverlay('sheet', close => <ShareSheet text={text} subject={subject} close={close} />), 250)
+}
+
+function ShareSheet({ text, subject, close }: { text: string; subject: string; close: () => void }) {
+  const firstLine = (subject || text).split('\n')[0].slice(0, 120)
+  const amountMatch = /(\d[\d,]*(?:\.\d+)?)/.exec(text)
+  const go = (run: () => void) => { close(); setTimeout(run, 150) }
+  const options: [string, string, string, () => void][] = [
+    ['Note', 'note', 'lilac', () => editNote(undefined, { title: subject, body: text })],
+    ['Task', 'tasks', 'butter', () => editTask(undefined, { title: firstLine, notes: subject ? text : '', date: F.today() })],
+    ['Expense', 'expense', 'rose', () => editTxn(undefined, { kind: 'expense', note: firstLine, amount: amountMatch ? F.parseAmount(amountMatch[1]) ?? 0 : 0 })],
+    ['Income', 'income', 'mint', () => editTxn(undefined, { kind: 'income', note: firstLine, amount: amountMatch ? F.parseAmount(amountMatch[1]) ?? 0 : 0 })],
+  ]
+  return (
+    <>
+      <div style={{ padding: '0 4px' }}><h2 class="h-lg">Save to Carrot Note</h2></div>
+      <div class="body">
+        <div class="card in-card shared-preview">{subject && <b>{subject}</b>}<div>{text.slice(0, 400)}{text.length > 400 ? '…' : ''}</div></div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          {options.map(([label, icon, color, run], i) => (
+            <button key={label} class={`tile t-${color} press pop`} style={{ '--i': i, alignItems: 'center', padding: '16px 0', gap: 8 } as any} onClick={() => go(run)}>
+              <span class="tile-ico"><Icon name={icon} size={17} /></span><b style={{ fontSize: 13 }}>{label}</b>
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
+
 function Main() {
   const nav = useNav()
-  useEffect(() => { call('app.started').catch(() => {}); runShortcut() }, [])
+  useEffect(() => { call('app.started').catch(() => {}); runShortcut(); runShare(); setTimeout(runRecurring, 2500) }, [])
   const quickOpen = nav.overlays.some(o => o.tag === 'quickadd' && !o.closing)
   return (
     <>
@@ -141,7 +192,7 @@ function TabBar({ tab, away, open }: { tab: Tab; away: boolean; open: boolean })
   const idx = slot(tabs.findIndex(t => t.tab === tab))
   return (
     <nav class={'tabbar' + (away ? ' away' : '')}>
-      <span class="pill" style={{ left: `calc(${idx} * 20% + 10% - 29px)` }} />
+      <span class="pill" style={{ insetInlineStart: `calc(${idx} * 20% + 10% - 29px)` }} />
       {tabs.slice(0, 2).map(t => <TabBtn key={t.tab} t={t} on={t.tab === tab} />)}
       <button class={'fab' + (open ? ' open' : '')} aria-label="Add" onClick={() => quickAdd()}><span><Icon name="plus" size={24} stroke={2.6} /></span></button>
       {tabs.slice(2).map(t => <TabBtn key={t.tab} t={t} on={t.tab === tab} />)}
@@ -185,6 +236,7 @@ function Drawer() {
   const trackedToday = data.time.filter(t => F.dayOfMs(t.start) === today).reduce((a, t) => a + duration(t), 0)
   const openDebts = data.debt.filter(d => !debtSettled(d)).length
   const activeRentals = data.rental.filter(r => r.status === 'active')
+  const unpaidInvoices = data.invoice.filter(i => ['sent', 'partial', 'overdue'].includes(invoiceState(i))).length
   const renewSoon = activeRentals.filter(r => ['expired', 'soon'].includes(rentalState(r))).length
 
   const tiles: [string, string, string, string, string][] = [
@@ -195,6 +247,10 @@ function Drawer() {
     ['Calendar', 'calendar', 'butter', 'calendar', dueToday + eventsToday ? `${dueToday + eventsToday} today` : 'Holidays & plans'],
     ['Time', 'timer', 'mint', 'time', running ? 'Tracking now' : `${F.hours(trackedToday).toFixed(1)} h today`],
     ['Rentals', 'server', 'sky', 'rentals', renewSoon ? `${renewSoon} to renew` : `${activeRentals.length} active`],
+    ['Invoices', 'invoice', 'orange', 'invoices', unpaidInvoices ? `${unpaidInvoices} unpaid` : `${data.invoice.length} total`],
+    ['Recurring', 'repeat', 'mint', 'recurring', `${data.recurring.filter(r => r.active).length} active`],
+    ['Report', 'chart', 'lilac', 'report', `${new Date().getFullYear()} so far`],
+    ['Vault', 'lock', 'rose', 'vault', `${data.secret.length} saved`],
     ['Customers', 'users', 'rose', 'customers', `${data.customer.length} saved`],
     ['Debts', 'debt', 'butter', 'debts', openDebts ? `${openDebts} open` : 'All settled'],
     ['Savings', 'goal', 'lilac', 'goals', F.plural(data.goal.length, 'goal')],
@@ -218,14 +274,14 @@ function Drawer() {
         <button class="drawer-profile press" onClick={() => go('profile')}>
           <div class="row">
             <Avatar userId={u.id} rev={u.avatarRev} name={u.name || u.username} size={48} />
-            <div class="grow" style={{ textAlign: 'left', minWidth: 0 }}><div class="h-sm ellipsis">{u.name || '@' + u.username}</div><div class="small" style={{ opacity: .85 }}>@{u.username}</div></div>
+            <div class="grow" style={{ textAlign: 'start', minWidth: 0 }}><div class="h-sm ellipsis">{u.name || '@' + u.username}</div><div class="small" style={{ opacity: .85 }}>@{u.username}</div></div>
             <Icon name="right" size={13} />
           </div>
           <div class="drawer-stats">
             <span><b>{activeProjects}</b> projects</span><span><b>{dueToday}</b> due</span><span class="amt"><b>{F.amount(Math.round(net))}</b> {cur}</span>
           </div>
         </button>
-        <button class="search drawer-search press" onClick={() => go('search')}><Icon name="search" size={17} /><span class="muted grow" style={{ textAlign: 'left' }}>Search everything…</span></button>
+        <button class="search drawer-search press" onClick={() => go('search')}><Icon name="search" size={17} /><span class="muted grow" style={{ textAlign: 'start' }}>Search everything…</span></button>
 
         <div class="label">Quick add</div>
         <div class="drawer-quick">
@@ -253,13 +309,17 @@ function Drawer() {
               <button key={v} class={s.settings.theme === v ? 'on' : ''} onClick={() => attempt(() => call('settings.set', { theme: v }))}><Icon name={icon} size={14} />{label}</button>
             ))}
           </div>
+          <div class="drawer-theme" data-notr>
+            <button class={s.prefs.lang === 'en' ? 'on' : ''} onClick={() => setLanguage('en')}>English</button>
+            <button class={s.prefs.lang === 'ar' ? 'on' : ''} onClick={() => setLanguage('ar')}>العربية</button>
+          </div>
           <button class="drawer-row" onClick={() => setPrefs({ privacy: !s.prefs.privacy })}>
-            <span class="box"><Icon name={s.prefs.privacy ? 'eyeOff' : 'eye'} size={15} /></span><span class="grow" style={{ textAlign: 'left' }}>Hide amounts</span>
+            <span class="box"><Icon name={s.prefs.privacy ? 'eyeOff' : 'eye'} size={15} /></span><span class="grow" style={{ textAlign: 'start' }}>Hide amounts</span>
             <span class={cx('switch', s.prefs.privacy && 'on')} />
           </button>
-          <button class="drawer-row" onClick={() => go('settings')}><span class="box"><Icon name="settings" size={15} /></span><span class="grow" style={{ textAlign: 'left' }}>Settings</span><Icon name="right" size={12} class="muted" /></button>
-          {s.lock.pinEnabled && <button class="drawer-row" onClick={() => close(() => call('lock.now'))}><span class="box"><Icon name="lock" size={15} /></span><span class="grow" style={{ textAlign: 'left' }}>Lock now</span></button>}
-          <button class="drawer-row" onClick={() => close(signOut)}><span class="box bad"><Icon name="signOut" size={15} /></span><span class="grow bad" style={{ textAlign: 'left' }}>Sign out</span></button>
+          <button class="drawer-row" onClick={() => go('settings')}><span class="box"><Icon name="settings" size={15} /></span><span class="grow" style={{ textAlign: 'start' }}>Settings</span><Icon name="right" size={12} class="muted" /></button>
+          {s.lock.pinEnabled && <button class="drawer-row" onClick={() => close(() => call('lock.now'))}><span class="box"><Icon name="lock" size={15} /></span><span class="grow" style={{ textAlign: 'start' }}>Lock now</span></button>}
+          <button class="drawer-row" onClick={() => close(signOut)}><span class="box bad"><Icon name="signOut" size={15} /></span><span class="grow bad" style={{ textAlign: 'start' }}>Sign out</span></button>
         </div>
         <div class="tiny muted center" style={{ padding: '14px 0 4px' }}>Carrot Note {s.version} · made for freelancers 🥕</div>
       </aside>
@@ -295,5 +355,7 @@ function UpdateDialog() {
   )
 }
 
-render(<App />, document.getElementById('app')!)
+const root = document.getElementById('app')!
+if (currentLang() === 'ar') startArabic(document.body)
+render(<App />, root)
 ready()

@@ -65,7 +65,19 @@ object Graph {
         SyncManager.schedulePeriodic(app)
         sync.requestSync(500)
         TimeTracker.refreshNotification(app)
+        // Keep the home-screen widget and the uptime checks in step with the data.
+        dataJob?.cancel()
+        dataJob = scope.launch {
+            kotlinx.coroutines.flow.merge(repo.tasks.flow, repo.time.flow, repo.rentals.flow, repo.events.flow).collect {
+                com.carrotnote.app.widget.TodayWidget.refresh(app)
+            }
+        }
+        rentalJob?.cancel()
+        rentalJob = scope.launch { repo.rentals.flow.collect { com.carrotnote.app.monitor.Uptime.reschedule(app) } }
     }
+
+    private var dataJob: kotlinx.coroutines.Job? = null
+    private var rentalJob: kotlinx.coroutines.Job? = null
 
     fun onSignedIn(auth: AuthResponse) {
         session.signIn(auth.token, auth.user)
@@ -86,6 +98,10 @@ object Graph {
         lock.clear()
         Reminders.cancelAll(app)
         TimeTracker.cancelNotification(app)
+        dataJob?.cancel()
+        rentalJob?.cancel()
+        com.carrotnote.app.monitor.Uptime.reschedule(app)
+        com.carrotnote.app.widget.TodayWidget.refresh(app)
         _invites.value = 0
         if (repo != null) {
             repo.close()

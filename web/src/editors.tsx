@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks'
 import { call } from './bridge'
 import * as F from './format'
 import { categoryIcon, Icon, methodIcon } from './icons'
-import { openOverlay } from './nav'
+import { openOverlay, push } from './nav'
 import { myRepos, repoPath, repoUrl, verifyRepo, languageColor, type GhRepo } from './github'
 import { ago, getJson } from './net'
 import { byId, getState, remove, save, setTaskDone, useApp } from './store'
@@ -18,6 +18,7 @@ import {
   AmountBox, Btn, Chips, CurrencyField, DateField, Field, FieldLabel, Form, Hint, MoreOptions, Round, SearchBar, Seg,
   SelectField, SheetTitle, SwitchRow, TimeField, attempt, matches, openForm, openSheet, toast,
 } from './ui'
+import { dateLocale } from './i18n'
 
 const now = () => Date.now()
 
@@ -35,14 +36,15 @@ export function CustomerPicker({ value, onChange, none = 'None' }: { value?: str
 
 // ---------------------------------------------------------------- task
 
-export function editTask(item?: TaskItem, defaults: { projectId?: string | null; date?: number | null } = {}) {
+export function editTask(item?: TaskItem, defaults: { projectId?: string | null; date?: number | null; title?: string; notes?: string; doing?: boolean } = {}) {
   openForm(close => <TaskForm item={item} defaults={defaults} close={close} />)
 }
 
-function TaskForm({ item, defaults, close }: { item?: TaskItem; defaults: { projectId?: string | null; date?: number | null }; close: () => void }) {
+function TaskForm({ item, defaults, close }: { item?: TaskItem; defaults: { projectId?: string | null; date?: number | null; title?: string; notes?: string; doing?: boolean }; close: () => void }) {
+  const s = useApp()
   const base: TaskItem = item ?? {
-    id: newId(), title: '', notes: '', projectId: defaults.projectId ?? null, dueDate: defaults.date ?? null, dueTime: null,
-    reminder: false, done: false, priority: 1, createdAt: now(), repeat: '',
+    id: newId(), title: defaults.title ?? '', notes: defaults.notes ?? '', projectId: defaults.projectId ?? null, dueDate: defaults.date ?? null, dueTime: null,
+    reminder: false, done: false, priority: 1, createdAt: now(), repeat: '', doing: !!defaults.doing, subtasks: [], assignee: null,
   }
   const [t, set] = useState(base)
   const up = (p: Partial<TaskItem>) => set({ ...t, ...p })
@@ -50,7 +52,10 @@ function TaskForm({ item, defaults, close }: { item?: TaskItem; defaults: { proj
   return (
     <Form title={item ? 'Edit task' : 'New task'} close={close} saveEnabled={!!t.title.trim()}
       onSave={async () => {
-        const final = { ...t, title: t.title.trim(), notes: t.notes.trim(), dueTime: t.dueDate == null ? null : t.dueTime, reminder: t.reminder && t.dueDate != null }
+        const final = {
+          ...t, title: t.title.trim(), notes: t.notes.trim(), dueTime: t.dueDate == null ? null : t.dueTime, reminder: t.reminder && t.dueDate != null,
+          subtasks: (t.subtasks ?? []).filter(x => x.text.trim()), doing: !t.done && !!t.doing,
+        }
         if (item && !item.done && final.done) await setTaskDone({ ...final, done: false }, true)
         else await save('task', final)
         close()
@@ -63,7 +68,30 @@ function TaskForm({ item, defaults, close }: { item?: TaskItem; defaults: { proj
         label={v => ({ '': 'Never', daily: 'Every day', weekly: 'Every week', monthly: 'Every month' } as any)[v]}
         onChange={v => up({ repeat: v, dueDate: v && t.dueDate == null ? F.today() : t.dueDate })} />
       {!!t.repeat && <Hint>When you tick it off, the next one is added for {t.dueDate != null ? F.relativeDay(F.nextRepeat(t.dueDate, t.repeat)).toLowerCase() : 'later'}.</Hint>}
-      {item && <div class="card in-card"><SwitchRow title="Completed" on={t.done} onChange={v => up({ done: v })} /></div>}
+      {item && <>
+        <FieldLabel>Status</FieldLabel>
+        <Seg options={[{ label: 'To do', icon: 'square' }, { label: 'Doing', icon: 'play' }, { label: 'Done', icon: 'checkSquare' }]}
+          value={t.done ? 2 : t.doing ? 1 : 0} onChange={i => up({ done: i === 2, doing: i === 1 })} />
+      </>}
+      <FieldLabel>Steps {(t.subtasks ?? []).length > 0 && `· ${(t.subtasks ?? []).filter(x => x.done).length}/${(t.subtasks ?? []).length}`}</FieldLabel>
+      {(t.subtasks ?? []).map((c, i) => (
+        <div class="row" key={c.id}>
+          <button class={'check' + (c.done ? ' on' : '')} onClick={() => up({ subtasks: (t.subtasks ?? []).map((x, j) => (j === i ? { ...x, done: !x.done } : x)) })}><i>{c.done && <Icon name="check" size={12} stroke={3} />}</i></button>
+          <input class="subtask-input" placeholder="Step" value={c.text} style={{ textDecoration: c.done ? 'line-through' : 'none' }}
+            ref={el => { if (el && !c.text && i === (t.subtasks ?? []).length - 1 && document.activeElement?.tagName !== 'INPUT') el.focus() }}
+            onInput={e => up({ subtasks: (t.subtasks ?? []).map((x, j) => (j === i ? { ...x, text: (e.target as HTMLInputElement).value } : x)) })}
+            onKeyDown={e => { if (e.key === 'Enter') up({ subtasks: [...(t.subtasks ?? []), { id: newId(), text: '', done: false }] }) }} />
+          <button class="muted" style={{ padding: 6 }} aria-label="Remove step" onClick={() => up({ subtasks: (t.subtasks ?? []).filter((_, j) => j !== i) })}><Icon name="close" size={14} /></button>
+        </div>
+      ))}
+      <Btn kind="soft" sm icon="plus" onClick={() => up({ subtasks: [...(t.subtasks ?? []), { id: newId(), text: '', done: false }] })}>Add a step</Btn>
+      {(() => {
+        const space = t.projectId ? s.spaces.find(sp => sp.kind === 'project' && sp.projectId === t.projectId) : undefined
+        return space && space.members.length > 1 ? (
+          <SelectField label="Assigned to" value={t.assignee ?? ''} onChange={v => up({ assignee: v || null })}
+            options={[{ value: '', label: 'Nobody' }, ...space.members.map(m => ({ value: m.id, label: (m.name || '@' + m.username) + (m.id === s.user?.id ? ' (me)' : '') }))]} />
+        ) : null
+      })()}
       <MoreOptions startOpen={!!base.notes || base.reminder || base.priority !== 1 || base.dueTime != null}>
         <Field label="Details" multiline value={t.notes} onInput={v => up({ notes: v })} />
         {t.dueDate != null && <>
@@ -92,16 +120,16 @@ export function noteText(n: Note) {
   return parts.join('\n').trim()
 }
 
-export function editNote(item?: Note, defaults: { projectId?: string | null; date?: number | null; checklist?: boolean } = {}) {
+export function editNote(item?: Note, defaults: { projectId?: string | null; date?: number | null; checklist?: boolean; title?: string; body?: string } = {}) {
   openForm(close => <NoteForm item={item} defaults={defaults} close={close} />)
 }
 
 const noteColors = ['', '#FFE3D1', '#FFE58F', '#C7F0D8', '#CFE6FF', '#E6DEFF', '#FFD6DE']
 
-function NoteForm({ item, defaults, close }: { item?: Note; defaults: { projectId?: string | null; date?: number | null; checklist?: boolean }; close: () => void }) {
+function NoteForm({ item, defaults, close }: { item?: Note; defaults: { projectId?: string | null; date?: number | null; checklist?: boolean; title?: string; body?: string }; close: () => void }) {
   const s = useApp()
   const base: Note = item ?? {
-    id: newId(), title: '', body: '', checklist: defaults.checklist ? [{ id: newId(), text: '', done: false }] : [],
+    id: newId(), title: defaults.title ?? '', body: defaults.body ?? '', checklist: defaults.checklist ? [{ id: newId(), text: '', done: false }] : [],
     projectId: defaults.projectId ?? null, date: defaults.date ?? null, pinned: false, color: 0, createdAt: now(),
   }
   const [n, set] = useState(base)
@@ -159,20 +187,26 @@ function NoteForm({ item, defaults, close }: { item?: Note; defaults: { projectI
 
 // ---------------------------------------------------------------- money
 
-export function editTxn(item?: Txn, defaults: { kind?: string; projectId?: string | null; customerId?: string | null; date?: number } = {}) {
+export function editTxn(item?: Txn, defaults: { kind?: string; projectId?: string | null; customerId?: string | null; date?: number; note?: string; amount?: number } = {}) {
   openForm(close => <TxnForm item={item} defaults={defaults} close={close} />)
 }
 
-function TxnForm({ item, defaults, close }: { item?: Txn; defaults: { kind?: string; projectId?: string | null; customerId?: string | null; date?: number }; close: () => void }) {
+function TxnForm({ item, defaults, close }: { item?: Txn; defaults: { kind?: string; projectId?: string | null; customerId?: string | null; date?: number; note?: string; amount?: number }; close: () => void }) {
   const st = getState()
   const kind0 = defaults.kind ?? 'expense'
   const base: Txn = item ?? {
-    id: newId(), kind: kind0, amount: 0,
+    id: newId(), kind: kind0, amount: defaults.amount ?? 0,
     currency: (defaults.projectId && byId('project', defaults.projectId)?.currency) || st.settings.currency,
     category: kind0 === 'income' ? (defaults.projectId ? 'Project payment' : 'Freelance') : 'Food',
-    method: 'Cash', date: defaults.date ?? F.today(), note: '', projectId: defaults.projectId ?? null, customerId: defaults.customerId ?? null, createdAt: now(),
+    method: 'Cash', date: defaults.date ?? F.today(), note: defaults.note ?? '', projectId: defaults.projectId ?? null, customerId: defaults.customerId ?? null, createdAt: now(),
   }
   const [t, set] = useState(base)
+  const [repeat, setRepeat] = useState('')
+  // Receipt photo: '' = none, a data URL = new/kept photo, null = still loading the saved one.
+  const [receipt, setReceipt] = useState<string | null>(base.receiptId ? null : '')
+  useEffect(() => {
+    if (base.receiptId) call<{ data?: string } | null>('receipt.get', { id: base.receiptId }).then(r => setReceipt(r?.data ?? '')).catch(() => setReceipt(''))
+  }, [])
   const [amount, setAmount] = useState(F.amountText(base.amount))
   const up = (p: Partial<Txn>) => set({ ...t, ...p })
   const income = t.kind === 'income'
@@ -181,8 +215,28 @@ function TxnForm({ item, defaults, close }: { item?: Txn; defaults: { kind?: str
   return (
     <Form title={item ? 'Edit transaction' : income ? 'Money received' : 'New expense'} close={close}
       saveEnabled={parsed != null && parsed > 0 && !!t.currency}
-      onSave={async () => { await save('txn', { ...t, amount: parsed ?? 0, category: t.category.trim() || 'Other', note: t.note.trim() }); close() }}
-      onDelete={item ? () => { remove('txn', item.id); close() } : undefined}>
+      onSave={async () => {
+        let receiptId = t.receiptId ?? null
+        if (receipt && !receiptId) {
+          receiptId = newId()
+          await save('receipt' as any, { id: receiptId, txnId: t.id, data: receipt, createdAt: now() } as any)
+        } else if (receipt === '' && receiptId) {
+          remove('receipt' as any, receiptId)
+          receiptId = null
+        }
+        const final = { ...t, amount: parsed ?? 0, category: t.category.trim() || 'Other', note: t.note.trim(), receiptId }
+        await save('txn', final)
+        if (!item && repeat) {
+          const { nextOccurrence } = await import('./recurring')
+          await save('recurring', {
+            id: newId(), kind: final.kind, amount: final.amount, currency: final.currency, category: final.category, method: final.method, note: final.note,
+            projectId: final.projectId ?? null, customerId: final.customerId ?? null, period: repeat, nextDate: nextOccurrence(final.date, repeat), active: true, createdAt: now(),
+          })
+          toast('Saved. It will be added again by itself.')
+        }
+        close()
+      }}
+      onDelete={item ? () => { remove('txn', item.id); if (item.receiptId) remove('receipt' as any, item.receiptId); close() } : undefined}>
       <Seg options={[{ label: 'Expense', icon: 'expense' }, { label: 'Income', icon: 'income' }]} value={income ? 1 : 0}
         onChange={i => { const k = i === 1 ? 'income' : 'expense'; if (k !== t.kind) up({ kind: k, category: k === 'income' ? 'Freelance' : 'Food' }) }} />
       <AmountBox value={amount} onInput={setAmount} currency={t.currency} onCurrency={c => up({ currency: c })} color={income ? 'var(--good)' : 'var(--fg)'} />
@@ -192,12 +246,37 @@ function TxnForm({ item, defaults, close }: { item?: Txn; defaults: { kind?: str
       <FieldLabel>{income ? 'Received via' : 'Paid with'}</FieldLabel>
       <Chips options={Categories.methods} value={t.method} onChange={v => up({ method: v })} icon={methodIcon} />
       <DateField label="Date" value={t.date} onChange={v => up({ date: v ?? F.today() })} clearable={false} />
+      <FieldLabel>Receipt</FieldLabel>
+      {receipt === null && <div class="receipt-box"><span class="spinner" /></div>}
+      {receipt && <div class="receipt-box" onClick={() => viewPhoto(receipt)}>
+        <img src={receipt} alt="Receipt" />
+        <Round icon="close" sm label="Remove receipt" style={{ position: 'absolute', top: 8, right: 8 }} onClick={() => setReceipt('')} />
+      </div>}
+      {receipt === '' && <div class="row">
+        <Btn kind="soft" sm icon="camera" onClick={async () => { const r = await attempt(() => call<string | null>('receipt.capture', { source: 'camera' })); if (r) setReceipt(r) }}>Take photo</Btn>
+        <Btn kind="soft" sm icon="image" onClick={async () => { const r = await attempt(() => call<string | null>('receipt.capture', { source: 'gallery' })); if (r) setReceipt(r) }}>From gallery</Btn>
+      </div>}
+      {!item && <>
+        <FieldLabel>Repeats</FieldLabel>
+        <Chips options={['', 'weekly', 'monthly', 'yearly']} value={repeat} onChange={setRepeat} icon={v => (v ? 'repeat' : 'close')}
+          label={v => ({ '': 'Never', weekly: 'Every week', monthly: 'Every month', yearly: 'Every year' } as Record<string, string>)[v]} />
+      </>}
       <MoreOptions startOpen={base.customerId != null || (!!item && base.projectId != null)}>
         <ProjectPicker value={t.projectId} onChange={v => up({ projectId: v })} />
         <CustomerPicker value={t.customerId} onChange={v => up({ customerId: v })} />
       </MoreOptions>
     </Form>
   )
+}
+
+/** Full-screen view of a photo (receipts). */
+export function viewPhoto(src: string) {
+  openOverlay('page', close => (
+    <div class="photo-view" onClick={close}>
+      <img src={src} alt="" />
+      <Round icon="close" label="Close" style={{ position: 'absolute', top: 'calc(var(--sat) + 12px)', right: 12 }} onClick={close} />
+    </div>
+  ))
 }
 
 // ---------------------------------------------------------------- project
@@ -328,7 +407,7 @@ function RepoPicker({ close, onPick }: { close: () => void; onPick: (url: string
         {repos && !shown.length && <Hint>{repos.length ? 'No repository matches.' : `@${login} has no public repositories yet.`}</Hint>}
         {shown.length > 0 && <div class="card flush in-card">
           {shown.map(r => (
-            <button key={r.full_name} class="item" style={{ width: '100%', textAlign: 'left' }} onClick={() => onPick(r.html_url)}>
+            <button key={r.full_name} class="item" style={{ width: '100%', textAlign: 'start' }} onClick={() => onPick(r.html_url)}>
               <div class="badge-ico t-lilac"><Icon name="github" size={16} /></div>
               <div class="main">
                 <div class="t">{r.owner.login.toLowerCase() === login.toLowerCase() ? r.name : r.full_name}{r.fork && <span class="muted small"> · fork</span>}</div>
@@ -441,7 +520,7 @@ function Converter({ close }: { close: () => void }) {
               <div class="main"><div class="t num">{F.money(value * rates!.rates[fxCode(c)], c)}</div></div></div>
           ))}
         </div>}
-        {rates && <Hint>Updated {new Date(rates.time_last_update_unix * 1000).toLocaleString()}. {from === 'USDT' || to === 'USDT' ? 'USDT is counted as 1 USD.' : ''}</Hint>}
+        {rates && <Hint>Updated {new Date(rates.time_last_update_unix * 1000).toLocaleString(dateLocale())}. {from === 'USDT' || to === 'USDT' ? 'USDT is counted as 1 USD.' : ''}</Hint>}
         <Btn kind="soft" onClick={close}>Done</Btn>
       </div>
     </>
@@ -495,7 +574,7 @@ function ContactPicker({ close, onPick }: { close: () => void; onPick: (c: Phone
         {!contacts.list && !contacts.denied && <div class="row" style={{ justifyContent: 'center', padding: 30 }}><span class="spinner" /></div>}
         <div class="card flush in-card">
           {list.map(p => (
-            <button key={p.id} class="item" style={{ width: '100%', textAlign: 'left' }} onClick={() => onPick(p)}>
+            <button key={p.id} class="item" style={{ width: '100%', textAlign: 'start' }} onClick={() => onPick(p)}>
               <ContactAvatar name={p.name} />
               <div class="main"><div class="t">{p.name}</div><div class="s">{[p.phones[0], p.company].filter(Boolean).join(' · ') || p.emails[0] || 'No number'}</div></div>
             </button>
@@ -784,6 +863,10 @@ export function quickAdd() {
     ['Project', 'project', 'orange', () => editProject()],
     ['Rental', 'server', 'sky', () => import('./screens/rentals').then(m => m.editRental())],
     ['Debt', 'debt', 'butter', () => editDebt()],
+    ['Invoice', 'invoice', 'orange', () => import('./screens/invoices').then(m => m.editInvoice())],
+    ['Recurring', 'repeat', 'mint', () => import('./screens/recurring').then(m => m.editRecurring())],
+    ['Login', 'lock', 'lilac', () => push({ name: 'vault' })],
+    ['Report', 'chart', 'sky', () => push({ name: 'report' })],
   ]
   openOverlay('sheet', close => {
     const shut = close

@@ -9,6 +9,7 @@ export type Route =
   | { name: 'project'; id: string }
   | { name: 'customer'; id: string }
   | { name: 'rental'; id: string } | { name: 'rentals' }
+  | { name: 'invoices' } | { name: 'invoice'; id: string } | { name: 'report' } | { name: 'vault' } | { name: 'recurring' }
   | { name: 'calendar' } | { name: 'time' } | { name: 'customers' } | { name: 'debts' } | { name: 'goals' }
   | { name: 'invites' } | { name: 'search' } | { name: 'profile' } | { name: 'settings' }
 

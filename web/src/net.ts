@@ -1,6 +1,7 @@
 // Free public web APIs (through the app, so only allowed sites are reached), with a cache on the phone.
 
 import { call } from './bridge'
+import { dateLocale } from './i18n'
 
 const memory = new Map<string, Promise<unknown>>()
 
@@ -40,7 +41,7 @@ function writeCache(key: string, v: unknown) {
 /** "3 days ago" for an ISO time. */
 export function ago(iso: string): string {
   const s = (Date.now() - new Date(iso).getTime()) / 1000
-  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+  const rtf = new Intl.RelativeTimeFormat(dateLocale(), { numeric: 'auto' })
   if (s < 3600) return rtf.format(-Math.max(1, Math.round(s / 60)), 'minute')
   if (s < 86400) return rtf.format(-Math.round(s / 3600), 'hour')
   if (s < 86400 * 30) return rtf.format(-Math.round(s / 86400), 'day')

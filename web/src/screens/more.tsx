@@ -14,6 +14,7 @@ import {
   Avatar, Btn, Card, Chips, CountMoney, Empty, Eyebrow, Field, Hero, Hint, MainHeader, PageHeader, Ring, Round, SearchBar, SelectField, SheetTitle,
   SwitchRow, Tile, attempt, matches, openSheet, toast, useNow,
 } from '../ui'
+import { dateLocale } from '../i18n'
 
 // ---------------------------------------------------------------- notes
 
@@ -60,10 +61,13 @@ export function NotesScreen() {
 let calSel: number | null = null
 let calMonth: number | null = null
 
+/** In Arabic, a holiday's local name when it is written in Arabic. */
+const holidayName = (h: { name: string; localName: string }) => (dateLocale() && /[\u0600-\u06FF]/.test(h.localName) ? h.localName : h.name)
+
 interface Birthday { name: string; month: number; day: number; year?: number | null }
 let birthdayCache: Birthday[] | null = null
 const regionName = (() => {
-  try { const d = new Intl.DisplayNames(undefined, { type: 'region' }); return (cc: string) => d.of(cc) ?? cc } catch { return (cc: string) => cc }
+  try { const d = new Intl.DisplayNames(dateLocale() ? ['ar'] : undefined, { type: 'region' }); return (cc: string) => d.of(cc) ?? cc } catch { return (cc: string) => cc }
 })()
 
 /** Phone contacts' birthdays, when the user turned them on and allowed contacts. */
@@ -119,7 +123,7 @@ export function CalendarScreen() {
   const firstDow = 1 // weeks start on Monday
   const offset = (first.getDay() - firstDow + 7) % 7
   const days = F.monthEnd(month) - month + 1
-  const weekNames = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(undefined, { weekday: 'narrow' }))
+  const weekNames = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(dateLocale(), { weekday: 'narrow' }))
 
   const add = () => openSheet(close => (
     <>
@@ -201,7 +205,7 @@ export function CalendarScreen() {
           {dayHolidays.map(h => (
             <Tile key={h.cc + h.name} color="butter">
               <div class="row"><span style={{ fontSize: 24 }}>{F.flag(h.cc)}</span>
-                <div class="grow"><div class="bold">{h.name}</div><div class="small" style={{ opacity: .75 }}>{h.localName !== h.name ? h.localName + ' · ' : ''}Public holiday in {regionName(h.cc)}</div></div></div>
+                <div class="grow"><div class="bold">{holidayName(h)}</div><div class="small" style={{ opacity: .75 }}>{h.localName !== h.name && holidayName(h) === h.name ? h.localName + ' · ' : ''}Public holiday in {regionName(h.cc)}</div></div></div>
             </Tile>
           ))}
           {dayBirthdays.map(b => {
@@ -242,8 +246,8 @@ export function CalendarScreen() {
           {upcoming.length > 0 && <div class="card flush">
             {upcoming.map(([d, l]) => (
               <div key={d} class="item" onClick={() => { setSelected(d); setMonth(F.monthStart(d)) }}>
-                <div class="event-time"><b>{F.fromEpochDay(d).getDate()}</b><span>{F.fromEpochDay(d).toLocaleDateString(undefined, { month: 'short' })}</span></div>
-                <div class="main"><div class="t">{l.map(h => h.name).filter((x, i, a) => a.indexOf(x) === i).join(' · ')}</div>
+                <div class="event-time"><b>{F.fromEpochDay(d).getDate()}</b><span>{F.fromEpochDay(d).toLocaleDateString(dateLocale(), { month: 'short' })}</span></div>
+                <div class="main"><div class="t">{l.map(holidayName).filter((x, i, a) => a.indexOf(x) === i).join(' · ')}</div>
                   <div class="s">{l.map(h => F.flag(h.cc)).join(' ')} {F.daysLeft(d)}</div></div>
               </div>
             ))}
@@ -290,7 +294,7 @@ function CalendarOptions({ close }: { close: () => void }) {
         {!list && !error && <div class="row" style={{ justifyContent: 'center', padding: 20 }}><span class="spinner" /></div>}
         {list && <div class="card flush in-card" style={{ maxHeight: 320, overflowY: 'auto' }}>
           {shown.slice(0, 60).map(c => (
-            <button key={c.countryCode} class="item" style={{ width: '100%', textAlign: 'left' }} onClick={() => toggle(c.countryCode)}>
+            <button key={c.countryCode} class="item" style={{ width: '100%', textAlign: 'start' }} onClick={() => toggle(c.countryCode)}>
               <span style={{ fontSize: 22 }}>{F.flag(c.countryCode)}</span>
               <div class="main"><div class="t">{regionName(c.countryCode)}</div></div>
               <span class={'check' + (chosen.includes(c.countryCode) ? ' on' : '')}><i>{chosen.includes(c.countryCode) && <Icon name="check" size={12} stroke={3} />}</i></span>

@@ -87,7 +87,7 @@ export function AuthScreen() {
         {register && <>
           <div class="strength" style={{ padding: '0 6px' }}>
             {[1, 2, 3, 4].map(i => <i key={i} style={{ background: i <= level ? colors[level] : undefined }} />)}
-            <span class="tiny semibold" style={{ width: 52, textAlign: 'right', color: colors[level] }}>{['', 'Weak', 'Okay', 'Good', 'Strong'][level]}</span>
+            <span class="tiny semibold" style={{ width: 52, textAlign: 'end', color: colors[level] }}>{['', 'Weak', 'Okay', 'Good', 'Strong'][level]}</span>
           </div>
           <Field label="Type the password again" icon="lock" type={show ? 'text' : 'password'} value={confirmPw} onInput={setConfirmPw}
             hint={!confirmPw ? undefined : match ? '✓ Passwords match' : "Passwords don't match"} hintTone={!confirmPw ? undefined : match ? 'good' : 'bad'} />

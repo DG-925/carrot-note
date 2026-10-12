@@ -27,6 +27,9 @@ import com.carrotnote.app.data.TaskItem
 import com.carrotnote.app.data.UserInfo
 import com.carrotnote.app.data.Invite
 import com.carrotnote.app.export.Invoice
+import com.carrotnote.app.export.PdfReport
+import com.carrotnote.app.monitor.Uptime
+import com.carrotnote.app.monitor.UptimeResult
 import com.carrotnote.app.profile.Avatars
 import com.carrotnote.app.profile.Github
 import com.carrotnote.app.reminders.Reminders
@@ -43,6 +46,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -138,7 +142,7 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
                 dataJobs.forEach { it.cancel() }
                 dataJobs = mutableListOf()
                 if (repo == null) return@collect
-                repo.allCollections.forEach { (type, col) ->
+                repo.allCollections.filterKeys { it != "receipt" }.forEach { (type, col) ->
                     dataJobs += Graph.scope.launch { col.flow.collect { emitTable(type) } }
                 }
                 dataJobs += Graph.scope.launch { repo.spaces.collect { emit("spaces", repo.spacesJson()) } }
@@ -158,7 +162,7 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
 
     private fun emitAllData() {
         val repo = Graph.repoOrNull ?: return
-        repo.allCollections.keys.forEach(::emitTable)
+        repo.allCollections.keys.filter { it != "receipt" }.forEach(::emitTable)
         emit("spaces", repo.spacesJson())
     }
 
@@ -226,6 +230,7 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
                 is TaskItem -> Reminders.schedule(activity, item)
                 is CalEvent -> Reminders.schedule(activity, item)
                 is Rental -> Reminders.schedule(activity, item)
+                is JsonObject -> if (type == "invoice") Reminders.scheduleInvoice(activity, item)
             }
             ok
         }
@@ -235,6 +240,7 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
             Graph.repo.collection(type)?.delete(id)
             if (type == "task" || type == "event") Reminders.cancel(activity, "${type}_$id")
             if (type == "rental") Reminders.cancelRental(activity, id)
+            if (type == "invoice") Reminders.cancel(activity, "invoice_$id")
             ok
         }
 
@@ -360,6 +366,37 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
             Invoice.share(activity, p); ok
         }
         "money.exportCsv" -> { exportCsv(); ok }
+        "pdf.share" -> {
+            val doc = a["doc"]?.jsonObject ?: error("Nothing to export")
+            val file = withContext(Dispatchers.IO) { PdfReport.create(activity, doc) }
+            PdfReport.share(activity, file, doc["title"]?.jsonPrimitive?.contentOrNull ?: "Carrot Note"); ok
+        }
+        "backup.import" -> importBackup(a.boolOrNull("confirmOnly") == true)
+
+        // ---- receipts (photos are kept as their own records and loaded on demand)
+        "receipt.capture" -> captureReceipt(a.strOrNull("source") ?: "camera")
+        "receipt.get" -> Graph.repo.receipts.get(a.str("id")) ?: JsonNull
+
+        // ---- uptime checks for rentals
+        "uptime.status" -> AppJson.encodeToJsonElement(
+            kotlinx.serialization.builtins.MapSerializer(String.serializer(), UptimeResult.serializer()),
+            Uptime.results(activity),
+        )
+        "uptime.check" -> {
+            val r = Graph.repo.rentals.get(a.str("id")) ?: error("Rental not found")
+            val result = withContext(Dispatchers.IO) { Uptime.check(activity, r) }
+            AppJson.encodeToJsonElement(UptimeResult.serializer(), result)
+        }
+        "uptime.probe" -> AppJson.encodeToJsonElement(UptimeResult.serializer(), withContext(Dispatchers.IO) { Uptime.probe(a.str("target")) })
+
+        // ---- password vault: the key can be kept on this phone behind the fingerprint
+        "vault.hasKey" -> JsonPrimitive(vaultPrefs().contains(vaultKeyName()))
+        "vault.saveKey" -> { vaultPrefs().edit().putString(vaultKeyName(), a.str("key")).apply(); ok }
+        "vault.clearKey" -> { vaultPrefs().edit().remove(vaultKeyName()).apply(); ok }
+        "vault.loadKey" -> {
+            val key = vaultPrefs().getString(vaultKeyName(), null) ?: return JsonNull
+            if (biometricAvailable() && !biometricPrompt("Unlock your vault")) JsonNull else JsonPrimitive(key)
+        }
         "backup.export" -> { exportBackup(); ok }
 
         // ---- free public web APIs (holidays, exchange rates, GitHub)
@@ -441,7 +478,70 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
 
     private var started = false
 
-    private val allowedHosts = listOf("https://date.nager.at/", "https://open.er-api.com/", "https://api.github.com/")
+    private val allowedHosts = listOf("https://date.nager.at/", "https://open.er-api.com/", "https://api.github.com/", "https://rdap.org/")
+
+    private fun vaultPrefs() = activity.getSharedPreferences("vault", android.content.Context.MODE_PRIVATE)
+    private fun vaultKeyName() = "key_" + (Graph.session.user.value?.id ?: "none")
+
+    /** Takes or picks a receipt photo and returns it as a small JPEG data URL (or null). */
+    private suspend fun captureReceipt(source: String): JsonElement {
+        val uri: Uri = if (source == "gallery") {
+            Graph.lock.suppressNextLock()
+            activity.pickImage() ?: return JsonNull
+        } else {
+            val dir = File(activity.cacheDir, "photos").apply { mkdirs() }
+            val file = File(dir, "receipt.jpg").apply { delete() }
+            val target = FileProvider.getUriForFile(activity, "${activity.packageName}.files", file)
+            if (!activity.takePhoto(target)) return JsonNull
+            target
+        }
+        val jpeg = withContext(Dispatchers.IO) { shrinkPhoto(uri, 1400, 72) } ?: error("Couldn't read that photo")
+        return JsonPrimitive("data:image/jpeg;base64," + Base64.encodeToString(jpeg, Base64.NO_WRAP))
+    }
+
+    private fun shrinkPhoto(uri: Uri, maxSide: Int, quality: Int): ByteArray? = runCatching {
+        val cr = activity.contentResolver
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        cr.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, bounds) }
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) sample *= 2
+        val raw = cr.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }) }
+            ?: return@runCatching null
+        // Turn it upright using the photo's EXIF orientation.
+        val rotation = cr.openInputStream(uri)?.use {
+            when (android.media.ExifInterface(it).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, 1)) {
+                6 -> 90f; 3 -> 180f; 8 -> 270f; else -> 0f
+            }
+        } ?: 0f
+        val scale = minOf(1f, maxSide.toFloat() / maxOf(raw.width, raw.height))
+        val m = android.graphics.Matrix().apply { postScale(scale, scale); postRotate(rotation) }
+        val bmp = android.graphics.Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, m, true)
+        java.io.ByteArrayOutputStream().use { out -> bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, out); out.toByteArray() }
+    }.getOrNull()
+
+    /**
+     * Restores a backup file made with "Full backup": every record in it is saved again (records
+     * with the same id are replaced). Returns how many records of each type were restored.
+     */
+    private suspend fun importBackup(@Suppress("UNUSED_PARAMETER") confirmOnly: Boolean): JsonElement {
+        val uri = activity.pickDocument(arrayOf("application/json", "text/plain", "application/octet-stream")) ?: return JsonNull
+        val text = withContext(Dispatchers.IO) { activity.contentResolver.openInputStream(uri)?.use { it.bufferedReader().readText() } }
+            ?: error("Couldn't read that file")
+        val root = runCatching { AppJson.parseToJsonElement(text).jsonObject }.getOrNull() ?: error("That isn't a Carrot Note backup")
+        val data = root["data"] as? JsonObject ?: error("That isn't a Carrot Note backup")
+        val repo = Graph.repo
+        val counts = buildJsonObject {
+            data.forEach { (type, items) ->
+                val col = repo.collection(type) ?: return@forEach
+                var n = 0
+                (items as? JsonArray)?.forEach { item -> if (runCatching { col.saveJson(item.toString()) }.isSuccess) n++ }
+                if (n > 0) put(type, n)
+            }
+        }
+        Reminders.rescheduleAll(activity, repo)
+        Graph.sync.requestSync()
+        return counts
+    }
 
     private fun httpGet(url: String): String {
         val conn = (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {

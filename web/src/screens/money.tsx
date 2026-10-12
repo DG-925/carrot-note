@@ -5,6 +5,8 @@ import { editBudget, editTxn, openConverter } from '../editors'
 import { categoryIcon, Icon, methodIcon } from '../icons'
 import { TxnRow } from '../rows'
 import { useApp } from '../store'
+import { push } from '../nav'
+import { convertTotal, useRates } from '../rates'
 import type { Txn } from '../types'
 import { Bar, Btn, Card, Chips, CountMoney, Empty, Eyebrow, Hero, MainHeader, Round, SearchBar, Seg, attempt, matches } from '../ui'
 import { PrivacyButton } from './home'
@@ -49,6 +51,7 @@ export function MoneyScreen() {
             </div>
           </div>
           <CountMoney totals={net} currency={cur} sign class="h-display amt" />
+          <InMain totals={net} cur={cur} />
           <div class="row" style={{ marginTop: 14, gap: 3, height: 12 }}>
             {inc + exp > 0
               ? <>
@@ -138,7 +141,7 @@ function Summary({ expense, month, end }: { expense: Txn[]; month: number; end: 
     <>
       <div class="card pop" style={{ '--i': 4 } as any}>
         <div class="row"><div class="grow"><h3 class="h-md">Daily spending</h3><div class="tiny muted">In {cur} · tap a day</div></div>
-          {sel >= 0 && <div style={{ textAlign: 'right' }}><div class="tiny muted">Day {sel + 1}</div><div class="num h-sm" style={{ fontWeight: 800 }}>{F.money(daily[sel], cur)}</div></div>}
+          {sel >= 0 && <div style={{ textAlign: 'end' }}><div class="tiny muted">Day {sel + 1}</div><div class="num h-sm" style={{ fontWeight: 800 }}>{F.money(daily[sel], cur)}</div></div>}
         </div>
         <div class="bars" style={{ marginTop: 14 }}>
           {daily.map((v, i) => (
@@ -151,6 +154,12 @@ function Summary({ expense, month, end }: { expense: Txn[]; month: number; end: 
       </div>
       <RankCard i={5} title="Where your money went" items={groupTop(main, t => t.category)} icon={categoryIcon} color="var(--accent)" empty="No spending this month" footer={others.length ? 'Also in other currencies: ' + F.totals(F.sumBy(others, t => t.currency, t => t.amount), cur) : undefined} />
       <RankCard i={6} title="How you paid" items={groupTop(main, t => t.method)} icon={methodIcon} color="#7C5CE0" empty="Nothing yet" />
+      <div class="grid2">
+        <button class="tile t-mint press" onClick={() => push({ name: 'recurring' })}><span class="tile-ico"><Icon name="repeat" size={16} /></span><b>Recurring</b>
+          <span class="tiny" style={{ opacity: .75 }}>{s.data.recurring.filter(r => r.active).length} active</span></button>
+        <button class="tile t-lilac press" onClick={() => push({ name: 'report' })}><span class="tile-ico"><Icon name="chart" size={16} /></span><b>Yearly report</b>
+          <span class="tiny" style={{ opacity: .75 }}>PDF for your accountant</span></button>
+      </div>
       <Budgets expense={expense} />
       <Btn kind="soft-bg" icon="download" onClick={() => attempt(() => call('money.exportCsv'))}>Export all transactions (CSV)</Btn>
     </>
@@ -171,7 +180,7 @@ function RankCard({ title, items, icon, color, empty, footer, i }: { title: stri
             <div class="badge-ico" style={{ width: 38, height: 38, background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}><Icon name={icon(k)} size={16} /></div>
             <div class="grow">
               <div class="row"><span class="grow semibold ellipsis">{k}</span><span class="num" style={{ fontWeight: 800 }}>{F.money(v, cur)}</span></div>
-              <div class="row" style={{ marginTop: 6 }}><div class="grow"><Bar value={v / max} color={color} height={6} /></div><span class="tiny muted num bold" style={{ width: 34, textAlign: 'right' }}>{Math.round((v / total) * 100)}%</span></div>
+              <div class="row" style={{ marginTop: 6 }}><div class="grow"><Bar value={v / max} color={color} height={6} /></div><span class="tiny muted num bold" style={{ width: 34, textAlign: 'end' }}>{Math.round((v / total) * 100)}%</span></div>
             </div>
           </div>
         ))}
@@ -197,7 +206,7 @@ function Budgets({ expense }: { expense: Txn[] }) {
             <div class="row">
               <div class="badge-ico" style={{ background: 'var(--accent-soft)', color: 'var(--accent-deep)' }}><Icon name={b.category ? categoryIcon(b.category) : 'wallet'} size={17} /></div>
               <div class="grow"><div class="h-sm">{b.category || 'All spending'}</div><div class="small semibold row" style={{ gap: 4, color }}><Icon name={icon} size={11} />{label}</div></div>
-              <div style={{ textAlign: 'right' }}><div class="num h-sm" style={{ fontWeight: 800 }}>{F.money(spent, b.currency)}</div><div class="tiny muted">of {F.money(b.limit, b.currency)}</div></div>
+              <div style={{ textAlign: 'end' }}><div class="num h-sm" style={{ fontWeight: 800 }}>{F.money(spent, b.currency)}</div><div class="tiny muted">of {F.money(b.limit, b.currency)}</div></div>
             </div>
             <div style={{ margin: '12px 0 8px' }}><Bar value={ratio} height={10} color={color === 'var(--good)' ? 'var(--accent)' : color} /></div>
             <div class="small muted semibold">{spent <= b.limit ? `${F.money(b.limit - spent, b.currency)} left this month` : `${F.money(spent - b.limit, b.currency)} over the limit`}</div>
@@ -206,4 +215,13 @@ function Budgets({ expense }: { expense: Txn[] }) {
       })}
     </>
   )
+}
+
+/** "≈ 12,400 EGP in total" under a total that mixes currencies, at live rates. */
+export function InMain({ totals, cur }: { totals: Record<string, number>; cur: string }) {
+  const mixed = Object.entries(totals).filter(([, v]) => Math.abs(v) > 0.0001).length > 1
+  const rates = useRates(cur, mixed)
+  if (!mixed) return null
+  const v = convertTotal(totals, cur, rates)
+  return <div class="small semibold amt" style={{ opacity: .9, marginTop: 2 }}>{v == null ? 'Converting…' : `≈ ${F.money(Math.round(v), cur)} in total at today's rates`}</div>
 }

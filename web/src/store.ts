@@ -5,6 +5,7 @@ import { call, on } from './bridge'
 import * as F from './format'
 import { newId, type CalEvent, type NativeState, type SpaceInfo, type TableName, type TaskItem, type Tables } from './types'
 import { toast } from './ui'
+import { currentLang, type Lang } from './i18n'
 
 /** Choices kept on this phone only. */
 export interface Prefs {
@@ -14,6 +15,8 @@ export interface Prefs {
   holidays: string[] | null
   /** Show phone contacts' birthdays in the calendar. */
   birthdays: boolean
+  /** Interface language. */
+  lang: Lang
 }
 
 export interface AppState extends NativeState {
@@ -25,12 +28,12 @@ export interface AppState extends NativeState {
 }
 
 function loadPrefs(): Prefs {
-  const base: Prefs = { privacy: false, holidays: null, birthdays: false }
+  const base: Prefs = { privacy: false, holidays: null, birthdays: false, lang: currentLang() }
   try { return { ...base, ...JSON.parse(localStorage.getItem('carrot.prefs') ?? '{}') } } catch { return base }
 }
 
 const emptyTables = (): Tables => ({
-  project: [], task: [], note: [], txn: [], goal: [], customer: [], debt: [], event: [], time: [], budget: [], rental: [],
+  project: [], task: [], note: [], txn: [], goal: [], customer: [], debt: [], event: [], time: [], budget: [], rental: [], invoice: [], recurring: [], secret: [], vault: [],
 })
 
 let state: AppState = {
@@ -59,6 +62,13 @@ export function setPrefs(patch: Partial<Prefs>) {
   document.documentElement.classList.toggle('private', prefs.privacy)
   setState({ prefs })
 }
+/** Switches the interface language; the page reloads in the new language. */
+export function setLanguage(lang: Lang) {
+  if (lang === state.prefs.lang) return
+  setPrefs({ lang })
+  setTimeout(() => location.reload(), 120)
+}
+
 export const togglePrivacy = () => {
   setPrefs({ privacy: !state.prefs.privacy })
   toast(state.prefs.privacy ? 'Amounts hidden' : 'Amounts shown')
@@ -117,22 +127,28 @@ on('insets', (i: AppState['insets']) => {
 
 export const save = <K extends TableName>(type: K, item: Tables[K][number]) => {
   // Show the change right away; the native side confirms with a fresh table.
-  const list = state.data[type] as any[]
-  const i = list.findIndex(x => x.id === (item as any).id)
-  const next = i >= 0 ? list.map(x => (x.id === (item as any).id ? item : x)) : [...list, item]
-  setState({ data: { ...state.data, [type]: next } })
+  const list = state.data[type] as any[] | undefined
+  // Receipts aren't kept in the page (photos are loaded on demand), so only update known tables.
+  if (list) {
+    const i = list.findIndex(x => x.id === (item as any).id)
+    const next = i >= 0 ? list.map(x => (x.id === (item as any).id ? item : x)) : [...list, item]
+    setState({ data: { ...state.data, [type]: next } })
+  }
   return call('data.save', { type, item })
 }
 
 const typeNames: Record<TableName, string> = {
   project: 'Project', task: 'Task', note: 'Note', txn: 'Transaction', goal: 'Goal', customer: 'Customer',
   debt: 'Debt', event: 'Event', time: 'Time entry', budget: 'Budget', rental: 'Rental',
+  invoice: 'Invoice', recurring: 'Recurring payment', secret: 'Vault item', vault: 'Vault',
 }
 
 /** Deletes an item and offers Undo for a few seconds. */
 export const remove = (type: TableName, id: string) => {
-  const item = (state.data[type] as any[]).find(x => x.id === id)
-  setState({ data: { ...state.data, [type]: (state.data[type] as any[]).filter(x => x.id !== id) } })
+  const list = state.data[type] as any[] | undefined
+  if (!list) return call('data.delete', { type, id })
+  const item = list.find(x => x.id === id)
+  setState({ data: { ...state.data, [type]: list.filter(x => x.id !== id) } })
   const done = call('data.delete', { type, id })
   if (item) toast(`${typeNames[type]} deleted`, { label: 'Undo', run: () => { save(type, item).catch(e => toast(e.message)) } })
   return done

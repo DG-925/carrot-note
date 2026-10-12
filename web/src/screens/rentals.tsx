@@ -1,7 +1,8 @@
 // Rentals: VPS, hosting, bots, domains… rented to clients, with what they cost me, what the
 // client pays, and a live countdown to the next renewal.
 
-import { useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
+import { getJson } from '../net'
 import { call } from '../bridge'
 import * as F from '../format'
 import { askForPayment, CustomerPicker, ProjectPicker } from '../editors'
@@ -13,6 +14,7 @@ import {
   Btn, Card, Chips, CurrencyField, DateField, Empty, Eyebrow, Field, FieldLabel, Form, Hero, Hint, PageHeader, Ring, Round,
   SearchBar, SheetTitle, SwitchRow, TimeField, attempt, cx, matches, openForm, openSheet, toast, useNow,
 } from '../ui'
+import { dateLocale } from '../i18n'
 
 // ---------------------------------------------------------------- maths
 
@@ -76,7 +78,50 @@ function Countdown({ r, big }: { r: Rental; big?: boolean }) {
     const days = Math.floor(-left / 86_400_000)
     return <span class="bad bold">{big ? 'Expired' : 'Expired'} {days === 0 ? 'today' : F.plural(days, 'day') + ' ago'}</span>
   }
-  return <span class={cx('num bold', big && 'countdown-big')} style={{ color: stateColor[st] }}>{F.countdown(left, big)}</span>
+  return <span class={cx('num bold cd', big && 'countdown-big')} style={{ color: stateColor[st] }}>{F.countdown(left, big)}</span>
+}
+
+// ---------------------------------------------------------------- uptime and domain lookup
+
+export interface UptimeResult { up: boolean; at: number; ms: number; error: string; since: number }
+let uptimeCache: Record<string, UptimeResult> = {}
+const uptimeSubs = new Set<() => void>()
+
+/** Last uptime check of every monitored rental, refreshed every minute while shown. */
+export function useUptime() {
+  const [, setN] = useState(0)
+  useEffect(() => {
+    const f = () => setN(n => n + 1)
+    uptimeSubs.add(f)
+    const load = () => call<Record<string, UptimeResult>>('uptime.status').then(r => { uptimeCache = r ?? {}; uptimeSubs.forEach(x => x()) }).catch(() => {})
+    load()
+    const t = setInterval(load, 60_000)
+    return () => { uptimeSubs.delete(f); clearInterval(t) }
+  }, [])
+  return uptimeCache
+}
+
+async function checkNow(id: string) {
+  const r = await attempt(() => call<UptimeResult>('uptime.check', { id }))
+  if (r) { uptimeCache = { ...uptimeCache, [id]: r }; uptimeSubs.forEach(x => x()); toast(r.up ? `Online · ${r.ms} ms` : `Down: ${r.error || 'no answer'}`) }
+}
+
+function UptimeDot({ r }: { r: Rental }) {
+  const u = useUptime()[r.id]
+  if (!r.monitor) return null
+  return <span class={cx('up-dot', u ? (u.up ? 'up' : 'down') : 'unknown')} title={u ? (u.up ? 'Online' : 'Down') : 'Not checked yet'} />
+}
+
+interface DomainInfo { expiry: number | null; registered: number | null; registrar: string }
+
+/** Real expiry date and registrar of a domain, from the public RDAP registry (free). */
+export async function lookupDomain(name: string): Promise<DomainInfo> {
+  const r = await getJson<any>(`https://rdap.org/domain/${encodeURIComponent(name.trim().toLowerCase())}`, `rdap.${name.trim().toLowerCase()}`, 6 * 3_600_000)
+  const ev = (a: string) => (r?.events as any[] | undefined)?.find(e => e.eventAction === a)?.eventDate as string | undefined
+  const day = (iso?: string) => (iso ? F.toEpochDay(new Date(iso)) : null)
+  const registrar = (r?.entities as any[] | undefined)?.find(e => (e.roles ?? []).includes('registrar'))
+  const fn = (registrar?.vcardArray?.[1] as any[] | undefined)?.find(x => x[0] === 'fn')?.[3]
+  return { expiry: day(ev('expiration')), registered: day(ev('registration')), registrar: typeof fn === 'string' ? fn : '' }
 }
 
 // ---------------------------------------------------------------- list
@@ -116,7 +161,7 @@ export function RentalsScreen() {
             <div class="tile t-butter pop" style={{ '--i': 2 } as any}>
               <div class="row"><Icon name="warning" size={16} /><b class="grow">Renew soon</b></div>
               {attention.map(r => (
-                <button key={r.id} class="row press" style={{ width: '100%', textAlign: 'left', padding: '8px 0' }} onClick={() => push({ name: 'rental', id: r.id })}>
+                <button key={r.id} class="row press" style={{ width: '100%', textAlign: 'start', padding: '8px 0' }} onClick={() => push({ name: 'rental', id: r.id })}>
                   <Icon name={rentalKind(r.kind).icon} size={15} />
                   <span class="grow semibold ellipsis">{r.name || rentalKind(r.kind).label}{clientOf(r) ? ` · ${clientOf(r)}` : ''}</span>
                   <Countdown r={r} />
@@ -156,10 +201,10 @@ export function RentalCard({ r, i }: { r: Rental; i?: number }) {
       <div class="row">
         <Ring value={st === 'expired' ? 1 : progress} size={50} stroke={5} color={stateColor[st]}><Icon name={kind.icon} size={16} /></Ring>
         <div class="grow" style={{ minWidth: 0 }}>
-          <div class="h-sm ellipsis">{r.name || kind.label}</div>
+          <div class="row" style={{ gap: 6 }}><div class="h-sm ellipsis">{r.name || kind.label}</div><UptimeDot r={r} /></div>
           <div class="small muted ellipsis">{[kind.label, client, r.provider].filter(Boolean).join(' · ')}</div>
         </div>
-        <div style={{ textAlign: 'right' }}>
+        <div style={{ textAlign: 'end' }}>
           <div class="tiny muted semibold">{st === 'expired' ? '' : st === 'stopped' || st === 'nodate' ? '' : 'Expires in'}</div>
           <Countdown r={r} />
         </div>
@@ -215,7 +260,7 @@ export function RentalDetail({ id }: { id: string }) {
           <div class="row"><span class="hero-pill"><Icon name={kind.icon} size={11} /> {kind.label}</span><span class="grow" />
             <span class="hero-pill">{st === 'stopped' ? 'Stopped' : st === 'expired' ? 'Expired' : st === 'soon' ? 'Renew soon' : 'Running'}</span></div>
           <div class="eyebrow" style={{ marginTop: 14 }}>{st === 'expired' ? 'Ran out' : 'Expires in'}</div>
-          <div class="countdown-hero num">{st === 'expired' || st === 'stopped' || end == null ? <Countdown r={r} big /> : F.countdown(end - now, true)}</div>
+          <div class="countdown-hero num cd">{st === 'expired' || st === 'stopped' || end == null ? <Countdown r={r} big /> : F.countdown(end - now, true)}</div>
           {end != null && <div class="small" style={{ opacity: .9 }}>{F.date(r.expiryDate!)}{r.expiryTime != null ? ' at ' + F.time(r.expiryTime) : ''}</div>}
           {end != null && st !== 'stopped' && <div style={{ marginTop: 12 }}><div class="bar" style={{ height: 8, background: 'rgba(255,255,255,.25)' }}><i style={{ width: `${progress * 100}%`, background: '#fff' }} /></div>
             <div class="row between tiny" style={{ marginTop: 6, opacity: .85 }}><span>{start != null ? 'Since ' + F.dateShort(F.dayOfMs(start)) : ''}</span><span>{Math.round(progress * 100)}% of this period used</span></div></div>}
@@ -253,6 +298,8 @@ export function RentalDetail({ id }: { id: string }) {
           </div>}
         </Card>
 
+        {r.monitor && <UptimeCard r={r} />}
+
         <div class="section-h"><h3>Renewals</h3></div>
         {!r.renewals.length && <Hint>Each time you renew, it's listed here with what you paid and what the client paid.</Hint>}
         {r.renewals.length > 0 && <div class="card flush">
@@ -260,7 +307,7 @@ export function RentalDetail({ id }: { id: string }) {
             <div key={x.id} class="item">
               <div class="badge-ico t-mint"><Icon name="sync" size={15} /></div>
               <div class="main"><div class="t">{x.to != null ? `Until ${F.dateShort(x.to)}` : 'Renewed'}</div><div class="s">Renewed {F.dateShort(x.date)}{x.note ? ' · ' + x.note : ''}</div></div>
-              <div style={{ textAlign: 'right' }}><div class="num small good bold amt">+{F.money(x.price, r.priceCurrency)}</div><div class="num tiny muted amt">−{F.money(x.cost, r.costCurrency)}</div></div>
+              <div style={{ textAlign: 'end' }}><div class="num small good bold amt">+{F.money(x.price, r.priceCurrency)}</div><div class="num tiny muted amt">−{F.money(x.cost, r.costCurrency)}</div></div>
             </div>
           ))}
         </div>}
@@ -269,6 +316,25 @@ export function RentalDetail({ id }: { id: string }) {
         </Btn>
       </div>
     </div>
+  )
+}
+
+function UptimeCard({ r }: { r: Rental }) {
+  const u = useUptime()[r.id]
+  const [busy, setBusy] = useState(false)
+  const ago = (ms: number) => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago` }
+  return (
+    <Card>
+      <div class="row">
+        <span class={cx('up-dot big', u ? (u.up ? 'up' : 'down') : 'unknown')} />
+        <div class="grow" style={{ minWidth: 0 }}>
+          <div class="h-sm">{!u ? 'Not checked yet' : u.up ? 'Online' : 'Down'}</div>
+          <div class="small muted ellipsis">{u ? (u.up ? `Answered in ${u.ms} ms · ${ago(u.at)}` : `${u.error || 'No answer'} · ${ago(u.at)}`) : r.monitorUrl}</div>
+          {u && u.since > 0 && <div class="tiny muted">{u.up ? 'Up' : 'Down'} since {new Date(u.since).toLocaleString(dateLocale())}</div>}
+        </div>
+        <Btn sm kind="soft-bg" icon="sync" busy={busy} onClick={async () => { setBusy(true); await checkNow(r.id); setBusy(false) }}>Check</Btn>
+      </div>
+    </Card>
   )
 }
 
@@ -290,6 +356,9 @@ function RentalForm({ item, defaults, close }: { item?: Rental; defaults: { cust
   const [cost, setCost] = useState(F.amountText(base.cost))
   const [price, setPrice] = useState(F.amountText(base.price))
   const up = (p: Partial<Rental>) => set({ ...r, ...p })
+  const [looking, setLooking] = useState(false)
+  const [lookup, setLookup] = useState('')
+  const [probe, setProbe] = useState('')
   const c = F.parseAmount(cost) ?? 0, p = F.parseAmount(price) ?? 0
   const domain = r.kind === 'domain'
   const months = rentalPeriod(r.period).months
@@ -311,7 +380,22 @@ function RentalForm({ item, defaults, close }: { item?: Rental; defaults: { cust
       <FieldLabel>What is it?</FieldLabel>
       <Chips wrap options={rentalKinds.map(k => k.value)} value={r.kind} onChange={v => up({ kind: v })} label={v => rentalKind(v).label} icon={v => rentalKind(v).icon} />
       <Field label={domain ? 'Domain name' : 'Name'} value={r.name} placeholder={domain ? 'example.com' : r.kind === 'bot' ? 'e.g. Telegram store bot' : 'e.g. Client VPS 4GB'}
-        onInput={v => up({ name: domain ? v.trim().toLowerCase() : v })} autoFocus={!item} />
+        onInput={v => { up({ name: domain ? v.trim().toLowerCase() : v }); setLookup('') }} autoFocus={!item} />
+      {domain && /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(r.name) && (
+        <div class="row">
+          <Btn kind="soft" sm icon="search" busy={looking} onClick={async () => {
+            setLooking(true)
+            try {
+              const info = await lookupDomain(r.name)
+              up({ expiryDate: info.expiry ?? r.expiryDate, provider: r.provider || info.registrar })
+              setLookup(info.expiry != null
+                ? `Expires ${F.date(info.expiry)}${info.registrar ? ` · ${info.registrar}` : ''}${info.registered != null ? ` · registered ${F.dateShort(info.registered)}` : ''}`
+                : 'No expiry date found for this domain.')
+            } catch (e) { setLookup((e as Error).message === 'Not found' ? "That domain isn't registered." : (e as Error).message) } finally { setLooking(false) }
+          }}>Look up real expiry date</Btn>
+        </div>
+      )}
+      {lookup && <Hint>{lookup}</Hint>}
       <CustomerPicker value={r.customerId} onChange={v => up({ customerId: v })} none="Not a saved customer" />
       {!r.customerId && <Field label="Client name" value={r.clientName} icon="user" onInput={v => up({ clientName: v })} />}
 
@@ -350,6 +434,19 @@ function RentalForm({ item, defaults, close }: { item?: Rental; defaults: { cust
       </div>
       <TimeField label="Expiry time (optional)" value={r.expiryTime} onChange={v => up({ expiryTime: v })} />
       <Field label={domain ? 'Registrar (Namecheap, GoDaddy…)' : 'Provider (Hetzner, Contabo, DigitalOcean…)'} value={r.provider} icon="cloud" onInput={v => up({ provider: v })} />
+      <div class="card in-card">
+        <SwitchRow title="Check that it's online" sub="Every 15 minutes. You get a notification if it goes down or comes back."
+          on={!!r.monitor} onChange={v => up({ monitor: v, monitorUrl: r.monitorUrl || (domain && r.name ? `https://${r.name}` : '') })} />
+        {r.monitor && <>
+          <Field label="Address to check" value={r.monitorUrl ?? ''} placeholder="https://example.com or 65.21.10.4:22" icon="link" onInput={v => { up({ monitorUrl: v }); setProbe('') }}
+            hint={probe || 'A website (https://…) or a server address with its port (SSH is port 22).'} hintTone={probe.startsWith('✓') ? 'good' : probe ? 'bad' : undefined} />
+          <Btn kind="soft" sm icon="sync" disabled={!r.monitorUrl?.trim()} onClick={async () => {
+            setProbe('Checking…')
+            const res = await call<UptimeResult>('uptime.probe', { target: r.monitorUrl }).catch(e => ({ up: false, error: (e as Error).message, ms: 0 } as UptimeResult))
+            setProbe(res.up ? `✓ Online · answered in ${res.ms} ms` : `✗ Not answering: ${res.error || 'no response'}`)
+          }}>Test now</Btn>
+        </>}
+      </div>
       <ProjectPicker value={r.projectId} onChange={v => up({ projectId: v })} none="No project" />
       <Field label={domain ? 'Details (DNS, nameservers, login…)' : 'Details (IP, panel, login, specs…)'} multiline value={r.details} onInput={v => up({ details: v })} />
       <Hint>Only you can see rentals and their money, even in shared projects.</Hint>

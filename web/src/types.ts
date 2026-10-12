@@ -13,6 +13,11 @@ export interface TaskItem {
   reminder: boolean; done: boolean; priority: number; createdAt: number
   /** "", "daily", "weekly" or "monthly". */
   repeat?: string
+  /** In progress (middle column of the board). */
+  doing?: boolean
+  subtasks?: CheckItem[]
+  /** User id of the team member it's assigned to. */
+  assignee?: string | null
 }
 
 export interface CheckItem { id: string; text: string; done: boolean }
@@ -25,6 +30,8 @@ export interface Note {
 export interface Txn {
   id: string; kind: string; amount: number; currency: string; category: string; method: string; date: number
   note: string; projectId?: string | null; customerId?: string | null; createdAt: number
+  /** Id of the "receipt" record with a photo of the receipt. */
+  receiptId?: string | null
 }
 
 export interface GoalDeposit { id: string; amount: number; date: number; note: string }
@@ -59,7 +66,29 @@ export interface Rental {
   startDate?: number | null; expiryDate?: number | null; expiryTime?: number | null; period: string
   cost: number; costCurrency: string; price: number; priceCurrency: string
   reminder: boolean; remindDays: number; status: string; details: string; renewals: RentalRenewal[]; createdAt: number
+  /** Check every 15 minutes that [monitorUrl] answers (http(s) address or host[:port]). */
+  monitor?: boolean; monitorUrl?: string
 }
+
+export interface InvoiceItem { id: string; description: string; qty: number; price: number }
+export interface InvoicePayment { id: string; amount: number; date: number; method: string; txnId?: string | null }
+/** A numbered invoice. [total] is stored so reminders can tell when it is fully paid. */
+export interface Invoice {
+  id: string; number: string; customerId?: string | null; projectId?: string | null; clientName: string; clientDetails: string
+  issueDate: number; dueDate?: number | null; currency: string; items: InvoiceItem[]
+  discount: number; discountPercent: boolean; taxPercent: number; total: number
+  status: string; payments: InvoicePayment[]; notes: string; createdAt: number
+}
+
+/** Money that comes in or goes out on a schedule; copies are added to Money when due. */
+export interface Recurring {
+  id: string; kind: string; amount: number; currency: string; category: string; method: string; note: string
+  projectId?: string | null; customerId?: string | null; period: string; nextDate: number; active: boolean; createdAt: number
+}
+
+/** A vault entry: [title] is readable, everything else is encrypted on the phone before syncing. */
+export interface Secret { id: string; title: string; kind: string; rentalId?: string | null; customerId?: string | null; iv: string; data: string; createdAt: number }
+export interface VaultMeta { id: string; salt: string; iv: string; check: string; createdAt: number }
 
 export interface SpaceMember { id: string; username: string; name: string; avatarRev: number; role: string }
 export interface SpaceInfo {
@@ -80,6 +109,7 @@ export interface GithubProfile {
 export interface Tables {
   project: Project[]; task: TaskItem[]; note: Note[]; txn: Txn[]; goal: Goal[]; customer: Customer[]
   debt: Debt[]; event: CalEvent[]; time: TimeEntry[]; budget: Budget[]; rental: Rental[]
+  invoice: Invoice[]; recurring: Recurring[]; secret: Secret[]; vault: VaultMeta[]
 }
 export type TableName = keyof Tables
 

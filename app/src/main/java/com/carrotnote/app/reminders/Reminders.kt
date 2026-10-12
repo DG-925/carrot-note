@@ -21,6 +21,11 @@ import com.carrotnote.app.data.CalEvent
 import com.carrotnote.app.data.Rental
 import com.carrotnote.app.data.Repository
 import com.carrotnote.app.data.TaskItem
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.doubleOrNull
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -60,6 +65,23 @@ object Reminders {
         enqueue(context, "rental_${rental.id}_day", day, "$what expires today", "Renew it$who or it will stop.")
     }
 
+    /** On an invoice's due date at 9:00, unless it is a draft or already paid. */
+    fun scheduleInvoice(context: Context, invoice: JsonObject) {
+        fun s(k: String) = invoice[k]?.jsonPrimitive?.contentOrNull
+        val id = s("id") ?: return
+        val status = s("status") ?: "draft"
+        val due = invoice["dueDate"]?.jsonPrimitive?.longOrNull
+        val total = invoice["total"]?.jsonPrimitive?.doubleOrNull ?: 0.0
+        val paid = (invoice["payments"] as? kotlinx.serialization.json.JsonArray)?.sumOf {
+            (it as? JsonObject)?.get("amount")?.jsonPrimitive?.doubleOrNull ?: 0.0
+        } ?: 0.0
+        val open = status != "draft" && status != "cancelled" && paid + 0.0001 < total
+        val number = s("number").orEmpty()
+        val client = s("clientName").orEmpty()
+        enqueue(context, "invoice_$id", if (open) triggerAt(due, null) else null,
+            "Invoice $number is due today", if (client.isNotBlank()) "Check if $client has paid, or send a reminder." else "Check if it has been paid.")
+    }
+
     fun cancelRental(context: Context, id: String) {
         cancel(context, "rental_${id}_before")
         cancel(context, "rental_${id}_day")
@@ -78,6 +100,7 @@ object Reminders {
         repo.tasks.value.forEach { schedule(context, it) }
         repo.events.value.forEach { schedule(context, it) }
         repo.rentals.value.forEach { schedule(context, it) }
+        repo.invoices.value.forEach { scheduleInvoice(context, it) }
     }
 
     private fun enqueue(context: Context, key: String, at: Long?, title: String, text: String) {

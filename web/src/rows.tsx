@@ -13,9 +13,15 @@ import { AvatarStack, Btn, Ring, StatusChip, Bar, useNow } from './ui'
 
 export function TaskRow({ task, project }: { task: TaskItem; project?: string }) {
   const overdue = !task.done && task.dueDate != null && task.dueDate < F.today()
+  const s = useApp()
+  const steps = task.subtasks ?? []
+  const assignee = task.assignee ? s.spaces.flatMap(sp => sp.members).find(m => m.id === task.assignee) : undefined
   const meta = [
+    task.doing && !task.done ? 'In progress' : null,
     task.dueDate != null ? F.relativeDay(task.dueDate) + (task.dueTime != null ? ' · ' + F.time(task.dueTime) : '') : null,
+    steps.length ? `${steps.filter(x => x.done).length}/${steps.length} steps` : null,
     project, task.priority === 2 ? 'High priority' : null,
+    assignee ? (assignee.id === s.user?.id ? 'You' : assignee.name || '@' + assignee.username) : null,
   ].filter(Boolean).join(' · ')
   return (
     <div class={'item' + (task.done ? ' task-done' : '')} onClick={() => editTask(task)}>
@@ -46,6 +52,7 @@ export function TxnRow({ t, extra }: { t: Txn; extra?: string }) {
         <div class="t">{t.note || t.category}</div>
         <div class="s">{[t.note ? t.category : null, t.method, ex].filter(Boolean).join(' · ')}</div>
       </div>
+      {t.receiptId && <Icon name="image" size={13} class="muted" />}
       <div class="num bold amt" style={{ color: income ? 'var(--good)' : 'var(--fg)', fontWeight: 800 }}>{(income ? '+' : '−') + F.money(t.amount, t.currency)}</div>
     </div>
   )
@@ -97,7 +104,7 @@ export function DebtCard({ d, i }: { d: Debt; i?: number }) {
       <div class="row">
         <Ring value={d.amount > 0 ? debtPaid(d) / d.amount : 0} size={46} color={color}><Icon name={owed ? 'income' : 'expense'} size={13} /></Ring>
         <div class="grow"><div class="h-sm ellipsis">{d.person}</div><div class="small semibold" style={{ color }}>{owed ? 'Owes you' : 'You owe'}</div></div>
-        <div style={{ textAlign: 'right' }}>
+        <div style={{ textAlign: 'end' }}>
           <div class="num h-sm amt" style={{ fontWeight: 800, color: debtSettled(d) ? 'var(--muted)' : undefined }}>{F.money(debtRemaining(d), d.currency)}</div>
           <div class="small muted amt">of {F.money(d.amount, d.currency)}</div>
         </div>

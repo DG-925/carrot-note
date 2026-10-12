@@ -54,6 +54,38 @@ class MainActivity : AppCompatActivity() {
         imageResult = null
     }
 
+    private var photoResult: CompletableDeferred<Boolean>? = null
+    private val photoLauncher = registerForActivityResult(ActivityResultContracts.TakePicture()) {
+        photoResult?.complete(it)
+        photoResult = null
+    }
+
+    /** Opens the camera to take a photo into [target]; true when a photo was taken. */
+    suspend fun takePhoto(target: Uri): Boolean {
+        photoResult?.complete(false)
+        val result = CompletableDeferred<Boolean>()
+        photoResult = result
+        Graph.lock.suppressNextLock()
+        photoLauncher.launch(target)
+        return result.await()
+    }
+
+    private var docResult: CompletableDeferred<Uri?>? = null
+    private val docLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) {
+        docResult?.complete(it)
+        docResult = null
+    }
+
+    /** Lets the user pick a file (e.g. a backup); null when they back out. */
+    suspend fun pickDocument(types: Array<String>): Uri? {
+        docResult?.complete(null)
+        val result = CompletableDeferred<Uri?>()
+        docResult = result
+        Graph.lock.suppressNextLock()
+        docLauncher.launch(types)
+        return result.await()
+    }
+
     /** Asks for a runtime permission if needed; true when granted. */
     suspend fun ensurePermission(permission: String): Boolean {
         if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) return true
@@ -189,6 +221,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_SEND && intent.type?.startsWith("text/") == true) {
+            val text = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty()
+            val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT).orEmpty()
+            intent.action = Intent.ACTION_MAIN
+            if (text.isNotBlank() || subject.isNotBlank()) {
+                bridge.emit("shared", org.json.JSONObject().put("text", text).put("subject", subject).toString())
+            }
+        }
         intent?.getStringExtra(EXTRA_SHORTCUT)?.let { id ->
             intent.removeExtra(EXTRA_SHORTCUT)
             bridge.emit("shortcut", org.json.JSONObject.quote(id))

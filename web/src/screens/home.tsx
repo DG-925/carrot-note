@@ -7,6 +7,7 @@ import { EventRow, projectReceived, projectValue, TaskRow } from '../rows'
 import { expiresAt, rentalState } from './rentals'
 import { rentalKind } from '../types'
 import { togglePrivacy, useApp } from '../store'
+import { InMain } from './money'
 import { duration, isRunning, type Note, type Project } from '../types'
 import { Btn, Card, CountInt, CountMoney, Eyebrow, Hero, MainHeader, Ring, Spark, Tile, useNow, type TileColor } from '../ui'
 
@@ -110,6 +111,7 @@ export function HomeScreen() {
         <Hero i={1} onClick={() => goTab('money')}>
           <div class="row"><div class="grow"><Eyebrow>{F.monthName(today)}, so far</Eyebrow></div><PrivacyButton /></div>
           <CountMoney totals={net} currency={cur} sign class="h-display amt" />
+          <InMain totals={net} cur={cur} />
           {trend.some(v => v !== 0) && <div style={{ marginTop: 10 }}><Spark values={trend} /></div>}
           <div class="row" style={{ marginTop: 12, gap: 8 }}>
             <span class="hero-pill amt">↓ {F.totals(income, cur)} in</span>
@@ -138,7 +140,7 @@ export function HomeScreen() {
             {([['project', 'Add your first project', () => editProject()], ['note', 'Write a note', () => editNote()], ['tasks', 'Add a task for today', () => editTask(undefined, { date: today })]] as const)
               .map(([icon, label, run]) => (
                 <button key={label} class="card press row" style={{ margin: '4px 0', color: 'var(--fg)' }} onClick={run}>
-                  <Icon name={icon} size={16} class="accent" /><span class="grow semibold" style={{ textAlign: 'left' }}>{label}</span><Icon name="right" size={12} class="muted" />
+                  <Icon name={icon} size={16} class="accent" /><span class="grow semibold" style={{ textAlign: 'start' }}>{label}</span><Icon name="right" size={12} class="muted" />
                 </button>
               ))}
           </Tile>
@@ -237,7 +239,7 @@ function NoteLine({ n }: { n: Note }) {
   const title = n.title || n.body.split('\n')[0] || n.checklist[0]?.text || ''
   const sub = n.checklist.length ? `${n.checklist.filter(c => c.done).length}/${n.checklist.length} done` : n.title ? n.body : ''
   return (
-    <button class="row press" style={{ width: '100%', textAlign: 'left', padding: 12, margin: '3px 0', borderRadius: 16, background: 'color-mix(in srgb, var(--card) 60%, transparent)' }}
+    <button class="row press" style={{ width: '100%', textAlign: 'start', padding: 12, margin: '3px 0', borderRadius: 16, background: 'color-mix(in srgb, var(--card) 60%, transparent)' }}
       onClick={() => editNote(n)}>
       <Icon name={n.checklist.length ? 'checkSquare' : 'note'} size={14} />
       <div class="grow">
@@ -264,7 +266,7 @@ function RentalsDue() {
           <div key={r.id} class="row" style={{ padding: '6px 0' }}>
             <Icon name={rentalKind(r.kind).icon} size={14} />
             <span class="grow semibold ellipsis">{r.name || rentalKind(r.kind).label}{r.clientName ? ` · ${r.clientName}` : ''}</span>
-            <span class={'num bold small' + (left <= 0 ? ' bad' : '')}>{left <= 0 ? 'Expired' : F.countdown(left)}</span>
+            <span class={'num bold small cd' + (left <= 0 ? ' bad' : '')}>{left <= 0 ? 'Expired' : F.countdown(left)}</span>
           </div>
         )
       })}

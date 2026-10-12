@@ -16,6 +16,22 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.7
+
+- **Invoices**: numbered invoices with line items, discount and tax, Draft/Sent/Part paid/Paid/Overdue, partial payments (also added to Money), a PDF to share, a WhatsApp reminder, and a notification on the due date.
+- **Rentals**: look up a domain's real expiry date and registrar (RDAP, free), and uptime checks every 15 minutes for a site (https://…) or server (host:port) with a notification when it goes down or comes back.
+- **Home-screen widget**: what's due today, a timer start/stop button, and rentals to renew.
+- **Recurring income and expenses** that add themselves to Money on their dates (or tick *Repeats* when adding a transaction).
+- **Receipt photos** on transactions (camera or gallery).
+- **Yearly report** by month, client, category, hours and invoices, with a PDF for your accountant.
+- **Totals in one currency**: mixed-currency totals also show "≈ … in total" at live rates.
+- **Task board** per project (To do / Doing / Done) with steps (subtasks) and assigning tasks to team members.
+- **Timer safety net**: a "Still working?" notification after 4 hours, with Stop and Keep going.
+- **Share into Carrot Note** from any app: save shared text or links as a note, task, expense or income.
+- **Password vault** for client logins, encrypted on the phone (AES-GCM, PBKDF2) before syncing, with fingerprint unlock and a password generator.
+- **Restore from backup** in Settings.
+- **Arabic** with right-to-left layout (Settings or the menu).
+
 ### New in 1.6.1
 
 - **Mark events as done**: tick an event off in any list (Home, Calendar, a project or a customer), or use the *Done* switch when editing it. Done events are crossed out, sorted to the bottom, left out of the counts, and send no reminder.
