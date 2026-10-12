@@ -43,14 +43,16 @@ window.__native = {
   },
 }
 
-const native: NativeApi = window.CarrotNative ?? installMock()
+// Chosen on first use, so the desktop layer can install itself before anything calls it.
+let resolved: NativeApi | null = null
+const native = (): NativeApi => (resolved ??= window.CarrotNative ?? installMock())
 
 /** Calls a native method; rejects with the server's or app's error message. */
 export function call<T = unknown>(method: string, args: Record<string, unknown> = {}): Promise<T> {
   const id = String(++seq)
   return new Promise<T>((resolve, reject) => {
     waiting.set(id, { resolve, reject })
-    native.call(id, method, JSON.stringify(args))
+    native().call(id, method, JSON.stringify(args))
   })
 }
 
@@ -63,6 +65,6 @@ export function on(name: string, l: Listener) {
 export const setBackHandler = (h: () => boolean) => { backHandler = h }
 
 /** Tells the app the page is ready; it then sends the current state and data. */
-export const ready = () => native.ready()
+export const ready = () => native().ready()
 
 export const isMock = !window.CarrotNative

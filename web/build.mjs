@@ -1,20 +1,24 @@
-// Bundles src/ into the Android app's assets (app/src/main/assets/web).
+// Bundles src/ into the Android app's assets (app/src/main/assets/web), or with --desktop into
+// the Tauri desktop app (desktop/dist).
 import * as esbuild from 'esbuild'
-import { cpSync, mkdirSync, rmSync } from 'node:fs'
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 
 const dev = process.argv.includes('--dev')
-const out = new URL('../app/src/main/assets/web/', import.meta.url).pathname
+const desktop = process.argv.includes('--desktop')
+const out = new URL(desktop ? '../desktop/dist/' : '../app/src/main/assets/web/', import.meta.url).pathname
+const version = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version
 
 rmSync(out, { recursive: true, force: true })
 mkdirSync(out, { recursive: true })
 
 await esbuild.build({
-  entryPoints: { app: 'src/main.tsx' },
+  entryPoints: { app: desktop ? 'src/desktop.tsx' : 'src/main.tsx' },
+  define: { __APP_VERSION__: JSON.stringify(version) },
   bundle: true,
   minify: !dev,
   sourcemap: dev ? 'inline' : false,
   format: 'iife',
-  target: ['chrome90'],
+  target: desktop ? ['chrome105', 'safari15'] : ['chrome90'],
   jsx: 'automatic',
   jsxImportSource: 'preact',
   outdir: out,
@@ -23,5 +27,9 @@ await esbuild.build({
   legalComments: 'none',
   logLevel: 'info',
 })
-cpSync('src/index.html', out + 'index.html')
+if (desktop) {
+  // The desktop app's security policy is set by Tauri (tauri.conf.json), so the page's own is left out.
+  const html = readFileSync('src/index.html', 'utf8').replace(/\s*<meta http-equiv="Content-Security-Policy"[^>]*>/, '')
+  writeFileSync(out + 'index.html', html)
+} else cpSync('src/index.html', out + 'index.html')
 console.log('Built to', out)

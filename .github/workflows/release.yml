@@ -71,3 +71,53 @@ jobs:
           else
             gh release create "v$V" "carrot-note-v$V.apk" --title "Carrot Note v$V" --generate-notes --target "${{ github.sha }}"
           fi
+
+  windows:
+    # The Windows app (Tauri), attached to the same release as the APK.
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+
+      - name: Resolve version
+        id: v
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then V="${{ github.event.inputs.version }}"; else V="${GITHUB_REF_NAME#v}"; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: Build the web UI for desktop
+        working-directory: web
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+          node -e "const f='package.json',p=require('./'+f);p.version='${{ steps.v.outputs.version }}';require('fs').writeFileSync(f,JSON.stringify(p,null,2))"
+          npm run build:desktop
+
+      - name: Build the Windows app
+        working-directory: desktop
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+          node -e "const f='src-tauri/tauri.conf.json',c=require('./'+f);c.version='${{ steps.v.outputs.version }}';require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+          npx tauri build
+
+      - name: Attach to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="${{ steps.v.outputs.version }}"
+          cp desktop/src-tauri/target/release/bundle/nsis/*.exe "carrot-note-v$V-windows-setup.exe"
+          cp desktop/src-tauri/target/release/bundle/msi/*.msi "carrot-note-v$V-windows.msi"
+          gh release upload "v$V" "carrot-note-v$V-windows-setup.exe" "carrot-note-v$V-windows.msi" --clobber

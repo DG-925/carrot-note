@@ -756,3 +756,14 @@ h1, h2, h3, h4 { margin: 0; font-family: var(--display); letter-spacing: -0.02em
 [dir="rtl"] div.num:not(.center), [dir="rtl"] div.amt:not(.center), [dir="rtl"] div.h-display, [dir="rtl"] div.countdown-hero { text-align: right; }
 [dir="rtl"] .cd { direction: rtl !important; text-align: inherit; }
 [dir="rtl"] div.countdown-hero.cd { text-align: right; }
+
+/* ------------------------------------------------------------------ desktop (Tauri) */
+html.desktop { background: #E9E4DE; }
+:root[data-theme="dark"].desktop { background: #0B0A09; }
+html.desktop body { background: transparent; }
+html.desktop #app { left: 0; right: 0; margin: 0 auto; width: 100%; max-width: 560px; background: var(--bg); }
+@media (min-width: 600px) {
+  html.desktop #app { box-shadow: 0 0 0 1px rgba(0,0,0,.05), 0 20px 60px -20px rgba(0,0,0,.25); }
+}
+html.desktop .scroll { scrollbar-width: thin; }
+html.desktop button, html.desktop .press { cursor: pointer; }

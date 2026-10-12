@@ -1,0 +1,15 @@
+{
+  "name": "carrot-note-desktop",
+  "private": true,
+  "version": "1.8.0",
+  "description": "Carrot Note for Windows (Tauri). The interface is the shared web UI in ../web, built with `npm run build:desktop`.",
+  "scripts": {
+    "web": "npm --prefix ../web run build:desktop",
+    "dev": "npm run web && tauri dev",
+    "build": "npm run web && tauri build",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.2"
+  }
+}
