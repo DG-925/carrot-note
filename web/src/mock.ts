@@ -47,6 +47,11 @@ function sample() {
       { id: id(), projectId: 'p1', start: now - (84 * 60 + 37) * 1000, end: null, note: '', createdAt: now },
       { id: id(), projectId: 'p3', start: now - 5 * 3600_000, end: now - 3 * 3600_000, note: 'Booking limits', createdAt: now },
     ],
+    rental: [
+      { id: 'r1', kind: 'vps', name: 'Bakery POS server', provider: 'Hetzner', customerId: 'c1', projectId: 'p1', clientName: 'Nour Bakery', startDate: t - 50, expiryDate: t + 2, expiryTime: null, period: 'monthly', cost: 350, costCurrency: 'EGP', price: 900, priceCurrency: 'EGP', reminder: true, remindDays: 3, status: 'active', details: 'IP 65.21.10.4\nUbuntu 24.04 · 4 GB RAM', renewals: [{ id: id(), date: t - 28, from: t - 28, to: t + 2, cost: 350, price: 900, note: '' }], createdAt: now },
+      { id: 'r2', kind: 'domain', name: 'linahassan.design', provider: 'Namecheap', customerId: null, projectId: 'p2', clientName: 'Lina Hassan', startDate: t - 200, expiryDate: t + 165, expiryTime: null, period: 'yearly', cost: 15, costCurrency: 'USD', price: 25, priceCurrency: 'USD', reminder: true, remindDays: 14, status: 'active', details: 'Nameservers: Cloudflare', renewals: [], createdAt: now },
+      { id: 'r3', kind: 'bot', name: 'FitZone booking bot', provider: 'Contabo', customerId: null, projectId: null, clientName: 'FitZone', startDate: t - 95, expiryDate: t - 1, expiryTime: null, period: 'quarterly', cost: 600, costCurrency: 'EGP', price: 1800, priceCurrency: 'EGP', reminder: true, remindDays: 7, status: 'active', details: '', renewals: [], createdAt: now },
+    ],
     budget: [{ id: id(), category: '', limit: 15000, currency: 'EGP', createdAt: now }, { id: id(), category: 'Food', limit: 1500, currency: 'EGP', createdAt: now }],
   } as Record<string, any[]>
 }
@@ -107,13 +112,14 @@ export function installMock() {
   }
   const params = new URLSearchParams(location.search)
   let data: Record<string, any[]> = store('data') ?? sample()
+  if (!data.rental) data.rental = sample().rental
   let signedIn = params.has('auth') ? false : store('signedIn') ?? true
   let theme = Number(params.get('theme') ?? store('theme') ?? 1)
   let locked = params.has('lock')
   let github: string = params.has('nogh') ? '' : 'adham-dev'
   const emit = (name: string, payload: unknown) => setTimeout(() => window.__native.emit(name, payload), 0)
   const state = () => ({
-    signedIn, locked, version: '1.5.1', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
+    signedIn, locked, version: '1.6.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
     user: { id: 'u1', email: 'you@example.com', name: 'Adham Kassem', username: 'adham', bio: 'Freelance Android and web developer.', github, avatarRev: 0 },
     settings: { currency: 'EGP', theme, autoUpdate: true },
     lock: { pinEnabled: true, pinLength: 4, biometric: false, biometricAvailable: false, delay: 30, secureScreen: false },

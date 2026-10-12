@@ -22,6 +22,7 @@ import com.carrotnote.app.data.AppJson
 import com.carrotnote.app.data.CalEvent
 import com.carrotnote.app.data.ProfileUpdate
 import com.carrotnote.app.data.PublicUser
+import com.carrotnote.app.data.Rental
 import com.carrotnote.app.data.TaskItem
 import com.carrotnote.app.data.UserInfo
 import com.carrotnote.app.data.Invite
@@ -224,6 +225,7 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
             when (item) {
                 is TaskItem -> Reminders.schedule(activity, item)
                 is CalEvent -> Reminders.schedule(activity, item)
+                is Rental -> Reminders.schedule(activity, item)
             }
             ok
         }
@@ -232,6 +234,7 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
             val id = a.str("id")
             Graph.repo.collection(type)?.delete(id)
             if (type == "task" || type == "event") Reminders.cancel(activity, "${type}_$id")
+            if (type == "rental") Reminders.cancelRental(activity, id)
             ok
         }
 

@@ -18,6 +18,7 @@ import com.carrotnote.app.CarrotApp
 import com.carrotnote.app.MainActivity
 import com.carrotnote.app.R
 import com.carrotnote.app.data.CalEvent
+import com.carrotnote.app.data.Rental
 import com.carrotnote.app.data.Repository
 import com.carrotnote.app.data.TaskItem
 import java.time.LocalDate
@@ -47,6 +48,23 @@ object Reminders {
         enqueue(context, "event_${event.id}", at, event.title, event.note.ifBlank { "Calendar event" })
     }
 
+    /** A heads-up [Rental.remindDays] before a rental expires, and another on the day. */
+    fun schedule(context: Context, rental: Rental) {
+        val on = rental.reminder && rental.status == "active" && rental.expiryDate != null
+        val what = rental.name.ifBlank { rental.kind.uppercase() }
+        val who = rental.clientName.ifBlank { null }?.let { " for $it" }.orEmpty()
+        val before = if (on && rental.remindDays > 0) triggerAt(rental.expiryDate!! - rental.remindDays, null) else null
+        enqueue(context, "rental_${rental.id}_before", before, "$what expires in ${rental.remindDays} day${if (rental.remindDays == 1) "" else "s"}",
+            "Renew it$who before it runs out.")
+        val day = if (on) triggerAt(rental.expiryDate, rental.expiryTime?.let { (it - 60).coerceAtLeast(0) }) else null
+        enqueue(context, "rental_${rental.id}_day", day, "$what expires today", "Renew it$who or it will stop.")
+    }
+
+    fun cancelRental(context: Context, id: String) {
+        cancel(context, "rental_${id}_before")
+        cancel(context, "rental_${id}_day")
+    }
+
     fun cancel(context: Context, key: String) {
         WorkManager.getInstance(context).cancelUniqueWork(key)
     }
@@ -59,6 +77,7 @@ object Reminders {
         cancelAll(context)
         repo.tasks.value.forEach { schedule(context, it) }
         repo.events.value.forEach { schedule(context, it) }
+        repo.rentals.value.forEach { schedule(context, it) }
     }
 
     private fun enqueue(context: Context, key: String, at: Long?, title: String, text: String) {

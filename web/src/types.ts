@@ -50,6 +50,15 @@ export interface TimeEntry { id: string; projectId?: string | null; start: numbe
 
 export interface Budget { id: string; category: string; limit: number; currency: string; createdAt: number }
 
+export interface RentalRenewal { id: string; date: number; from?: number | null; to?: number | null; cost: number; price: number; note: string }
+/** Something rented to a client (VPS, hosting, bot, domain…). [cost] is mine, [price] the client's, both per [period]. */
+export interface Rental {
+  id: string; kind: string; name: string; provider: string; customerId?: string | null; projectId?: string | null; clientName: string
+  startDate?: number | null; expiryDate?: number | null; expiryTime?: number | null; period: string
+  cost: number; costCurrency: string; price: number; priceCurrency: string
+  reminder: boolean; remindDays: number; status: string; details: string; renewals: RentalRenewal[]; createdAt: number
+}
+
 export interface SpaceMember { id: string; username: string; name: string; avatarRev: number; role: string }
 export interface SpaceInfo {
   id: string; kind: string; projectId?: string | null; ownerId: string; role: string
@@ -68,7 +77,7 @@ export interface GithubProfile {
 
 export interface Tables {
   project: Project[]; task: TaskItem[]; note: Note[]; txn: Txn[]; goal: Goal[]; customer: Customer[]
-  debt: Debt[]; event: CalEvent[]; time: TimeEntry[]; budget: Budget[]
+  debt: Debt[]; event: CalEvent[]; time: TimeEntry[]; budget: Budget[]; rental: Rental[]
 }
 export type TableName = keyof Tables
 
@@ -91,8 +100,8 @@ export const statusLabel = (s: string) =>
   ({ active: 'Active', on_hold: 'On hold', done: 'Done', cancelled: 'Cancelled' } as Record<string, string>)[s] ?? s
 
 export const Categories = {
-  expense: ['Food', 'Transport', 'Bills', 'Rent', 'Shopping', 'Subscriptions', 'Equipment', 'Internet & Phone', 'Health', 'Entertainment', 'Education', 'Family', 'Other'],
-  income: ['Project payment', 'Salary', 'Freelance', 'Bonus', 'Refund', 'Gift', 'Other'],
+  expense: ['Food', 'Transport', 'Bills', 'Rent', 'Shopping', 'Subscriptions', 'Hosting & domains', 'Equipment', 'Internet & Phone', 'Health', 'Entertainment', 'Education', 'Family', 'Other'],
+  income: ['Project payment', 'Rentals', 'Salary', 'Freelance', 'Bonus', 'Refund', 'Gift', 'Other'],
   methods: ['Cash', 'Card', 'Bank transfer', 'USDT', 'Crypto', 'PayPal', 'InstaPay', 'Wallet', 'Other'],
   currencies: ['USD', 'EGP', 'EUR', 'USDT', 'GBP', 'SAR', 'AED', 'KWD', 'QAR', 'TRY'],
 }
@@ -110,3 +119,22 @@ export const debtRemaining = (d: Debt) => Math.max(0, d.amount - debtPaid(d))
 export const debtSettled = (d: Debt) => d.amount > 0 && debtRemaining(d) <= 0.0001
 export const isRunning = (t: TimeEntry) => t.end == null
 export const duration = (t: TimeEntry, now = Date.now()) => Math.max(0, (t.end ?? now) - t.start)
+
+// ---- rentals
+
+export const rentalKinds: { value: string; label: string; icon: string }[] = [
+  { value: 'vps', label: 'VPS', icon: 'server' },
+  { value: 'hosting', label: 'Hosting', icon: 'cloud' },
+  { value: 'bot', label: 'Bot', icon: 'bot' },
+  { value: 'domain', label: 'Domain', icon: 'globe' },
+  { value: 'other', label: 'Other', icon: 'box' },
+]
+export const rentalKind = (k: string) => rentalKinds.find(x => x.value === k) ?? rentalKinds[4]
+export const rentalPeriods: { value: string; label: string; short: string; months: number }[] = [
+  { value: 'monthly', label: 'Monthly', short: 'month', months: 1 },
+  { value: 'quarterly', label: 'Every 3 months', short: '3 months', months: 3 },
+  { value: 'half', label: 'Every 6 months', short: '6 months', months: 6 },
+  { value: 'yearly', label: 'Yearly', short: 'year', months: 12 },
+  { value: 'once', label: 'One time', short: 'one time', months: 0 },
+]
+export const rentalPeriod = (p: string) => rentalPeriods.find(x => x.value === p) ?? rentalPeriods[0]

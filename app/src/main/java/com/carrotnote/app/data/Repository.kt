@@ -99,8 +99,9 @@ class Repository(context: Context, val userId: String) {
     val events = Collection("event", CalEvent.serializer()) { it.id }
     val time = Collection("time", TimeEntry.serializer()) { it.id }
     val budgets = Collection("budget", Budget.serializer()) { it.id }
+    val rentals = Collection("rental", Rental.serializer()) { it.id }
 
-    private val collections = listOf(projects, tasks, notes, txns, goals, customers, debts, events, time, budgets)
+    private val collections = listOf(projects, tasks, notes, txns, goals, customers, debts, events, time, budgets, rentals)
         .associateBy { it.type }
 
     private val spaceList = ListSerializer(SpaceInfo.serializer())

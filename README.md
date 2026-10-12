@@ -16,6 +16,19 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.6: Rentals
+
+Track the VPS, hosting, bots and domains you rent to clients:
+- **Details**: what it is, the client, the provider or registrar, and the project.
+- **Dates**: when it started and when it expires or renews.
+- **Money**: billing every month, 3 or 6 months, yearly or one time, with what it costs you and what the client pays you (each in its own currency).
+- **Countdown**: each rental shows a live countdown to expiry and how much of the paid period is used.
+- **Totals**: your monthly profit from all rentals.
+- **Reminders**: a notification some days before a rental expires (you choose how many) and another on the day.
+- **Renewing**: one tap renews a rental, logs what you paid and what the client paid in Money, and keeps a renewal history.
+- **Asking to pay**: send the client a payment request on WhatsApp.
+- **Everywhere**: expiries show on Home (*Renew soon*), in the calendar, in search, and on the customer and project pages. Rentals are private, even in shared projects.
+
 ### New in 1.5
 
 - **New logo** (1.5.1): an orange fingerprint on white.

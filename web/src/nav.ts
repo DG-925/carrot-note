@@ -8,6 +8,7 @@ export type Tab = 'home' | 'money' | 'projects' | 'notes'
 export type Route =
   | { name: 'project'; id: string }
   | { name: 'customer'; id: string }
+  | { name: 'rental'; id: string } | { name: 'rentals' }
   | { name: 'calendar' } | { name: 'time' } | { name: 'customers' } | { name: 'debts' } | { name: 'goals' }
   | { name: 'invites' } | { name: 'search' } | { name: 'profile' } | { name: 'settings' }
 

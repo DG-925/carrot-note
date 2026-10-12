@@ -70,6 +70,9 @@ const P: Record<string, string> = {
   moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
   cloud: 'M7 18a4.5 4.5 0 0 1-.5-9 6 6 0 0 1 11.5 1.5A4 4 0 0 1 17.5 18z',
   pen: 'M16 3l5 5L9 20H4v-5z',
+  server: 'M4 4h16v6H4z M4 14h16v6H4z M7.5 7h.01 M7.5 17h.01 M11 7h5.5 M11 17h5.5',
+  bot: 'M12 3v3 M6 7h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z M9 12h.01 M15 12h.01 M9.5 16h5 M2 12v3 M22 12v3',
+  box: 'M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z M3 7.5 12 12l9-4.5 M12 12v9',
   convert: 'M4 8h14 M14 4l4 4-4 4 M20 16H6 M10 12l-4 4 4 4',
   globe: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M3 12h18 M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9 M12 3c-2.5 2.5-3.5 5.5-3.5 9s1 6.5 3.5 9',
   cake: 'M4 21h16 M5 21v-7h14v7 M5 16.5c2 1.5 3.5 1.5 4.7 0 1.2 1.5 3.4 1.5 4.6 0 1.2 1.5 2.7 1.5 4.7 0 M12 14v-3 M12 8.5a1.2 1.2 0 0 0 1.2-1.2C13.2 6 12 4 12 4s-1.2 2-1.2 3.3A1.2 1.2 0 0 0 12 8.5z',
@@ -118,7 +121,7 @@ const categoryIcons: Record<string, string> = {
   Food: 'food', Transport: 'car', Bills: 'bills', Rent: 'rent', Shopping: 'shopping', Subscriptions: 'repeat',
   Equipment: 'laptop', 'Internet & Phone': 'wifi', Health: 'health', Entertainment: 'film', Education: 'education',
   Family: 'family', 'Project payment': 'briefcase', Salary: 'coins', Freelance: 'laptop', Bonus: 'star', Refund: 'refund',
-  Gift: 'gift', Other: 'other',
+  Gift: 'gift', Other: 'other', 'Hosting & domains': 'server', Rentals: 'server',
 }
 const methodIcons: Record<string, string> = {
   Cash: 'cash', Card: 'card', 'Bank transfer': 'bank', USDT: 'crypto', Crypto: 'crypto', PayPal: 'paypal',

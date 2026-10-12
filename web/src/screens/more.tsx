@@ -8,6 +8,7 @@ import { DebtCard, EventRow, GoalCard, NoteCard, TaskRow, TimeRow, TxnRow } from
 import { countries, defaultCountries, useHolidays, type Country } from '../holidays'
 import { WORK_MS, dropFocus, getFocus, startFocus, stopFocus, useFocus } from '../focus'
 import { setPrefs, useApp } from '../store'
+import { rentalKind } from '../types'
 import { debtRemaining, debtSettled, duration, goalProgress, goalSaved, isRunning, type Invite } from '../types'
 import {
   Avatar, Btn, Card, Chips, CountMoney, Empty, Eyebrow, Field, Hero, Hint, MainHeader, PageHeader, Ring, Round, SearchBar, SelectField, SheetTitle,
@@ -89,7 +90,7 @@ export function CalendarScreen() {
   const has = (days: (number | null | undefined)[]) => new Set(days.filter((d): d is number => d != null))
   const taskDays = has(data.task.map(t => t.dueDate)), eventDays = has(data.event.map(e => e.date)), noteDays = has(data.note.map(n => n.date))
   const moneyDays = has(data.txn.map(t => t.date))
-  const dueDays = has([...data.project.map(p => p.deadline), ...data.debt.filter(d => !debtSettled(d)).map(d => d.dueDate)])
+  const dueDays = has([...data.project.map(p => p.deadline), ...data.debt.filter(d => !debtSettled(d)).map(d => d.dueDate), ...data.rental.filter(r => r.status === 'active').map(r => r.expiryDate)])
 
   const codes = s.prefs.holidays ?? defaultCountries()
   const thisYear = F.fromEpochDay(today).getFullYear()
@@ -107,10 +108,11 @@ export function CalendarScreen() {
   const dayTx = data.txn.filter(t => t.date === selected)
   const deadlines = data.project.filter(p => p.deadline === selected)
   const dayDebts = data.debt.filter(d => !debtSettled(d) && d.dueDate === selected)
+  const dayRentals = data.rental.filter(r => r.status === 'active' && r.expiryDate === selected)
   const dayHolidays = holidays.get(selected) ?? []
   const dayBirthdays = birthdaysOn(selected)
   const names = Object.fromEntries(data.project.map(p => [p.id, p.name]))
-  const empty = !dayTasks.length && !dayEvents.length && !dayNotes.length && !dayTx.length && !deadlines.length && !dayDebts.length && !dayHolidays.length && !dayBirthdays.length
+  const empty = !dayTasks.length && !dayEvents.length && !dayNotes.length && !dayTx.length && !deadlines.length && !dayDebts.length && !dayRentals.length && !dayHolidays.length && !dayBirthdays.length
   const upcoming = [...holidays.entries()].filter(([d]) => d > today && d < today + 366).sort((a, b) => a[0] - b[0]).slice(0, 4)
 
   const first = F.fromEpochDay(month)
@@ -143,6 +145,7 @@ export function CalendarScreen() {
     ...data.task.filter(t => t.dueDate != null && matches(query, t.title, t.notes)).map(t => ({ day: t.dueDate!, icon: 'tasks', tint: 'butter', title: t.title, sub: t.done ? 'Task · done' : 'Task' })),
     ...data.note.filter(n => n.date != null && matches(query, n.title, n.body)).map(n => ({ day: n.date!, icon: 'note', tint: 'lilac', title: n.title || n.body.slice(0, 40), sub: 'Note' })),
     ...data.project.filter(p => p.deadline != null && matches(query, p.name, p.clientName)).map(p => ({ day: p.deadline!, icon: 'flag', tint: 'rose', title: p.name, sub: 'Deadline' })),
+    ...data.rental.filter(r => r.expiryDate != null && matches(query, r.name, r.clientName, r.provider)).map(r => ({ day: r.expiryDate!, icon: rentalKind(r.kind).icon, tint: 'sky', title: r.name || rentalKind(r.kind).label, sub: 'Rental expires' })),
     ...[...holidays.entries()].flatMap(([d, l]) => l.filter(h => matches(query, h.name, h.localName, regionName(h.cc))).map(h => ({ day: d, icon: 'party', tint: 'orange', title: h.name, sub: `${F.flag(h.cc)} Holiday · ${regionName(h.cc)}` }))),
   ].sort((a, b) => Math.abs(a.day - today) - Math.abs(b.day - today)).slice(0, 40)
 
@@ -213,6 +216,11 @@ export function CalendarScreen() {
           })}
           {deadlines.map(p => (
             <Tile key={p.id} color="rose" onClick={() => push({ name: 'project', id: p.id })}><div class="row bold"><Icon name="flag" size={14} />Deadline: {p.name}</div></Tile>
+          ))}
+          {dayRentals.map(r => (
+            <Tile key={r.id} color="sky" onClick={() => push({ name: 'rental', id: r.id })}>
+              <div class="row bold"><Icon name={rentalKind(r.kind).icon} size={14} />{r.name || rentalKind(r.kind).label} expires{r.clientName ? ` · ${r.clientName}` : ''}</div>
+            </Tile>
           ))}
           {dayDebts.map(d => (
             <Tile key={d.id} color="butter" onClick={() => push({ name: 'debts' })}>
@@ -526,12 +534,13 @@ export function SearchScreen() {
     ['Customers', s.data.customer.filter(c => has(c.name, c.phone, c.company, c.email)).map(c => ({ icon: 'user', tint: 'rose', title: c.name, sub: [c.company, c.phone].filter(Boolean).join(' · '), open: () => push({ name: 'customer', id: c.id }) }))],
     ['Money', s.data.txn.filter(t => has(t.note, t.category, t.method)).sort((a, b) => b.date - a.date).slice(0, 30).map(t => ({ icon: categoryIcon(t.category), tint: t.kind === 'income' ? 'mint' : 'sky', title: t.note || t.category, sub: (t.kind === 'income' ? '+' : '−') + F.money(t.amount, t.currency) + ' · ' + F.dateShort(t.date), open: () => editTxn(t) }))],
     ['Events', s.data.event.filter(e => has(e.title, e.note)).map(e => ({ icon: 'calendar', tint: 'sky', title: e.title, sub: F.date(e.date), open: () => editEvent(e) }))],
+    ['Rentals', s.data.rental.filter(r => has(r.name, r.clientName, r.provider, r.details)).map(r => ({ icon: rentalKind(r.kind).icon, tint: 'sky', title: r.name || rentalKind(r.kind).label, sub: [r.clientName, r.expiryDate != null ? 'Expires ' + F.dateShort(r.expiryDate) : ''].filter(Boolean).join(' · '), open: () => push({ name: 'rental', id: r.id }) }))],
   ] as [string, Hit[]][]).filter(g => g[1].length)
   return (
     <div class="scroll">
       <PageHeader title="Search" onBack={popNav} />
       <div class="content no-tabbar">
-        <SearchBar i={1} inputRef={input} value={query} onInput={setQuery} placeholder="Projects, notes, tasks, customers, money…" />
+        <SearchBar i={1} inputRef={input} value={query} onInput={setQuery} placeholder="Projects, notes, tasks, customers, rentals…" />
         {q.length < 2 && <Hint>Type at least 2 letters to search everything in Carrot Note.</Hint>}
         {q.length >= 2 && !groups.length && <Empty icon="search" title="Nothing found" text="Try another word." />}
         {groups.map(([title, hits]) => (

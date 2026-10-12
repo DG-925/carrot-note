@@ -4,6 +4,8 @@ import { editEvent, editNote, editProject, editTask, editTxn } from '../editors'
 import { Icon } from '../icons'
 import { goTab, push } from '../nav'
 import { EventRow, projectReceived, projectValue, TaskRow } from '../rows'
+import { expiresAt, rentalState } from './rentals'
+import { rentalKind } from '../types'
 import { togglePrivacy, useApp } from '../store'
 import { duration, isRunning, type Note, type Project } from '../types'
 import { Btn, Card, CountInt, CountMoney, Eyebrow, Hero, MainHeader, Ring, Spark, Tile, useNow, type TileColor } from '../ui'
@@ -154,6 +156,8 @@ export function HomeScreen() {
           </div>
         </Card>
 
+        <RentalsDue />
+
         <WeekInsights />
 
         {data.project.length > 0 && (
@@ -173,7 +177,7 @@ export function HomeScreen() {
 
         <div class="chips pop" style={{ '--i': 6 } as any}>
           {([['Calendar', 'calendar', 'sky', 'calendar'], ['Time', 'timer', 'mint', 'time'], ['Customers', 'users', 'rose', 'customers'],
-            ['Debts', 'debt', 'butter', 'debts'], ['Savings', 'goal', 'lilac', 'goals']] as const).map(([label, icon, color, route]) => (
+            ['Rentals', 'server', 'sky', 'rentals'], ['Debts', 'debt', 'butter', 'debts'], ['Savings', 'goal', 'lilac', 'goals']] as const).map(([label, icon, color, route]) => (
             <button key={label} class={`shortcut t-${color} press`} onClick={() => push({ name: route } as any)}>
               <span class="box"><Icon name={icon} size={16} /></span>{label}
             </button>
@@ -241,5 +245,29 @@ function NoteLine({ n }: { n: Note }) {
       </div>
       {n.pinned && <Icon name="pin" size={12} />}
     </button>
+  )
+}
+
+/** Rentals that ran out or run out within a week. */
+function RentalsDue() {
+  const s = useApp()
+  const now = useNow()
+  const due = s.data.rental.filter(r => ['expired', 'soon'].includes(rentalState(r, now))).sort((a, b) => (expiresAt(a) ?? 0) - (expiresAt(b) ?? 0))
+  if (!due.length) return null
+  return (
+    <Tile color="butter" i={4} onClick={() => push({ name: 'rentals' })}>
+      <div class="row"><Icon name="server" size={16} /><h3 class="h-md grow">Renew soon</h3><Icon name="right" size={13} /></div>
+      {due.slice(0, 4).map(r => {
+        const left = (expiresAt(r) ?? 0) - now
+        return (
+          <div key={r.id} class="row" style={{ padding: '6px 0' }}>
+            <Icon name={rentalKind(r.kind).icon} size={14} />
+            <span class="grow semibold ellipsis">{r.name || rentalKind(r.kind).label}{r.clientName ? ` · ${r.clientName}` : ''}</span>
+            <span class={'num bold small' + (left <= 0 ? ' bad' : '')}>{left <= 0 ? 'Expired' : F.countdown(left)}</span>
+          </div>
+        )
+      })}
+      {due.length > 4 && <div class="small semibold">+{due.length - 4} more</div>}
+    </Tile>
   )
 }

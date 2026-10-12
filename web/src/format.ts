@@ -148,17 +148,30 @@ export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' :
 export const initials = (name: string) =>
   name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]!.toUpperCase()).join('') || '?'
 
+/** The same day of the month [n] months later (or earlier), clamped to the month's last day. */
+export function addMonthsKeep(day: number, n: number): number {
+  const d = fromEpochDay(day)
+  const target = new Date(d.getFullYear(), d.getMonth() + n, 1)
+  const last = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+  return toEpochDay(new Date(target.getFullYear(), target.getMonth(), Math.min(d.getDate(), last)))
+}
+
 /** Next due day of a repeating task. */
 export function nextRepeat(day: number, repeat: string): number {
   if (repeat === 'daily') return day + 1
   if (repeat === 'weekly') return day + 7
-  if (repeat === 'monthly') {
-    const d = fromEpochDay(day)
-    const target = new Date(d.getFullYear(), d.getMonth() + 1, 1)
-    const last = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
-    return toEpochDay(new Date(target.getFullYear(), target.getMonth(), Math.min(d.getDate(), last)))
-  }
+  if (repeat === 'monthly') return addMonthsKeep(day, 1)
   return day
+}
+
+/** "12d 4h 32m", "3h 05m 12s": time left on a countdown. */
+export function countdown(ms: number, seconds = false): string {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  const d = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24, m = Math.floor(s / 60) % 60, sec = s % 60
+  const p2 = (n: number) => String(n).padStart(2, '0')
+  if (d > 0) return seconds ? `${d}d ${p2(h)}h ${p2(m)}m ${p2(sec)}s` : `${d}d ${h}h ${p2(m)}m`
+  if (h > 0) return `${h}h ${p2(m)}m${seconds ? ` ${p2(sec)}s` : ''}`
+  return `${m}m ${p2(sec)}s`
 }
 
 /** Country code to its flag emoji ("EG" → 🇪🇬). */

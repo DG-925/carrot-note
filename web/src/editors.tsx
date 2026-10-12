@@ -21,13 +21,13 @@ import {
 
 const now = () => Date.now()
 
-function ProjectPicker({ value, onChange, label = 'Project (optional)', none = 'No project · just for me' }: { value?: string | null; onChange: (v: string | null) => void; label?: string; none?: string }) {
+export function ProjectPicker({ value, onChange, label = 'Project (optional)', none = 'No project · just for me' }: { value?: string | null; onChange: (v: string | null) => void; label?: string; none?: string }) {
   const s = useApp()
   const opts = [{ value: '', label: none }, ...[...s.data.project].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id, label: p.name }))]
   return <SelectField label={label} value={value ?? ''} options={opts} onChange={v => onChange(v || null)} />
 }
 
-function CustomerPicker({ value, onChange, none = 'None' }: { value?: string | null; onChange: (v: string | null) => void; none?: string }) {
+export function CustomerPicker({ value, onChange, none = 'None' }: { value?: string | null; onChange: (v: string | null) => void; none?: string }) {
   const s = useApp()
   const opts = [{ value: '', label: none }, ...[...s.data.customer].sort((a, b) => a.name.localeCompare(b.name)).map(c => ({ value: c.id, label: c.name }))]
   return <SelectField label="Customer" value={value ?? ''} options={opts} onChange={v => onChange(v || null)} />
@@ -779,6 +779,8 @@ export function quickAdd() {
     ['Note', 'note', 'lilac', () => editNote()],
     ['Event', 'calendar', 'sky', () => editEvent(undefined, { date: F.today() })],
     ['Project', 'project', 'orange', () => editProject()],
+    ['Rental', 'server', 'sky', () => import('./screens/rentals').then(m => m.editRental())],
+    ['Debt', 'debt', 'butter', () => editDebt()],
   ]
   openOverlay('sheet', close => {
     const shut = close
@@ -786,7 +788,7 @@ export function quickAdd() {
       <>
         <SheetTitle title="Add new" sub="Pick one. You can fill in the details next." />
         <div class="body">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
             {items.map(([label, icon, color, run], i) => (
               <button key={label} class={`tile t-${color} press pop`} style={{ '--i': i, alignItems: 'center', padding: '18px 0', gap: 10 } as any}
                 onClick={() => { shut(); setTimeout(run, 120) }}>

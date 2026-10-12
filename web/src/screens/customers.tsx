@@ -8,6 +8,7 @@ import { Icon } from '../icons'
 import { pop as popNav, push } from '../nav'
 import { DebtCard, EventRow, TxnRow, projectReceived } from '../rows'
 import { useApp } from '../store'
+import { RentalCard, editRental } from './rentals'
 import { debtRemaining, debtSettled, type Customer, type PhoneContact } from '../types'
 import { Btn, Card, Empty, Eyebrow, Hint, PageHeader, Round, StatusChip, Seg, openSheet } from '../ui'
 
@@ -186,6 +187,7 @@ export function CustomerDetail({ id }: { id: string }) {
   const pids = new Set(projects.map(p => p.id))
   const txns = s.data.txn.filter(t => t.customerId === id || (t.projectId && pids.has(t.projectId))).sort((a, b) => b.date - a.date)
   const paid = F.sumBy(txns.filter(t => t.kind === 'income'), t => t.currency, t => t.amount)
+  const rentals = s.data.rental.filter(r => r.customerId === id)
   const debts = s.data.debt.filter(d => d.customerId === id).sort((a, b) => Number(debtSettled(a)) - Number(debtSettled(b)))
   const events = s.data.event.filter(e => e.customerId === id && e.date >= F.today()).sort((a, b) => a.date - b.date)
   return (
@@ -210,6 +212,7 @@ export function CustomerDetail({ id }: { id: string }) {
           <Btn sm kind="t-mint" class="t-mint" icon="plus" onClick={() => editTxn(undefined, { kind: 'income', customerId: id })}>Payment</Btn>
           <Btn sm kind="t-rose" class="t-rose" icon="plus" onClick={() => editDebt(undefined, { customerId: id })}>Debt</Btn>
           <Btn sm kind="t-sky" class="t-sky" icon="plus" onClick={() => editEvent(undefined, { customerId: id })}>Event</Btn>
+          <Btn sm kind="t-lilac" class="t-lilac" icon="server" onClick={() => editRental(undefined, { customerId: id })}>Rental</Btn>
         </div>
         <div class="section-h"><h3>Projects</h3></div>
         {!projects.length && <Hint>No projects with this customer yet.</Hint>}
@@ -220,6 +223,7 @@ export function CustomerDetail({ id }: { id: string }) {
               <StatusChip status={p.status} /></div>
           </Card>
         ))}
+        {rentals.length > 0 && <><div class="section-h"><h3>Rentals</h3></div>{rentals.map(r => <RentalCard key={r.id} r={r} />)}</>}
         {debts.length > 0 && <><div class="section-h"><h3>Debts</h3></div>{debts.map(d => <DebtCard key={d.id} d={d} />)}</>}
         {events.length > 0 && <><div class="section-h"><h3>Upcoming</h3></div><div class="card flush">{events.map(e => <EventRow key={e.id} e={e} showDate />)}</div></>}
         {txns.length > 0 && <><div class="section-h"><h3>Payments</h3></div><div class="card flush">{txns.map(t => <TxnRow key={t.id} t={t} extra={F.dateShort(t.date)} />)}</div></>}

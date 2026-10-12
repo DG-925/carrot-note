@@ -16,6 +16,7 @@ import { HomeScreen } from './screens/home'
 import { MoneyScreen } from './screens/money'
 import { CalendarScreen, DebtsScreen, GoalsScreen, InvitesScreen, NotesScreen, SearchScreen, TimeScreen } from './screens/more'
 import { ProjectDetail, ProjectsScreen } from './screens/projects'
+import { RentalDetail, RentalsScreen, rentalState } from './screens/rentals'
 
 function useNav() {
   const [, setTick] = useState(0)
@@ -65,6 +66,8 @@ function routeScreen(r: Route) {
   switch (r.name) {
     case 'project': return <ProjectDetail id={r.id} />
     case 'customer': return <CustomerDetail id={r.id} />
+    case 'rental': return <RentalDetail id={r.id} />
+    case 'rentals': return <RentalsScreen />
     case 'calendar': return <CalendarScreen />
     case 'time': return <TimeScreen />
     case 'customers': return <CustomersScreen />
@@ -181,6 +184,8 @@ function Drawer() {
   const running = data.time.find(isRunning)
   const trackedToday = data.time.filter(t => F.dayOfMs(t.start) === today).reduce((a, t) => a + duration(t), 0)
   const openDebts = data.debt.filter(d => !debtSettled(d)).length
+  const activeRentals = data.rental.filter(r => r.status === 'active')
+  const renewSoon = activeRentals.filter(r => ['expired', 'soon'].includes(rentalState(r))).length
 
   const tiles: [string, string, string, string, string][] = [
     ['Home', 'home', 'orange', 'home', 'Your day'],
@@ -189,6 +194,7 @@ function Drawer() {
     ['Notes', 'note', 'lilac', 'notes', F.plural(data.note.length, 'note')],
     ['Calendar', 'calendar', 'butter', 'calendar', dueToday + eventsToday ? `${dueToday + eventsToday} today` : 'Holidays & plans'],
     ['Time', 'timer', 'mint', 'time', running ? 'Tracking now' : `${F.hours(trackedToday).toFixed(1)} h today`],
+    ['Rentals', 'server', 'sky', 'rentals', renewSoon ? `${renewSoon} to renew` : `${activeRentals.length} active`],
     ['Customers', 'users', 'rose', 'customers', `${data.customer.length} saved`],
     ['Debts', 'debt', 'butter', 'debts', openDebts ? `${openDebts} open` : 'All settled'],
     ['Savings', 'goal', 'lilac', 'goals', F.plural(data.goal.length, 'goal')],

@@ -8,6 +8,7 @@ import { Icon } from '../icons'
 import { pop as popNav, push } from '../nav'
 import { EventRow, NoteCard, ProjectCard, TaskRow, TimeRow, TxnRow, projectReceived, projectValue } from '../rows'
 import { useApp } from '../store'
+import { RentalCard, editRental } from './rentals'
 import { duration, isRunning, type Project, type PublicUser, type SpaceInfo, type SpaceMember } from '../types'
 import {
   Avatar, AvatarStack, Bar, Btn, Card, Chips, Empty, Eyebrow, Hero, Hint, MainHeader, PageHeader, Round, SearchBar, Seg, SheetTitle,
@@ -165,6 +166,10 @@ export function ProjectDetail({ id }: { id: string }) {
                 <div class="row"><div class="grow"><div class="small muted semibold">{it.label}</div><div style={{ overflowWrap: 'anywhere' }}>{it.value}</div></div><Icon name="copy" size={14} class="muted" /></div>
               </Card>
             ))}
+            <div class="section-h"><h3>Rentals</h3><button class="link" onClick={() => editRental(undefined, { projectId: id, customerId: p.customerId })}>+ Add</button></div>
+            {s.data.rental.filter(r => r.projectId === id).length
+              ? s.data.rental.filter(r => r.projectId === id).map(r => <RentalCard key={r.id} r={r} />)
+              : <Hint>VPS, hosting, bots or domains you rent for this project.</Hint>}
             <div class="section-h"><h3>Events & meetings</h3><button class="link" onClick={() => editEvent(undefined, { projectId: id })}>+ Add</button></div>
             {events.length ? <div class="card flush">{events.map(e => <EventRow key={e.id} e={e} showDate />)}</div> : <Hint>No events. Add meetings, calls or delivery dates.</Hint>}
           </>}

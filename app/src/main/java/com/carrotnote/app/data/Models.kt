@@ -204,6 +204,48 @@ data class Budget(
     val createdAt: Long = nowMs(),
 )
 
+/** One renewal of a [Rental]: the period it now covers and what was paid each way. */
+@Serializable
+data class RentalRenewal(
+    val id: String = newId(),
+    val date: Long = 0,
+    val from: Long? = null,
+    val to: Long? = null,
+    val cost: Double = 0.0,
+    val price: Double = 0.0,
+    val note: String = "",
+)
+
+/**
+ * Something rented to a client: a VPS, hosting, a bot, a domain... [cost] is what it costs me and
+ * [price] what the client pays, both per [period] ("monthly", "quarterly", "half", "yearly" or
+ * "once"). Dates are epoch days; [expiryTime] is minutes of the day, null for midnight.
+ */
+@Serializable
+data class Rental(
+    val id: String = newId(),
+    val kind: String = "vps",
+    val name: String = "",
+    val provider: String = "",
+    val customerId: String? = null,
+    val projectId: String? = null,
+    val clientName: String = "",
+    val startDate: Long? = null,
+    val expiryDate: Long? = null,
+    val expiryTime: Int? = null,
+    val period: String = "monthly",
+    val cost: Double = 0.0,
+    val costCurrency: String = "USD",
+    val price: Double = 0.0,
+    val priceCurrency: String = "USD",
+    val reminder: Boolean = true,
+    val remindDays: Int = 3,
+    val status: String = "active",
+    val details: String = "",
+    val renewals: List<RentalRenewal> = emptyList(),
+    val createdAt: Long = nowMs(),
+)
+
 @Serializable
 data class SpaceMember(
     val id: String,
