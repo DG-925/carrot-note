@@ -11,6 +11,12 @@ function sample() {
   const projects = [
     { id: 'p1', name: 'Bakery POS app', customerId: 'c1', clientName: 'Nour Bakery', price: 18000, currency: 'EGP', status: 'active', startDate: t - 40, deadline: t + 12, description: 'Point of sale app with offline mode and Arabic receipts.', info: [{ label: 'Staging', value: 'pos-staging.example.com' }], billing: 'fixed', hourlyRate: 0, repo: 'github.com/example/bakery-pos', createdAt: now - 40 * DAY },
     { id: 'p2', name: 'Portfolio site', customerId: null, clientName: 'Lina Hassan', price: 10000, currency: 'EGP', status: 'active', startDate: t - 10, deadline: t + 21, description: '', info: [], billing: 'fixed', hourlyRate: 0, repo: '', createdAt: now - 10 * DAY },
+    { id: 'p4', kind: 'product', name: 'CarrotPOS', customerId: null, clientName: '', price: 1200, currency: 'EGP', status: 'active', startDate: t - 120, deadline: null, description: 'Our POS system, rented monthly to shops.', info: [], billing: 'fixed', hourlyRate: 0, repo: '', createdAt: now - 120 * DAY,
+      partners: [{ id: 'u1', userId: 'u1', name: 'Adham Kassem', share: 60 }, { id: 'pt2', userId: null, name: 'Karim', share: 40 }],
+      splits: [
+        { id: 'sp1', date: t - 3, title: 'Cafe Roma · October', amount: 1200, cost: 200, currency: 'EGP', rentalId: 'r5', shares: [{ partnerId: 'u1', amount: 600, paid: true }, { partnerId: 'pt2', amount: 400, paid: false }], note: '' },
+        { id: 'sp2', date: t - 33, title: 'Cafe Roma · September', amount: 1200, cost: 200, currency: 'EGP', rentalId: 'r5', shares: [{ partnerId: 'u1', amount: 600, paid: true }, { partnerId: 'pt2', amount: 400, paid: true }], note: '' },
+      ] },
     { id: 'p3', name: 'Gym booking API', customerId: null, clientName: 'FitZone', price: 0, currency: 'EGP', status: 'on_hold', startDate: t - 60, deadline: t + 34, description: '', info: [], billing: 'hourly', hourlyRate: 450, repo: '', createdAt: now - 60 * DAY },
   ]
   const txn = (kind: string, amount: number, cat: string, method: string, d: number, note = '', projectId: string | null = null) =>
@@ -51,6 +57,8 @@ function sample() {
     rental: [
       { id: 'r1', monitor: true, monitorUrl: '65.21.10.4:22', kind: 'vps', name: 'Bakery POS server', provider: 'Hetzner', customerId: 'c1', projectId: 'p1', clientName: 'Nour Bakery', startDate: t - 50, expiryDate: t + 2, expiryTime: null, period: 'monthly', cost: 350, costCurrency: 'EGP', price: 900, priceCurrency: 'EGP', reminder: true, remindDays: 3, status: 'active', details: 'IP 65.21.10.4\nUbuntu 24.04 · 4 GB RAM', renewals: [{ id: id(), date: t - 28, from: t - 28, to: t + 2, cost: 350, price: 900, note: '' }], createdAt: now },
       { id: 'r2', monitor: true, monitorUrl: 'https://linahassan.design', kind: 'domain', name: 'linahassan.design', provider: 'Namecheap', customerId: null, projectId: 'p2', clientName: 'Lina Hassan', startDate: t - 200, expiryDate: t + 165, expiryTime: null, period: 'yearly', cost: 15, costCurrency: 'USD', price: 25, priceCurrency: 'USD', reminder: true, remindDays: 14, status: 'active', details: 'Nameservers: Cloudflare', renewals: [], createdAt: now },
+      { id: 'r5', kind: 'app', name: 'CarrotPOS', provider: '', customerId: null, projectId: 'p4', clientName: 'Cafe Roma', startDate: t - 63, expiryDate: t + 27, expiryTime: null, period: 'monthly', cost: 200, costCurrency: 'EGP', price: 1200, priceCurrency: 'EGP', reminder: true, remindDays: 3, status: 'active', details: '', renewals: [], createdAt: now },
+      { id: 'r6', kind: 'app', name: 'CarrotPOS', provider: '', customerId: null, projectId: 'p4', clientName: 'Sweet Corner', startDate: t - 28, expiryDate: t + 2, expiryTime: null, period: 'monthly', cost: 200, costCurrency: 'EGP', price: 1000, priceCurrency: 'EGP', reminder: true, remindDays: 3, status: 'active', details: '', renewals: [], createdAt: now },
       { id: 'r3', kind: 'bot', name: 'FitZone booking bot', provider: 'Contabo', customerId: null, projectId: null, clientName: 'FitZone', startDate: t - 95, expiryDate: t - 1, expiryTime: null, period: 'quarterly', cost: 600, costCurrency: 'EGP', price: 1800, priceCurrency: 'EGP', reminder: true, remindDays: 7, status: 'active', details: '', renewals: [], createdAt: now },
     ],
     invoice: [
@@ -139,7 +147,7 @@ export function installMock() {
   let github: string = params.has('nogh') ? '' : 'adham-dev'
   const emit = (name: string, payload: unknown) => setTimeout(() => window.__native.emit(name, payload), 0)
   const state = () => ({
-    signedIn, locked, version: '1.8.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
+    signedIn, locked, version: '1.9.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
     user: { id: 'u1', email: 'you@example.com', name: 'Adham Kassem', username: 'adham', bio: 'Freelance Android and web developer.', github, avatarRev: 0 },
     settings: { currency: 'EGP', theme, autoUpdate: true },
     lock: { pinEnabled: true, pinLength: 4, biometric: false, biometricAvailable: false, delay: 30, secureScreen: false },

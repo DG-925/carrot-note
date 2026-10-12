@@ -21,6 +21,7 @@ const words: Record<string, [string, string]> = {
   note: ['ملاحظة', 'ملاحظات'], task: ['مهمة', 'مهام'], event: ['موعد', 'مواعيد'], day: ['يوم', 'أيام'], goal: ['هدف', 'أهداف'],
   member: ['عضو', 'أعضاء'], result: ['نتيجة', 'نتائج'], round: ['جولة', 'جولات'], birthday: ['عيد ميلاد', 'أعياد ميلاد'],
   'active rental': ['إيجار نشط', 'إيجارات نشطة'], 'focus round': ['جولة تركيز', 'جولات تركيز'], item: ['عنصر', 'عناصر'], step: ['خطوة', 'خطوات'],
+  renter: ['مستأجر', 'مستأجرين'], 'active renter': ['مستأجر نشط', 'مستأجرين نشطين'],
 }
 const count = (n: number, w: string) => {
   const forms = words[w]
@@ -43,8 +44,23 @@ const tr = (t: string) => phrase(t) ?? t
 
 const patterns: [RegExp, (m: RegExpExecArray) => string | null][] = [
   [/^(Good morning|Good afternoon|Good evening), (.+)$/, m => `${tr(m[1])}، ${m[2]}`],
-  [/^(\d+) (notes?|tasks?|events?|days?|goals?|members?|results?|rounds?|birthdays?|active rentals?|focus rounds?|items?|steps?)$/, m => count(+m[1], m[2].replace(/s$/, ''))],
+  [/^(\d+) (notes?|tasks?|events?|days?|goals?|members?|results?|rounds?|birthdays?|active rentals?|focus rounds?|items?|steps?|renters?|active renters?)$/, m => count(+m[1], m[2].replace(/s$/, ''))],
   [/^(\d+) active$/, m => `${m[1]} نشط`],
+  [/^Product · (.+)$/, m => `منتج · ${tr(m[1])}`],
+  [/^(\d+) renters? to renew soon$/, m => `${m[1]} للتجديد قريبًا`],
+  [/^([\d.]+)% share$/, m => `حصة ${m[1]}٪`],
+  [/^(-?[\d,.]+ [A-Z]{3,4}(?: · -?[\d,.]+ [A-Z]{3,4})*) \/ month$/, m => `${m[1]} / شهر`],
+  [/^(-?[\d,.]+ [A-Z]{3,4}(?: · -?[\d,.]+ [A-Z]{3,4})*)\/mo$/, m => `${m[1]}/شهر`],
+  [/^profit (-?[\d,.]+ [A-Z]{3,4}.*)$/, m => `ربح ${m[1]}`],
+  [/^(.+) · cost (.+)$/, m => `${m[1]} · تكلفة ${m[2]}`],
+  [/^Brought in (.+) · profit (.+)$/, m => `دخل ${m[1]} · ربح ${m[2]}`],
+  [/^Who made what · profit (.+)$/, m => `مَن ربح كم · الربح ${m[1]}`],
+  [/^(.+) of the profit isn't given to anyone yet\.$/, m => `${m[1]} من الربح لم يُعطَ لأحد بعد.`],
+  [/^That's (.+) more than the profit\.$/, m => `هذا أكثر من الربح بـ ${m[1]}.`],
+  [/^Total ([\d.]+)%$/, m => `الإجمالي ${m[1]}٪`],
+  [/^Total ([\d.]+)% \(it works out of whatever the total is, 100% is easiest to read\)$/, m => `الإجمالي ${m[1]}٪ (يُحسب من أي إجمالي، و١٠٠٪ أسهل للقراءة)`],
+  [/^(.+)\. You can change the amounts later in (.+) › Partners\.$/, m => `${m[1]}. يمكنك تعديل المبالغ لاحقًا في ${m[2]} › الشركاء.`],
+  [/^Add everyone who rents (.+): what they pay, when it started and when it runs out\. You get a reminder before each one expires\.$/, m => `أضف كل من يستأجر ${m[1]}: كم يدفع، ومتى بدأ ومتى ينتهي. ستصلك تذكرة قبل انتهاء كل واحد.`],
   [/^(\d+) saved$/, m => `${m[1]} محفوظ`],
   [/^(\d+) open$/, m => `${m[1]} مفتوح`],
   [/^(\d+) to renew$/, m => `${m[1]} للتجديد`],

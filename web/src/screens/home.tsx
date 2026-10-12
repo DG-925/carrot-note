@@ -4,7 +4,7 @@ import { editEvent, editNote, editProject, editTask, editTxn } from '../editors'
 import { Icon } from '../icons'
 import { goTab, push } from '../nav'
 import { EventRow, projectReceived, projectValue, TaskRow } from '../rows'
-import { expiresAt, rentalState } from './rentals'
+import { expiresAt, productStats, rentalState } from './rentals'
 import { rentalKind } from '../types'
 import { togglePrivacy, useApp } from '../store'
 import { InMain } from './money'
@@ -223,6 +223,19 @@ function ProjectLine({ p }: { p: Project }) {
   const value = projectValue(p, tracked)
   const progress = value > 0 ? Math.min(1, projectReceived(p, s.data.txn) / value) : 0
   const late = p.deadline != null && p.deadline < F.today()
+  if (p.kind === 'product') {
+    const st = productStats(p.id, s.data.rental)
+    return (
+      <div class="item" onClick={() => push({ name: 'project', id: p.id })}>
+        <Ring value={st.active.length ? 1 : 0} size={44}><Icon name="laptop" size={15} /></Ring>
+        <div class="main">
+          <div class="t" style={{ fontWeight: 700 }}>{p.name}</div>
+          <div class="s" style={st.attention ? { color: 'var(--bad)' } : undefined}>{F.plural(st.active.length, 'renter')}{st.attention ? ` · ${st.attention} to renew` : ''}</div>
+        </div>
+        {st.active.length > 0 && <div class="num bold amt good small">{F.totals(st.income, p.currency)}/mo</div>}
+      </div>
+    )
+  }
   return (
     <div class="item" onClick={() => push({ name: 'project', id: p.id })}>
       <Ring value={progress} size={44} />

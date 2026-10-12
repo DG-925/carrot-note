@@ -23,6 +23,7 @@ import { ReportScreen } from './screens/report'
 import { VaultScreen } from './screens/vault'
 import { RecurringScreen } from './screens/recurring'
 import { runRecurring } from './recurring'
+import { startMasonry } from './masonry'
 
 function useNav() {
   const [, setTick] = useState(0)
@@ -413,5 +414,6 @@ function UpdateDialog() {
 
 const root = document.getElementById('app')!
 if (currentLang() === 'ar') startArabic(document.body)
+if (isDesktop) startMasonry(root)
 render(<App />, root)
 ready()

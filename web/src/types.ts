@@ -6,6 +6,20 @@ export interface Project {
   id: string; name: string; customerId?: string | null; clientName: string; price: number; currency: string
   status: string; startDate?: number | null; deadline?: number | null; description: string; info: InfoItem[]
   billing: string; hourlyRate: number; repo: string; createdAt: number
+  /** "work" (done for a client) or "product" (something we built and rent out). */
+  kind?: string
+  /** People who share what the project earns, with their usual share in percent. */
+  partners?: ProjectPartner[]
+  /** Money the project earned and how much of it each partner made. */
+  splits?: ProjectSplit[]
+}
+
+/** A partner is either a team member ([userId]) or just a name. */
+export interface ProjectPartner { id: string; userId?: string | null; name: string; share: number }
+export interface SplitShare { partnerId: string; amount: number; paid: boolean }
+export interface ProjectSplit {
+  id: string; date: number; title: string; amount: number; cost: number; currency: string
+  rentalId?: string | null; shares: SplitShare[]; note: string
 }
 
 export interface TaskItem {
@@ -159,9 +173,10 @@ export const rentalKinds: { value: string; label: string; icon: string }[] = [
   { value: 'hosting', label: 'Hosting', icon: 'cloud' },
   { value: 'bot', label: 'Bot', icon: 'bot' },
   { value: 'domain', label: 'Domain', icon: 'globe' },
+  { value: 'app', label: 'App / software', icon: 'laptop' },
   { value: 'other', label: 'Other', icon: 'box' },
 ]
-export const rentalKind = (k: string) => rentalKinds.find(x => x.value === k) ?? rentalKinds[4]
+export const rentalKind = (k: string) => rentalKinds.find(x => x.value === k) ?? rentalKinds[rentalKinds.length - 1]
 export const rentalPeriods: { value: string; label: string; short: string; months: number }[] = [
   { value: 'monthly', label: 'Monthly', short: 'month', months: 1 },
   { value: 'quarterly', label: 'Every 3 months', short: '3 months', months: 3 },

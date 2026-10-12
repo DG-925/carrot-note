@@ -28,6 +28,31 @@ data class Project(
     val hourlyRate: Double = 0.0,
     val repo: String = "",
     val createdAt: Long = nowMs(),
+    /** "work" (done for a client) or "product" (something we built and rent out). */
+    val kind: String = "work",
+    /** People who share what the project earns, with their usual share in percent. */
+    val partners: List<ProjectPartner> = emptyList(),
+    /** Money the project earned and how much of it each partner made. */
+    val splits: List<ProjectSplit> = emptyList(),
+)
+
+@Serializable
+data class ProjectPartner(val id: String = newId(), val userId: String? = null, val name: String = "", val share: Double = 0.0)
+
+@Serializable
+data class SplitShare(val partnerId: String = "", val amount: Double = 0.0, val paid: Boolean = false)
+
+@Serializable
+data class ProjectSplit(
+    val id: String = newId(),
+    val date: Long = 0,
+    val title: String = "",
+    val amount: Double = 0.0,
+    val cost: Double = 0.0,
+    val currency: String = "USD",
+    val rentalId: String? = null,
+    val shares: List<SplitShare> = emptyList(),
+    val note: String = "",
 )
 
 object Billing {

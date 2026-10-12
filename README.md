@@ -16,6 +16,13 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.9: products you rent out, and partners
+
+- **Product projects**: when you create a project, choose "Client work" or "Product we rent". A product (like a POS system) gets a **Renters** tab: who rents it, what they pay, when it started and when it runs out, with the same countdowns, reminders and Renew button as other rentals. The project shows renters, monthly income, costs and profit.
+- **Partners**: every project has a **Partners** tab. Set each partner's usual share (team members are added automatically; people without the app can be added by name). Add each payment the project brings in and split it by shares or with custom amounts. Each partner sees how much they made, how much they've received, and what's still owed to them. When you renew a renter, the profit can be split automatically.
+- Partners and earnings are saved in the project itself, so everyone in a shared project sees the same numbers. Renters stay private to you, like other rentals.
+- **Big screens**: on the Windows app, cards now pack together with no gaps, the page uses the whole window at any size (1080p, 1440p, 4K), and the chart on the orange card no longer stretches.
+
 ### New in 1.8: Carrot Note for Windows
 
 A desktop app built with **Tauri + TypeScript**. Download `carrot-note-vX.Y.Z-windows-setup.exe` (or the `.msi`) from the [latest release](https://github.com/DG-925/carrot-note/releases/latest), install it, and sign in with the same account: everything syncs with the phone app.

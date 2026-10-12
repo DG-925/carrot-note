@@ -92,7 +92,7 @@ export function Chips<T extends string>({ options, value, onChange, label, icon,
 export function Seg({ options, value, onChange, i }: { options: { label: string; icon?: string }[]; value: number; onChange: (i: number) => void; i?: number }) {
   return (
     <div class={cx('seg', i != null && 'pop')} style={i != null ? ({ '--i': i } as any) : undefined}>
-      <span class="knob" style={{ width: `calc((100% - 8px) / ${options.length})`, transform: `translateX(${value * 100}%)` }} />
+      <span class="knob" style={{ width: `calc((100% - 8px) / ${options.length})`, transform: `translateX(${(document.documentElement.dir === 'rtl' ? -1 : 1) * value * 100}%)` }} />
       {options.map((o, idx) => (
         <button key={o.label} class={idx === value ? 'on' : ''} onClick={() => onChange(idx)}>
           {o.icon && <Icon name={o.icon} size={13} />}
@@ -138,10 +138,19 @@ export function Ring({ value, size = 44, stroke = 4.5, color = 'var(--accent)', 
   )
 }
 
-/** Smooth line through [values] that draws itself. */
+/** Smooth line through [values] that draws itself. Drawn at its real width so it never stretches. */
 export function Spark({ values, height = 44, color = '#fff' }: { values: number[]; height?: number; color?: string }) {
+  const ref = useRef<SVGSVGElement>(null)
+  const [w, setW] = useState(300)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => { const x = Math.round(el.getBoundingClientRect().width); if (x > 20) setW(x) })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   if (values.length < 2) return null
-  const w = 300, pad = 4
+  const pad = 4
   const min = Math.min(...values), max = Math.max(...values)
   const span = max - min || 1
   const pts = values.map((v, i) => [pad + (i * (w - pad * 2)) / (values.length - 1), height - pad - ((v - min) / span) * (height - pad * 2)])
@@ -152,8 +161,8 @@ export function Spark({ values, height = 44, color = '#fff' }: { values: number[
   }
   const last = pts[pts.length - 1]
   return (
-    <svg class="spark" viewBox={`0 0 ${w} ${height}`} preserveAspectRatio="none" style={{ width: '100%', height, overflow: 'visible' }}>
-      <path d={d} pathLength={1} fill="none" stroke={color} stroke-width={3} stroke-linecap="round" vector-effect="non-scaling-stroke" />
+    <svg ref={ref} class="spark" viewBox={`0 0 ${w} ${height}`} style={{ width: '100%', height, overflow: 'visible', display: 'block' }}>
+      <path d={d} pathLength={1} fill="none" stroke={color} stroke-width={3} stroke-linecap="round" />
       <circle cx={last[0]} cy={last[1]} r={4} fill={color} style={{ animation: 'fadeIn .3s 1.4s both' }} />
     </svg>
   )

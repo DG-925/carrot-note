@@ -245,6 +245,7 @@ h1, h2, h3, h4 { margin: 0; font-family: var(--display); letter-spacing: -0.02em
   position: absolute; top: 4px; bottom: 4px; left: 4px; border-radius: 16px; background: var(--ink);
   transition: transform .5s var(--spring);
 }
+[dir="rtl"] .seg .knob { left: auto; right: 4px; }
 :root[data-theme="dark"] .seg .knob { background: var(--accent); }
 .seg button {
   position: relative; flex: 1; height: 40px; display: flex; align-items: center; justify-content: center; gap: 7px;
@@ -798,15 +799,19 @@ html.desktop button, html.desktop .press { cursor: pointer; }
   html.desktop .topbar .title { font-size: 30px; }
   html.desktop .topbar .title.big { font-size: 34px; }
   html.desktop .content, html.desktop .content.no-tabbar {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; align-items: start;
-    padding: 6px 36px 120px; max-width: 1500px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); grid-auto-rows: 8px; column-gap: 18px; row-gap: 0;
+    align-items: start; padding: 6px 36px 120px; max-width: none;
   }
   /* Everything spans the full width, except cards and tiles, which flow side by side. */
   html.desktop .content > * { grid-column: 1 / -1; }
   html.desktop .content > .card:not(.flush):not(.wide), html.desktop .content > .tile:not(.wide), html.desktop .content > .grid2 { grid-column: auto; }
-  html.desktop .notes { columns: 4 240px; column-gap: 14px; }
+  html.desktop .notes { columns: 260px; column-gap: 14px; }
   html.desktop .hero { padding: 28px 30px; }
+  html.desktop .hero::before { width: 340px; height: 340px; right: -110px; top: -170px; }
+  html.desktop .content > .chips { margin: 0; padding: 2px 0; flex-wrap: wrap; overflow: visible; }
+  html.desktop .shortcut { width: 104px; }
   html.desktop .add-fab, html.desktop .add-fab.low { bottom: 28px; right: 36px; }
+  html.desktop[dir="rtl"] .add-fab, html.desktop[dir="rtl"] .add-fab.low { right: auto; left: 36px; }
   html.desktop .toast { bottom: 40px; }
   html.desktop .board { grid-auto-columns: minmax(300px, 1fr); margin: 0; padding: 2px 0 8px; }
   html.desktop .cal-grid .day { aspect-ratio: auto; height: 64px; }
@@ -831,3 +836,36 @@ html.desktop button, html.desktop .press { cursor: pointer; }
   @keyframes modalIn { from { opacity: 0; transform: translate(-50%, -46%) scale(.97); } }
   @keyframes modalOut { to { opacity: 0; transform: translate(-50%, -48%) scale(.98); } }
 }
+
+/* Wider windows: when cards follow it, the big orange card sits beside them instead of stretching across. */
+@media (min-width: 1440px) {
+  html.desktop .content > .hero:has(+ .card:not(.flush):not(.wide), + .tile:not(.wide), + .grid2) { grid-column: span 2; }
+}
+@media (min-width: 2000px) {
+  html.desktop .content, html.desktop .content.no-tabbar { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); padding-inline: 48px; }
+  html.desktop .topbar { padding-inline: 48px; }
+}
+@media (min-width: 2600px) {
+  html.desktop .content > .hero:has(+ .card:not(.flush):not(.wide), + .tile:not(.wide), + .grid2) { grid-column: span 3; }
+}
+
+/* ------------------------------------------------------------------ partners */
+
+.partner-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.partner { background: var(--bg); border-radius: 18px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.partner .totals-list > div { font-size: 13.5px; }
+.partner .totals-list > div.strong { font-size: 14px; }
+.partner .totals-list > div.strong b { font-size: 15px; }
+.partner-ico { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; flex: none; background: var(--bg); color: var(--muted); }
+.partner-ico.t-mint { background: var(--mint); color: var(--on-mint); }
+.share-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.share-chip { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 99px; background: var(--bg); font-size: 12.5px; color: var(--muted); }
+.share-chip b { color: var(--fg); }
+.share-chip.paid { color: var(--good); }
+.share-input { width: 92px; border: 0; outline: 0; background: var(--bg); border-radius: 12px; padding: 8px 10px; text-align: end; font: 700 15px var(--display); color: var(--fg); }
+.paid-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 99px; background: var(--bg); color: var(--muted); font-size: 12px; font-weight: 700; flex: none; }
+.paid-btn.on { background: var(--mint); color: var(--on-mint); }
+.kind-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.kind-pick button { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border-radius: 18px; background: var(--bg); color: var(--fg); text-align: start; border: 2px solid transparent; }
+.kind-pick button.on { border-color: var(--accent); }
+.kind-pick button svg { color: var(--accent); }

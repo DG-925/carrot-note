@@ -298,36 +298,48 @@ function ProjectForm({ item, defaults, close }: { item?: Project; defaults: { cu
   const [rate, setRate] = useState(F.amountText(base.hourlyRate))
   const up = (x: Partial<Project>) => set({ ...p, ...x })
   const setInfo = (i: number, x: Partial<InfoItem>) => up({ info: p.info.map((it, j) => (j === i ? { ...it, ...x } : it)) })
-  const hourly = p.billing === 'hourly'
+  const product = p.kind === 'product'
+  const hourly = !product && p.billing === 'hourly'
   return (
     <Form title={item ? 'Edit project' : 'New project'} close={close} saveEnabled={!!p.name.trim()}
       onSave={async () => {
         const customer = byId('customer', p.customerId)
+        // Partners and earnings may have changed (or synced from a partner) while this form was open.
+        const latest = byId('project', p.id)
         await save('project', {
-          ...p, name: p.name.trim(), clientName: customer?.name ?? p.clientName.trim(),
+          ...p, partners: latest?.partners ?? p.partners, splits: latest?.splits ?? p.splits, name: p.name.trim(), clientName: customer?.name ?? p.clientName.trim(),
           price: F.parseAmount(price) ?? 0, hourlyRate: F.parseAmount(rate) ?? 0, currency: p.currency || s.settings.currency,
           description: p.description.trim(), repo: p.repo.trim(), info: p.info.filter(i => i.label.trim() || i.value.trim()),
         })
         close()
       }}
       onDelete={item && isOwner ? () => { remove('project', item.id); close() } : undefined}>
-      <Field label="Project name" value={p.name} onInput={v => up({ name: v })} autoFocus={!item} />
-      {(!p.customerId || !isOwner) && <Field label="Client name (optional)" value={p.clientName} onInput={v => up({ clientName: v })} />}
+      <div class="kind-pick">
+        {([['work', 'briefcase', 'Client work', 'I build it for a client'], ['product', 'laptop', 'Product we rent', 'We built it and rent it out']] as const).map(([k, icon, t, sub]) => (
+          <button key={k} class={(p.kind ?? 'work') === k ? 'on' : ''} onClick={() => up({ kind: k, billing: k === 'product' ? 'fixed' : p.billing })}>
+            <Icon name={icon} size={18} /><b>{t}</b><span class="tiny muted">{sub}</span>
+          </button>
+        ))}
+      </div>
+      <Field label={product ? 'Product name' : 'Project name'} value={p.name} placeholder={product ? 'e.g. CarrotPOS' : undefined} onInput={v => up({ name: v })} autoFocus={!item} />
+      {!product && (!p.customerId || !isOwner) && <Field label="Client name (optional)" value={p.clientName} onInput={v => up({ clientName: v })} />}
       <div class="row" style={{ alignItems: 'stretch' }}>
         <div style={{ flex: 1.4 }}>
           {hourly
             ? <Field label="Rate per hour" value={rate} inputMode="decimal" onInput={setRate} />
-            : <Field label="Price" value={price} inputMode="decimal" onInput={setPrice} />}
+            : <Field label={product ? 'Usual rent price (per month)' : 'Price'} value={price} inputMode="decimal" onInput={setPrice} />}
         </div>
         <div style={{ flex: 1 }}><CurrencyField value={p.currency} onChange={v => up({ currency: v })} /></div>
       </div>
       <SelectField label="Status" value={p.status} onChange={v => up({ status: v })}
         options={[{ value: 'active', label: 'Active' }, { value: 'on_hold', label: 'On hold' }, { value: 'done', label: 'Done' }, { value: 'cancelled', label: 'Cancelled' }]} />
-      <DateField label="Deadline" value={p.deadline} onChange={v => up({ deadline: v })} />
+      {!product && <DateField label="Deadline" value={p.deadline} onChange={v => up({ deadline: v })} />}
       <MoreOptions startOpen={!!base.repo || (!!item && (!!base.description || base.info.length > 0 || base.billing === 'hourly'))}>
-        {isOwner && <CustomerPicker value={p.customerId} onChange={v => up({ customerId: v })} none="No saved customer" />}
-        <FieldLabel>Billing</FieldLabel>
-        <Seg options={[{ label: 'Fixed price', icon: 'tag' }, { label: 'Hourly', icon: 'timer' }]} value={hourly ? 1 : 0} onChange={i => up({ billing: i === 1 ? 'hourly' : 'fixed' })} />
+        {isOwner && !product && <CustomerPicker value={p.customerId} onChange={v => up({ customerId: v })} none="No saved customer" />}
+        {!product && <>
+          <FieldLabel>Billing</FieldLabel>
+          <Seg options={[{ label: 'Fixed price', icon: 'tag' }, { label: 'Hourly', icon: 'timer' }]} value={hourly ? 1 : 0} onChange={i => up({ billing: i === 1 ? 'hourly' : 'fixed' })} />
+        </>}
         <DateField label="Start date" value={p.startDate} onChange={v => up({ startDate: v })} />
         <Field label="Description / scope" multiline value={p.description} onInput={v => up({ description: v })} />
         <RepoField value={p.repo} onChange={v => up({ repo: v })} />

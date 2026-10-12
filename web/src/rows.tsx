@@ -5,6 +5,7 @@ import { askForPayment, editDebt, editEvent, editGoal, editNote, editTask, editT
 import { categoryIcon, Icon } from './icons'
 import { push } from './nav'
 import { setEventDone, setTaskDone, useApp } from './store'
+import { productStats } from './screens/rentals'
 import {
   debtPaid, debtRemaining, debtSettled, duration, goalProgress, goalSaved, isRunning,
   type CalEvent, type Debt, type Goal, type Note, type Project, type SpaceInfo, type TaskItem, type TimeEntry, type Txn,
@@ -151,6 +152,29 @@ export function ProjectCard({ p, space, i }: { p: Project; space?: SpaceInfo; i?
   const progress = value > 0 ? Math.min(1, received / value) : 0
   const open = s.data.task.filter(t => t.projectId === p.id && !t.done).length
   const color = p.status === 'done' ? 'var(--good)' : p.status === 'cancelled' ? 'var(--bad)' : p.status === 'active' ? 'var(--accent)' : '#7C5CE0'
+  if (p.kind === 'product') {
+    const st = productStats(p.id, s.data.rental)
+    return (
+      <div class={'card press' + (i != null ? ' pop' : '')} style={i != null ? ({ '--i': i } as any) : undefined} onClick={() => push({ name: 'project', id: p.id })}>
+        <div class="row">
+          <Ring value={st.active.length ? 1 : 0} size={54} stroke={5} color={color}><Icon name="laptop" size={18} /></Ring>
+          <div class="grow">
+            <div class="row" style={{ gap: 6 }}><div class="h-sm ellipsis">{p.name}</div>{space && <Icon name="team" size={13} class="muted" />}</div>
+            <div class="small muted ellipsis">Product · {F.plural(st.active.length, 'renter')}</div>
+            <div style={{ marginTop: 6 }}><StatusChip status={p.status} /></div>
+          </div>
+        </div>
+        {st.active.length > 0 && <div class="row between small" style={{ marginTop: 12 }}>
+          <span class="num bold amt good">{F.totals(st.income, p.currency)} / month</span><span class="muted amt">profit {F.totals(st.profit, p.currency)}</span>
+        </div>}
+        {(st.attention > 0 || (space && space.members.length > 1)) && <div class="row" style={{ marginTop: 12, gap: 8 }}>
+          {st.attention > 0 && <span class="meta bad"><Icon name="warning" size={10} />{st.attention} to renew</span>}
+          <span class="grow" />
+          {space && space.members.length > 1 && <AvatarStack people={space.members} size={24} />}
+        </div>}
+      </div>
+    )
+  }
   return (
     <div class={'card press' + (i != null ? ' pop' : '')} style={i != null ? ({ '--i': i } as any) : undefined} onClick={() => push({ name: 'project', id: p.id })}>
       <div class="row">

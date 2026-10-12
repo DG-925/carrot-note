@@ -15,6 +15,7 @@ import {
   SearchBar, SheetTitle, SwitchRow, TimeField, attempt, cx, matches, openForm, openSheet, toast, useNow,
 } from '../ui'
 import { dateLocale } from '../i18n'
+import { addRentalSplit, partnersOf } from './partners'
 
 // ---------------------------------------------------------------- maths
 
@@ -62,6 +63,15 @@ export function monthlyTotals(list: Rental[]) {
     profit[r.costCurrency] = (profit[r.costCurrency] ?? 0) - r.cost / m
   }
   return { cost, income, profit }
+}
+
+/** A product's renters: the active ones, what they pay a month, the profit, and how many need renewing. */
+export function productStats(projectId: string, rentals: Rental[]) {
+  const mine = rentals.filter(r => r.projectId === projectId)
+  const active = mine.filter(r => r.status === 'active')
+  const t = monthlyTotals(active)
+  const now = Date.now()
+  return { all: mine, active, income: t.income, cost: t.cost, profit: t.profit, attention: active.filter(r => ['expired', 'soon'].includes(rentalState(r, now))).length }
 }
 
 const clientOf = (r: Rental) => byId('customer', r.customerId)?.name ?? (r.clientName || '')
@@ -195,14 +205,16 @@ export function RentalCard({ r, i }: { r: Rental; i?: number }) {
   const progress = start != null && end != null && end > start ? Math.max(0, Math.min(1, (now - start) / (end - start))) : 0
   const sameCur = r.costCurrency === r.priceCurrency
   const client = clientOf(r)
+  // A renter of one of my products is known by who rents it.
+  const renter = r.kind === 'app' && !!client
   return (
     <div class={'card press' + (i != null ? ' pop' : '') + (st === 'expired' ? ' rental-expired' : '')} style={i != null ? ({ '--i': i } as any) : undefined}
       onClick={() => push({ name: 'rental', id: r.id })}>
       <div class="row">
         <Ring value={st === 'expired' ? 1 : progress} size={50} stroke={5} color={stateColor[st]}><Icon name={kind.icon} size={16} /></Ring>
         <div class="grow" style={{ minWidth: 0 }}>
-          <div class="row" style={{ gap: 6 }}><div class="h-sm ellipsis">{r.name || kind.label}</div><UptimeDot r={r} /></div>
-          <div class="small muted ellipsis">{[kind.label, client, r.provider].filter(Boolean).join(' · ')}</div>
+          <div class="row" style={{ gap: 6 }}><div class="h-sm ellipsis">{renter ? client : r.name || kind.label}</div><UptimeDot r={r} /></div>
+          <div class="small muted ellipsis">{(renter ? [r.name || kind.label, r.provider] : [kind.label, client, r.provider]).filter(Boolean).join(' · ')}</div>
         </div>
         <div style={{ textAlign: 'end' }}>
           <div class="tiny muted semibold">{st === 'expired' ? '' : st === 'stopped' || st === 'nodate' ? '' : 'Expires in'}</div>
@@ -340,17 +352,18 @@ function UptimeCard({ r }: { r: Rental }) {
 
 // ---------------------------------------------------------------- editor
 
-export function editRental(item?: Rental, defaults: { customerId?: string | null; projectId?: string | null } = {}) {
+export function editRental(item?: Rental, defaults: Partial<Rental> = {}) {
   openForm(close => <RentalForm item={item} defaults={defaults} close={close} />)
 }
 
-function RentalForm({ item, defaults, close }: { item?: Rental; defaults: { customerId?: string | null; projectId?: string | null }; close: () => void }) {
+function RentalForm({ item, defaults, close }: { item?: Rental; defaults: Partial<Rental>; close: () => void }) {
   const st = getState()
   const cur = st.settings.currency
   const base: Rental = item ?? {
     id: newId(), kind: 'vps', name: '', provider: '', customerId: defaults.customerId ?? null, projectId: defaults.projectId ?? null, clientName: '',
     startDate: F.today(), expiryDate: F.addMonthsKeep(F.today(), 1), expiryTime: null, period: 'monthly',
     cost: 0, costCurrency: cur, price: 0, priceCurrency: cur, reminder: true, remindDays: 3, status: 'active', details: '', renewals: [], createdAt: Date.now(),
+    ...defaults,
   }
   const [r, set] = useState(base)
   const [cost, setCost] = useState(F.amountText(base.cost))
@@ -362,6 +375,7 @@ function RentalForm({ item, defaults, close }: { item?: Rental; defaults: { cust
   const c = F.parseAmount(cost) ?? 0, p = F.parseAmount(price) ?? 0
   const domain = r.kind === 'domain'
   const months = rentalPeriod(r.period).months
+  const product = byId('project', r.projectId)?.kind === 'product'
   const setPeriod = (period: string) => {
     const m = rentalPeriod(period).months
     // Keep the expiry in step with the start date while it is still the suggested one.
@@ -369,12 +383,12 @@ function RentalForm({ item, defaults, close }: { item?: Rental; defaults: { cust
     up({ period, expiryDate: suggested && r.startDate != null && m ? F.addMonthsKeep(r.startDate, m) : r.expiryDate })
   }
   return (
-    <Form title={item ? 'Edit rental' : 'New rental'} close={close} saveEnabled={!!r.name.trim() || !!r.clientName.trim() || !!r.customerId}
+    <Form title={product ? (item ? 'Edit renter' : 'New renter') : item ? 'Edit rental' : 'New rental'} close={close} saveEnabled={!!r.name.trim() || !!r.clientName.trim() || !!r.customerId}
       onSave={async () => {
         const customer = byId('customer', r.customerId)
         await save('rental', { ...r, name: r.name.trim(), provider: r.provider.trim(), clientName: customer?.name ?? r.clientName.trim(), details: r.details.trim(), cost: c, price: p })
         close()
-        if (!item) toast('Rental added')
+        if (!item) toast(product ? 'Renter added' : 'Rental added')
       }}
       onDelete={item ? () => { remove('rental', item.id); close(); popNav() } : undefined}>
       <FieldLabel>What is it?</FieldLabel>
@@ -397,7 +411,7 @@ function RentalForm({ item, defaults, close }: { item?: Rental; defaults: { cust
       )}
       {lookup && <Hint>{lookup}</Hint>}
       <CustomerPicker value={r.customerId} onChange={v => up({ customerId: v })} none="Not a saved customer" />
-      {!r.customerId && <Field label="Client name" value={r.clientName} icon="user" onInput={v => up({ clientName: v })} />}
+      {!r.customerId && <Field label={product ? 'Who rents it?' : 'Client name'} value={r.clientName} icon="user" onInput={v => up({ clientName: v })} />}
 
       <FieldLabel>Billing</FieldLabel>
       <Chips wrap options={rentalPeriods.map(x => x.value)} value={r.period} onChange={setPeriod} label={v => rentalPeriod(v).label} />
@@ -468,7 +482,11 @@ function RenewSheet({ r, close }: { r: Rental; close: () => void }) {
   const [recordPrice, setRecordPrice] = useState(r.price > 0)
   const [busy, setBusy] = useState(false)
   const c = F.parseAmount(cost) ?? 0, p = F.parseAmount(price) ?? 0
-  const label = r.name || rentalKind(r.kind).label
+  const label = r.kind === 'app' && clientOf(r) ? clientOf(r) : r.name || rentalKind(r.kind).label
+  const project = byId('project', r.projectId)
+  const partners = project ? partnersOf(project, getState().spaces.find(sp => sp.kind === 'project' && sp.projectId === project.id)) : []
+  const canSplit = partners.length > 1
+  const [split, setSplit] = useState(canSplit)
   const renew = async () => {
     setBusy(true)
     const today = F.today()
@@ -480,6 +498,12 @@ function RenewSheet({ r, close }: { r: Rental; close: () => void }) {
       const txn = { method: 'Cash', date: today, projectId: r.projectId ?? null, customerId: r.customerId ?? null, createdAt: Date.now() }
       if (recordCost && c > 0) await save('txn', { ...txn, id: newId(), kind: 'expense', amount: c, currency: r.costCurrency, category: 'Hosting & domains', note: `${label} renewal`, customerId: null })
       if (recordPrice && p > 0) await save('txn', { ...txn, id: newId(), kind: 'income', amount: p, currency: r.priceCurrency, category: 'Rentals', note: `${label}${clientOf(r) ? ' · ' + clientOf(r) : ''}` })
+      if (split && canSplit && project && p > 0) {
+        await addRentalSplit(project.id, {
+          date: today, title: `${clientOf(r) || label} · until ${F.dateShort(until)}`, amount: p,
+          cost: recordCost && r.costCurrency === r.priceCurrency ? c : 0, currency: r.priceCurrency, rentalId: r.id, note: '',
+        })
+      }
       toast(`Renewed until ${F.dateShort(until)}`)
     })
     setBusy(false)
@@ -496,6 +520,9 @@ function RenewSheet({ r, close }: { r: Rental; close: () => void }) {
           <SwitchRow title="The client paid me" sub="Adds it to your income" on={recordPrice} onChange={setRecordPrice} />
           {recordPrice && <Field label={`Amount (${r.priceCurrency})`} value={price} inputMode="decimal" onInput={setPrice} />}
         </div>
+        {canSplit && recordPrice && <div class="card in-card">
+          <SwitchRow title="Split it with partners" sub={`${partners.map(x => `${x.name} ${x.share}%`).join(' · ')}. You can change the amounts later in ${project!.name} › Partners.`} on={split} onChange={setSplit} />
+        </div>}
         <Btn block busy={busy} icon="sync" onClick={renew}>Renew until {F.dateShort(until)}</Btn>
       </div>
     </>

@@ -8,7 +8,8 @@ import { Icon } from '../icons'
 import { pop as popNav, push } from '../nav'
 import { EventRow, NoteCard, ProjectCard, TaskRow, TimeRow, TxnRow, projectReceived, projectValue } from '../rows'
 import { useApp } from '../store'
-import { RentalCard, editRental } from './rentals'
+import { RentalCard, editRental, productStats } from './rentals'
+import { PartnersPanel, editSplit } from './partners'
 import { InvoiceCard, editInvoice } from './invoices'
 import { setTaskDone, save as saveItem } from '../store'
 import type { TaskItem } from '../types'
@@ -81,12 +82,20 @@ export function ProjectDetail({ id }: { id: string }) {
   const txns = s.data.txn.filter(t => t.projectId === id).sort((a, b) => b.date - a.date)
   const events = s.data.event.filter(e => e.projectId === id).sort((a, b) => Number(!!a.done) - Number(!!b.done) || a.date - b.date)
   const costs = txns.filter(t => t.kind === 'expense' && t.currency === p.currency).reduce((a, t) => a + t.amount, 0)
-  const fab: [string, () => void][] = [
-    ['Task', () => editTask(undefined, { projectId: id })],
-    ['Note', () => editNote(undefined, { projectId: id })],
-    ['Payment', () => editTxn(undefined, { kind: 'income', projectId: id, customerId: p.customerId })],
-    ['Event', () => editEvent(undefined, { projectId: id })],
+  const product = p.kind === 'product'
+  const stats = productStats(id, s.data.rental)
+  const addRenter = () => editRental(undefined, { projectId: id, kind: 'app', name: p.name, price: p.price, priceCurrency: p.currency, costCurrency: p.currency })
+  type TabKey = 'renters' | 'partners' | 'tasks' | 'notes' | 'money' | 'info'
+  const tabs: { key: TabKey; label: string; fab: [string, () => void] }[] = [
+    ...(product ? [{ key: 'renters' as const, label: 'Renters', fab: ['Renter', addRenter] as [string, () => void] }] : []),
+    { key: 'tasks', label: 'Tasks', fab: ['Task', () => editTask(undefined, { projectId: id })] },
+    { key: 'notes', label: 'Notes', fab: ['Note', () => editNote(undefined, { projectId: id })] },
+    { key: 'partners', label: 'Partners', fab: ['Earnings', () => editSplit(p)] },
+    { key: 'money', label: 'Money', fab: ['Payment', () => editTxn(undefined, { kind: 'income', projectId: id, customerId: p.customerId })] },
+    { key: 'info', label: 'Info', fab: ['Event', () => editEvent(undefined, { projectId: id })] },
   ]
+  const current = tabs[Math.min(tab, tabs.length - 1)]
+  const on = (k: TabKey) => current.key === k
   return (
     <>
       <div class="scroll">
@@ -95,7 +104,22 @@ export function ProjectDetail({ id }: { id: string }) {
           <Round icon="edit" label="Edit" onClick={() => editProject(p)} />
         </PageHeader>
         <div class="content no-tabbar">
-          <Hero i={1}>
+          {product ? <Hero i={1}>
+            <div class="row top">
+              <div class="grow">
+                <Eyebrow>Product we rent out</Eyebrow>
+                <div class="h-md">{F.plural(stats.active.length, 'active renter')}</div>
+              </div>
+              <span class="hero-pill">{({ active: 'Active', on_hold: 'On hold', done: 'Done', cancelled: 'Cancelled' } as any)[p.status]}</span>
+            </div>
+            <div class="row" style={{ marginTop: 14 }}>
+              {[['Renters pay / mo', F.totals(stats.income, p.currency)], ['Costs / mo', F.totals(stats.cost, p.currency)], ['Profit / mo', F.totals(stats.profit, p.currency)]]
+                .map(([l, v]) => <div key={l} class="grow" style={{ minWidth: 0 }}><div class="eyebrow">{l}</div><div class="num h-sm ellipsis amt" style={{ fontWeight: 800 }}>{v}</div></div>)}
+            </div>
+            <div class="small" style={{ marginTop: 12, opacity: .88 }}>
+              {stats.attention ? `${F.plural(stats.attention, 'renter')} to renew soon` : stats.active.length ? 'Every renter is paid up' : 'Add the people or businesses renting it'}
+            </div>
+          </Hero> : <Hero i={1}>
             <div class="row top">
               <div class="grow" onClick={() => customer && push({ name: 'customer', id: customer.id })}>
                 <Eyebrow>Client</Eyebrow>
@@ -113,7 +137,7 @@ export function ProjectDetail({ id }: { id: string }) {
             <div class="small" style={{ marginTop: 12, opacity: .88 }}>
               {[p.startDate != null ? 'Started ' + F.dateShort(p.startDate) : null, p.deadline != null ? `Due ${F.dateShort(p.deadline)} · ${F.daysLeft(p.deadline)}` : null].filter(Boolean).join('  ·  ') || 'No dates set'}
             </div>
-          </Hero>
+          </Hero>}
 
           <div class="grid2 pop" style={{ '--i': 2 } as any}>
             <Tile color="lilac" onClick={() => teamSheet(p, space, isOwner)}>
@@ -133,9 +157,15 @@ export function ProjectDetail({ id }: { id: string }) {
 
           {p.repo && <RepoCard repo={p.repo} />}
 
-          <Seg i={4} options={[{ label: 'Tasks' }, { label: 'Notes' }, { label: 'Money' }, { label: 'Info' }]} value={tab} onChange={setTab} />
+          <Seg i={4} options={tabs.map(t => ({ label: t.label }))} value={tabs.indexOf(current)} onChange={setTab} />
 
-          {tab === 0 && <>
+          {on('renters') && <>
+            {!stats.all.length && <Hint>Add everyone who rents {p.name}: what they pay, when it started and when it runs out. You get a reminder before each one expires.</Hint>}
+            {stats.all.sort((a, b) => Number(a.status !== 'active') - Number(b.status !== 'active') || (a.expiryDate ?? 1e12) - (b.expiryDate ?? 1e12)).map(r => <RentalCard key={r.id} r={r} />)}
+            <Btn kind="soft" icon="plus" onClick={addRenter}>Add a renter</Btn>
+          </>}
+          {on('partners') && <PartnersPanel p={p} space={space} />}
+          {on('tasks') && <>
             {!tasks.length ? <Hint>No tasks yet. Break the project into steps.</Hint> : <>
               <div class="row small muted" style={{ padding: '0 4px' }}>
                 <span class="grow semibold">{tasks.filter(t => t.done).length} of {tasks.length} done</span>
@@ -148,17 +178,17 @@ export function ProjectDetail({ id }: { id: string }) {
               {taskView === 0 ? <div class="card flush">{tasks.map(t => <TaskRow key={t.id} task={t} />)}</div> : <TaskBoard tasks={tasks} projectId={id} />}
             </>}
           </>}
-          {tab === 1 && <>
+          {on('notes') && <>
             {!notes.length && <Hint>{space ? 'Notes here are shared with your team.' : 'Save requirements, ideas and client feedback here.'}</Hint>}
             <div class="notes">{notes.map(n => <NoteCard key={n.id} n={n} />)}</div>
           </>}
-          {tab === 2 && <>
+          {on('money') && <>
             <div class="card row">
               {[['Received', F.money(received, p.currency), 'var(--good)'], ['Costs', F.money(costs, p.currency), 'var(--bad)'], ['Profit', F.money(received - costs, p.currency), undefined]]
                 .map(([l, v, c]) => <div key={l} class="grow"><div class="tiny muted semibold">{l}</div><div class="num h-sm ellipsis amt" style={{ fontWeight: 800, color: c }}>{v}</div></div>)}
             </div>
             <div class="row wrap">
-              {p.billing !== 'hourly' && p.price - received > 0 && <Btn kind="t-butter" class="t-butter" sm icon="bell" onClick={() => askForPayment({
+              {!product && p.billing !== 'hourly' && p.price - received > 0 && <Btn kind="t-butter" class="t-butter" sm icon="bell" onClick={() => askForPayment({
                 person: customer?.name ?? (p.clientName || 'there'), amount: p.price - received, currency: p.currency, customerId: p.customerId, dueDate: p.deadline, what: `“${p.name}”`,
               })}>Ask for payment</Btn>}
               <Btn kind="t-rose" class="t-rose" sm icon="expense" onClick={() => editTxn(undefined, { kind: 'expense', projectId: id })}>Add cost</Btn>
@@ -173,7 +203,7 @@ export function ProjectDetail({ id }: { id: string }) {
             <div class="section-h"><h3>Time logged</h3><button class="link" onClick={() => editTime(undefined, { projectId: id })}>+ Add</button></div>
             {pTime.length ? <div class="card flush">{pTime.map(e => <TimeRow key={e.id} e={e} />)}</div> : <Hint>No time tracked yet.</Hint>}
           </>}
-          {tab === 3 && <>
+          {on('info') && <>
             {p.description && <><div class="section-h"><h3>Description</h3></div><div class="card" style={{ whiteSpace: 'pre-wrap' }}>{p.description}</div></>}
             <div class="section-h"><h3>Info</h3><button class="link" onClick={() => editProject(p)}>Edit</button></div>
             {!p.info.length && <Hint>Add links, logins, specs, or anything you need for this project.</Hint>}
@@ -182,16 +212,18 @@ export function ProjectDetail({ id }: { id: string }) {
                 <div class="row"><div class="grow"><div class="small muted semibold">{it.label}</div><div style={{ overflowWrap: 'anywhere' }}>{it.value}</div></div><Icon name="copy" size={14} class="muted" /></div>
               </Card>
             ))}
-            <div class="section-h"><h3>Rentals</h3><button class="link" onClick={() => editRental(undefined, { projectId: id, customerId: p.customerId })}>+ Add</button></div>
-            {s.data.rental.filter(r => r.projectId === id).length
-              ? s.data.rental.filter(r => r.projectId === id).map(r => <RentalCard key={r.id} r={r} />)
-              : <Hint>VPS, hosting, bots or domains you rent for this project.</Hint>}
+            {!product && <>
+              <div class="section-h"><h3>Rentals</h3><button class="link" onClick={() => editRental(undefined, { projectId: id, customerId: p.customerId })}>+ Add</button></div>
+              {s.data.rental.filter(r => r.projectId === id).length
+                ? s.data.rental.filter(r => r.projectId === id).map(r => <RentalCard key={r.id} r={r} />)
+                : <Hint>VPS, hosting, bots or domains you rent for this project.</Hint>}
+            </>}
             <div class="section-h"><h3>Events & meetings</h3><button class="link" onClick={() => editEvent(undefined, { projectId: id })}>+ Add</button></div>
             {events.length ? <div class="card flush">{events.map(e => <EventRow key={e.id} e={e} showDate />)}</div> : <Hint>No events. Add meetings, calls or delivery dates.</Hint>}
           </>}
         </div>
       </div>
-      <button key={tab} class="add-fab low" onClick={fab[tab][1]}><Icon name="plus" size={15} />{fab[tab][0]}</button>
+      <button key={current.key} class="add-fab low" onClick={current.fab[1]}><Icon name="plus" size={15} />{current.fab[0]}</button>
     </>
   )
 }
