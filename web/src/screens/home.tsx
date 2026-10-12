@@ -1,0 +1,189 @@
+import { call } from '../bridge'
+import * as F from '../format'
+import { editEvent, editNote, editProject, editTask, editTxn } from '../editors'
+import { Icon } from '../icons'
+import { goTab, push } from '../nav'
+import { EventRow, projectReceived, projectValue, TaskRow } from '../rows'
+import { useApp } from '../store'
+import { duration, isRunning, type Note, type Project } from '../types'
+import { Btn, Card, CountInt, CountMoney, Eyebrow, Hero, MainHeader, Ring, Round, Spark, Tile, useNow, type TileColor } from '../ui'
+
+export function HomeScreen() {
+  const s = useApp()
+  const { data, settings } = s
+  const cur = settings.currency
+  const today = F.today()
+  const mStart = F.monthStart(today)
+  const monthTx = data.txn.filter(t => t.date >= mStart && t.date <= today)
+  const income = F.sumBy(monthTx.filter(t => t.kind === 'income'), t => t.currency, t => t.amount)
+  const expense = F.sumBy(monthTx.filter(t => t.kind === 'expense'), t => t.currency, t => t.amount)
+  const net: Record<string, number> = {}
+  for (const c of new Set([...Object.keys(income), ...Object.keys(expense)])) net[c] = (income[c] ?? 0) - (expense[c] ?? 0)
+
+  // running balance through the month, for the sparkline
+  const trend: number[] = []
+  let run = 0
+  for (let d = mStart; d <= today; d++) {
+    for (const t of monthTx) if (t.date === d && t.currency === cur) run += t.kind === 'income' ? t.amount : -t.amount
+    trend.push(run)
+  }
+
+  const names = Object.fromEntries(data.project.map(p => [p.id, p.name]))
+  const active = data.project.filter(p => p.status === 'active' || p.status === 'on_hold')
+    .sort((a, b) => (a.deadline ?? 1e12) - (b.deadline ?? 1e12) || b.createdAt - a.createdAt)
+  const due = data.task.filter(t => !t.done && t.dueDate != null && t.dueDate <= today)
+    .sort((a, b) => a.dueDate! - b.dueDate! || (a.dueTime ?? 9999) - (b.dueTime ?? 9999))
+  const late = due.filter(t => t.dueDate! < today).length
+  const events = data.event.filter(e => e.date === today).sort((a, b) => (a.time ?? -1) - (b.time ?? -1))
+  const notes = [...data.note].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt - a.createdAt).slice(0, 3)
+  const running = data.time.filter(isRunning).sort((a, b) => b.start - a.start)[0]
+  const todayMs = data.time.filter(t => !isRunning(t) && F.dayOfMs(t.start) === today).reduce((a, t) => a + duration(t), 0)
+  const isNew = !data.project.length && !data.txn.length && !data.note.length && !data.task.length
+
+  const hour = new Date().getHours()
+  const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening'
+  const first = s.user?.name.trim().split(' ')[0] || s.user?.username || ''
+
+  return (
+    <div class="scroll">
+      <MainHeader title={`${greeting}, ${first}`} sub={F.longDay(today)} big>
+        <Round icon="search" label="Search" onClick={() => push({ name: 'search' })} />
+      </MainHeader>
+      <div class="content">
+        <Hero i={1} onClick={() => goTab('money')}>
+          <div class="row"><div class="grow"><Eyebrow>{F.monthName(today)}, so far</Eyebrow></div><Icon name="right" size={14} /></div>
+          <CountMoney totals={net} currency={cur} sign class="h-display" />
+          {trend.some(v => v !== 0) && <div style={{ marginTop: 10 }}><Spark values={trend} /></div>}
+          <div class="row" style={{ marginTop: 12, gap: 8 }}>
+            <span class="hero-pill">↓ {F.totals(income, cur)} in</span>
+            <span class="hero-pill">↑ {F.totals(expense, cur)} out</span>
+          </div>
+          <div class="row" style={{ marginTop: 14 }}>
+            <button class="hero-btn" onClick={e => { e.stopPropagation(); editTxn(undefined, { kind: 'expense' }) }}><Icon name="expense" size={13} />Expense</button>
+            <button class="hero-btn" onClick={e => { e.stopPropagation(); editTxn(undefined, { kind: 'income' }) }}><Icon name="income" size={13} />Income</button>
+          </div>
+        </Hero>
+
+        <div class="grid2 pop" style={{ '--i': 2 } as any}>
+          <TimerTile runningStart={running?.start} project={running ? names[running.projectId ?? ''] ?? (running.note || 'No project') : undefined} todayMs={todayMs} />
+          <Tile color="butter" onClick={() => push({ name: 'calendar' })}>
+            <Eyebrow>Due today</Eyebrow>
+            <CountInt value={due.length} class="big-count" />
+            <div class="small semibold">{!due.length ? 'Nothing due' : `task${due.length === 1 ? '' : 's'}${late ? `, ${late} late` : ''}`}</div>
+            {events.length > 0 && <div class="small semibold">+ {F.plural(events.length, 'event')}</div>}
+          </Tile>
+        </div>
+
+        {isNew && (
+          <Tile color="sky" i={3}>
+            <h3 class="h-md">Welcome to Carrot Note 👋</h3>
+            <div class="small" style={{ opacity: .75, marginBottom: 8 }}>Start with one of these:</div>
+            {([['project', 'Add your first project', () => editProject()], ['note', 'Write a note', () => editNote()], ['tasks', 'Add a task for today', () => editTask(undefined, { date: today })]] as const)
+              .map(([icon, label, run]) => (
+                <button key={label} class="card press row" style={{ margin: '4px 0', color: 'var(--fg)' }} onClick={run}>
+                  <Icon name={icon} size={16} class="accent" /><span class="grow semibold" style={{ textAlign: 'left' }}>{label}</span><Icon name="right" size={12} class="muted" />
+                </button>
+              ))}
+          </Tile>
+        )}
+
+        <Card i={3}>
+          <div class="row"><h3 class="h-md grow">Today</h3><Btn kind="soft-bg" sm icon="plus" onClick={() => editTask(undefined, { date: today })}>Task</Btn></div>
+          <div style={{ marginTop: 6 }}>
+            {!due.length && !events.length
+              ? <p class="muted" style={{ margin: '8px 0' }}>Nothing due today. Enjoy it 🥕</p>
+              : <>
+                {events.slice(0, 3).map(e => <EventRow key={e.id} e={e} />)}
+                {due.slice(0, 5).map(t => <TaskRow key={t.id} task={t} project={names[t.projectId ?? '']} />)}
+                {due.length > 5 && <button class="link" onClick={() => push({ name: 'calendar' })}>+{due.length - 5} more in the calendar</button>}
+              </>}
+          </div>
+        </Card>
+
+        {data.project.length > 0 && (
+          <Card i={4}>
+            <div class="row"><h3 class="h-md grow">Projects</h3><button class="link" onClick={() => goTab('projects')}>See all</button></div>
+            {!active.length && <p class="muted" style={{ margin: '8px 0' }}>No projects in progress.</p>}
+            {active.slice(0, 3).map(p => <ProjectLine key={p.id} p={p} />)}
+          </Card>
+        )}
+
+        {data.note.length > 0 && (
+          <Tile color="lilac" i={5}>
+            <div class="row"><h3 class="h-md grow">Notes</h3><button class="link" style={{ color: 'inherit' }} onClick={() => goTab('notes')}>See all</button></div>
+            {notes.map(n => <NoteLine key={n.id} n={n} />)}
+          </Tile>
+        )}
+
+        <div class="chips pop" style={{ '--i': 6 } as any}>
+          {([['Calendar', 'calendar', 'sky', 'calendar'], ['Time', 'timer', 'mint', 'time'], ['Customers', 'users', 'rose', 'customers'],
+            ['Debts', 'debt', 'butter', 'debts'], ['Savings', 'goal', 'lilac', 'goals']] as const).map(([label, icon, color, route]) => (
+            <button key={label} class={`shortcut t-${color} press`} onClick={() => push({ name: route } as any)}>
+              <span class="box"><Icon name={icon} size={16} /></span>{label}
+            </button>
+          ))}
+        </div>
+        <button class="link" style={{ alignSelf: 'center' }} onClick={() => editEvent(undefined, { date: today })}>+ Add an event for today</button>
+      </div>
+    </div>
+  )
+}
+
+function TimerTile({ runningStart, project, todayMs }: { runningStart?: number; project?: string; todayMs: number }) {
+  const now = useNow(runningStart != null)
+  const color: TileColor = 'mint'
+  if (runningStart != null) {
+    return (
+      <Tile color={color} onClick={() => push({ name: 'time' })}>
+        <div class="row" style={{ gap: 8 }}><span class="pulse" /><Eyebrow>Tracking</Eyebrow></div>
+        <div class="timer-clock" style={{ marginTop: 4 }}>{F.duration(now - runningStart)}</div>
+        <div class="small semibold ellipsis">{project}</div>
+        <div style={{ marginTop: 'auto', paddingTop: 10 }}>
+          <Btn sm icon="stop" class="mint-btn" kind="ink" onClick={() => call('timer.stop')}>Stop</Btn>
+        </div>
+      </Tile>
+    )
+  }
+  return (
+    <Tile color={color} onClick={() => push({ name: 'time' })}>
+      <Eyebrow>Tracked today</Eyebrow>
+      <div class="timer-clock" style={{ marginTop: 4 }}>{F.duration(todayMs)}</div>
+      <div class="small semibold">No timer running</div>
+      <div style={{ marginTop: 'auto', paddingTop: 10 }}><Btn sm icon="play" kind="ink" onClick={() => push({ name: 'time' })}>Start</Btn></div>
+    </Tile>
+  )
+}
+
+function ProjectLine({ p }: { p: Project }) {
+  const s = useApp()
+  const tracked = s.data.time.filter(t => t.projectId === p.id).reduce((a, t) => a + duration(t), 0)
+  const value = projectValue(p, tracked)
+  const progress = value > 0 ? Math.min(1, projectReceived(p, s.data.txn) / value) : 0
+  const late = p.deadline != null && p.deadline < F.today()
+  return (
+    <div class="item" onClick={() => push({ name: 'project', id: p.id })}>
+      <Ring value={progress} size={44} />
+      <div class="main">
+        <div class="t" style={{ fontWeight: 700 }}>{p.name}</div>
+        <div class="s" style={late ? { color: 'var(--bad)' } : undefined}>{[p.clientName, p.deadline != null ? F.daysLeft(p.deadline) : null].filter(Boolean).join(' · ') || 'In progress'}</div>
+      </div>
+      {value > 0 && <div class="num h-sm" style={{ fontWeight: 800 }}>{Math.round(progress * 100)}%</div>}
+    </div>
+  )
+}
+
+function NoteLine({ n }: { n: Note }) {
+  const title = n.title || n.body.split('\n')[0] || n.checklist[0]?.text || ''
+  const sub = n.checklist.length ? `${n.checklist.filter(c => c.done).length}/${n.checklist.length} done` : n.title ? n.body : ''
+  return (
+    <button class="row press" style={{ width: '100%', textAlign: 'left', padding: 12, margin: '3px 0', borderRadius: 16, background: 'color-mix(in srgb, var(--card) 60%, transparent)' }}
+      onClick={() => editNote(n)}>
+      <Icon name={n.checklist.length ? 'checkSquare' : 'note'} size={14} />
+      <div class="grow">
+        <div class="semibold ellipsis">{title}</div>
+        {sub && <div class="small ellipsis" style={{ opacity: .7 }}>{sub}</div>}
+      </div>
+      {n.pinned && <Icon name="pin" size={12} />}
+    </button>
+  )
+}

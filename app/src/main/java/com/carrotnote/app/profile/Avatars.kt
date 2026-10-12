@@ -6,8 +6,6 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import android.util.LruCache
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import com.carrotnote.app.BuildConfig
 import com.carrotnote.app.Graph
 import com.carrotnote.app.data.AppJson
@@ -25,12 +23,13 @@ import java.net.URL
 /** Loads, caches and prepares profile pictures. */
 object Avatars {
     private const val SIZE = 320
-    private val memory = LruCache<String, ImageBitmap>(48)
+    private val memory = LruCache<String, ByteArray>(48)
 
     private fun dir(context: Context) = File(context.cacheDir, "avatars").apply { mkdirs() }
     private fun file(context: Context, userId: String, rev: Int) = File(dir(context), "${userId.filter { it.isLetterOrDigit() }}_$rev.jpg")
 
-    suspend fun load(context: Context, userId: String, rev: Int): ImageBitmap? {
+    /** JPEG bytes of a user's photo: memory, then disk, then the server. */
+    suspend fun load(context: Context, userId: String, rev: Int): ByteArray? {
         if (rev <= 0) return null
         val key = "$userId:$rev"
         memory.get(key)?.let { return it }
@@ -43,14 +42,14 @@ object Avatars {
                 f.writeBytes(b)
                 b
             }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()?.also { memory.put(key, it) }
+            bytes.also { memory.put(key, it) }
         }
     }
 
     /** Remembers an uploaded photo locally so it shows instantly without a download. */
     fun remember(context: Context, userId: String, rev: Int, jpeg: ByteArray) {
         runCatching { file(context, userId, rev).writeBytes(jpeg) }
-        BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)?.let { memory.put("$userId:$rev", it.asImageBitmap()) }
+        memory.put("$userId:$rev", jpeg)
     }
 
     /** Center-crops and shrinks an image to a small square JPEG. */

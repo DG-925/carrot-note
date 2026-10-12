@@ -1,0 +1,610 @@
+// Every "add / edit" form, opened as a sliding page or sheet.
+
+import { useEffect, useMemo, useState } from 'preact/hooks'
+import { call } from './bridge'
+import * as F from './format'
+import { categoryIcon, Icon, methodIcon } from './icons'
+import { openOverlay } from './nav'
+import { byId, getState, remove, save, useApp } from './store'
+import {
+  Categories, newId, debtRemaining, goalSaved,
+  type Budget, type CalEvent, type CheckItem, type Customer, type Debt, type Goal, type InfoItem, type Note,
+  type PhoneContact, type Project, type TaskItem, type TimeEntry, type Txn,
+} from './types'
+import {
+  AmountBox, Btn, Chips, CurrencyField, DateField, Field, FieldLabel, Form, Hint, MoreOptions, Round, Seg,
+  SelectField, SheetTitle, SwitchRow, TimeField, attempt, openForm, openSheet, toast,
+} from './ui'
+
+const now = () => Date.now()
+
+function ProjectPicker({ value, onChange, label = 'Project (optional)', none = 'No project · just for me' }: { value?: string | null; onChange: (v: string | null) => void; label?: string; none?: string }) {
+  const s = useApp()
+  const opts = [{ value: '', label: none }, ...[...s.data.project].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id, label: p.name }))]
+  return <SelectField label={label} value={value ?? ''} options={opts} onChange={v => onChange(v || null)} />
+}
+
+function CustomerPicker({ value, onChange, none = 'None' }: { value?: string | null; onChange: (v: string | null) => void; none?: string }) {
+  const s = useApp()
+  const opts = [{ value: '', label: none }, ...[...s.data.customer].sort((a, b) => a.name.localeCompare(b.name)).map(c => ({ value: c.id, label: c.name }))]
+  return <SelectField label="Customer" value={value ?? ''} options={opts} onChange={v => onChange(v || null)} />
+}
+
+// ---------------------------------------------------------------- task
+
+export function editTask(item?: TaskItem, defaults: { projectId?: string | null; date?: number | null } = {}) {
+  openForm(close => <TaskForm item={item} defaults={defaults} close={close} />)
+}
+
+function TaskForm({ item, defaults, close }: { item?: TaskItem; defaults: { projectId?: string | null; date?: number | null }; close: () => void }) {
+  const base: TaskItem = item ?? {
+    id: newId(), title: '', notes: '', projectId: defaults.projectId ?? null, dueDate: defaults.date ?? null, dueTime: null,
+    reminder: false, done: false, priority: 1, createdAt: now(),
+  }
+  const [t, set] = useState(base)
+  const up = (p: Partial<TaskItem>) => set({ ...t, ...p })
+  const prios = ['Low', 'Normal', 'High']
+  return (
+    <Form title={item ? 'Edit task' : 'New task'} close={close} saveEnabled={!!t.title.trim()}
+      onSave={async () => {
+        await save('task', { ...t, title: t.title.trim(), notes: t.notes.trim(), dueTime: t.dueDate == null ? null : t.dueTime, reminder: t.reminder && t.dueDate != null })
+        close()
+      }}
+      onDelete={item ? () => { remove('task', item.id); close() } : undefined}>
+      <Field label="What needs to be done?" value={t.title} onInput={v => up({ title: v })} autoFocus={!item} />
+      <DateField label="Due date" value={t.dueDate} onChange={v => up({ dueDate: v })} />
+      {item && <div class="card in-card"><SwitchRow title="Completed" on={t.done} onChange={v => up({ done: v })} /></div>}
+      <MoreOptions startOpen={!!base.notes || base.reminder || base.priority !== 1 || base.dueTime != null}>
+        <Field label="Details" multiline value={t.notes} onInput={v => up({ notes: v })} />
+        {t.dueDate != null && <>
+          <TimeField label="Time" value={t.dueTime} onChange={v => up({ dueTime: v })} />
+          <div class="card in-card"><SwitchRow title="Remind me" sub="Notification at the due time (9:00 AM if no time)" on={t.reminder} onChange={v => up({ reminder: v })} /></div>
+        </>}
+        <FieldLabel>Priority</FieldLabel>
+        <Chips options={prios} value={prios[t.priority] ?? 'Normal'} onChange={v => up({ priority: prios.indexOf(v) })}
+          icon={v => (v === 'High' ? 'flag' : v === 'Low' ? 'list' : 'tasks')} />
+        <ProjectPicker value={t.projectId} onChange={v => up({ projectId: v })} />
+      </MoreOptions>
+    </Form>
+  )
+}
+
+// ---------------------------------------------------------------- note
+
+export function noteText(n: Note) {
+  const parts: string[] = []
+  if (n.title) parts.push(n.title, '')
+  if (n.body) parts.push(n.body)
+  if (n.checklist.length) {
+    if (n.body) parts.push('')
+    n.checklist.forEach(c => parts.push((c.done ? '☑ ' : '☐ ') + c.text))
+  }
+  return parts.join('\n').trim()
+}
+
+export function editNote(item?: Note, defaults: { projectId?: string | null; date?: number | null; checklist?: boolean } = {}) {
+  openForm(close => <NoteForm item={item} defaults={defaults} close={close} />)
+}
+
+const noteColors = ['', '#FFE3D1', '#FFE58F', '#C7F0D8', '#CFE6FF', '#E6DEFF', '#FFD6DE']
+
+function NoteForm({ item, defaults, close }: { item?: Note; defaults: { projectId?: string | null; date?: number | null; checklist?: boolean }; close: () => void }) {
+  const s = useApp()
+  const base: Note = item ?? {
+    id: newId(), title: '', body: '', checklist: defaults.checklist ? [{ id: newId(), text: '', done: false }] : [],
+    projectId: defaults.projectId ?? null, date: defaults.date ?? null, pinned: false, color: 0, createdAt: now(),
+  }
+  const [n, set] = useState(base)
+  const up = (p: Partial<Note>) => set({ ...n, ...p })
+  const setItem = (i: number, p: Partial<CheckItem>) => up({ checklist: n.checklist.map((c, j) => (j === i ? { ...c, ...p } : c)) })
+  const shared = !!n.projectId && s.spaces.some(sp => sp.kind === 'project' && sp.projectId === n.projectId)
+  const current = (): Note => ({ ...n, title: n.title.trim(), body: n.body.trim(), checklist: n.checklist.filter(c => c.text.trim()) })
+  const canSave = !!(n.title.trim() || n.body.trim() || n.checklist.some(c => c.text.trim()))
+  return (
+    <Form title={item ? 'Edit note' : 'New note'} close={close} saveEnabled={canSave}
+      onSave={async () => { await save('note', current()); close() }}
+      onDelete={item ? () => { remove('note', item.id); close() } : undefined}
+      actions={<>
+        <Round icon="pin" label="Pin" onClick={() => up({ pinned: !n.pinned })} style={n.pinned ? { background: 'var(--accent)', color: '#fff' } : undefined} />
+        <Round icon="share" label="Share" onClick={() => call('app.share', { subject: n.title || 'Note', text: noteText(current()) })} />
+      </>}>
+      <div class="card in-card" style={n.color ? { background: noteColors[n.color], color: '#2A211B' } : undefined}>
+        <input class="h-lg" style={{ width: '100%', border: 0, outline: 0, background: 'transparent', padding: 0 }} placeholder="Title" value={n.title}
+          onInput={e => up({ title: (e.target as HTMLInputElement).value })} />
+        <textarea style={{ width: '100%', border: 0, outline: 0, background: 'transparent', resize: 'none', padding: 0, marginTop: 8, fontSize: 16, lineHeight: 1.5, minHeight: n.checklist.length ? 60 : 180 }}
+          placeholder="Write anything…" value={n.body} onInput={e => up({ body: (e.target as HTMLTextAreaElement).value })} />
+        {n.checklist.length > 0 && <div class="col tight" style={{ marginTop: 6 }}>
+          <div class="field-label" style={{ color: 'inherit', opacity: .7 }}>Checklist · {n.checklist.filter(c => c.done).length}/{n.checklist.length}</div>
+          {n.checklist.map((c, i) => (
+            <div class="row" key={c.id}>
+              <button class={'check' + (c.done ? ' on' : '')} onClick={() => setItem(i, { done: !c.done })}><i>{c.done && <Icon name="check" size={12} stroke={3} />}</i></button>
+              <input style={{ flex: 1, border: 0, outline: 0, background: 'transparent', fontSize: 16, textDecoration: c.done ? 'line-through' : 'none', opacity: c.done ? .6 : 1 }}
+                placeholder="Item" value={c.text} ref={el => { if (el && !c.text && i === n.checklist.length - 1 && document.activeElement?.tagName !== 'INPUT') el.focus() }}
+                onInput={e => setItem(i, { text: (e.target as HTMLInputElement).value })}
+                onKeyDown={e => { if (e.key === 'Enter') up({ checklist: [...n.checklist, { id: newId(), text: '', done: false }] }) }} />
+              <button class="muted" style={{ padding: 6 }} onClick={() => up({ checklist: n.checklist.filter((_, j) => j !== i) })}><Icon name="close" size={14} /></button>
+            </div>
+          ))}
+        </div>}
+      </div>
+      <Btn kind="t-lilac" icon="checkSquare" class="t-lilac" onClick={() => up({ checklist: [...n.checklist, { id: newId(), text: '', done: false }] })}>
+        {n.checklist.length ? 'Add item' : 'Add checklist'}
+      </Btn>
+      <MoreOptions startOpen={base.projectId != null || base.date != null || base.color !== 0}>
+        <FieldLabel>Color</FieldLabel>
+        <div class="swatches">
+          {noteColors.map((c, i) => (
+            <button key={i} class={'swatch' + (n.color === i ? ' on' : '')} style={{ background: c || 'var(--card)' }} onClick={() => up({ color: i })}>
+              {n.color === i && <Icon name="check" size={12} stroke={3} />}
+            </button>
+          ))}
+        </div>
+        <ProjectPicker value={n.projectId} onChange={v => up({ projectId: v })} />
+        <Hint>{!n.projectId ? 'Personal note. Only you can see it.' : shared ? 'This project is shared: your team can see and edit this note.' : 'Saved under the project.'}</Hint>
+        <DateField label="Show on calendar" value={n.date} onChange={v => up({ date: v })} />
+      </MoreOptions>
+    </Form>
+  )
+}
+
+// ---------------------------------------------------------------- money
+
+export function editTxn(item?: Txn, defaults: { kind?: string; projectId?: string | null; customerId?: string | null; date?: number } = {}) {
+  openForm(close => <TxnForm item={item} defaults={defaults} close={close} />)
+}
+
+function TxnForm({ item, defaults, close }: { item?: Txn; defaults: { kind?: string; projectId?: string | null; customerId?: string | null; date?: number }; close: () => void }) {
+  const st = getState()
+  const kind0 = defaults.kind ?? 'expense'
+  const base: Txn = item ?? {
+    id: newId(), kind: kind0, amount: 0,
+    currency: (defaults.projectId && byId('project', defaults.projectId)?.currency) || st.settings.currency,
+    category: kind0 === 'income' ? (defaults.projectId ? 'Project payment' : 'Freelance') : 'Food',
+    method: 'Cash', date: defaults.date ?? F.today(), note: '', projectId: defaults.projectId ?? null, customerId: defaults.customerId ?? null, createdAt: now(),
+  }
+  const [t, set] = useState(base)
+  const [amount, setAmount] = useState(F.amountText(base.amount))
+  const up = (p: Partial<Txn>) => set({ ...t, ...p })
+  const income = t.kind === 'income'
+  const parsed = F.parseAmount(amount)
+  const cats = income ? Categories.income : Categories.expense
+  return (
+    <Form title={item ? 'Edit transaction' : income ? 'Money received' : 'New expense'} close={close}
+      saveEnabled={parsed != null && parsed > 0 && !!t.currency}
+      onSave={async () => { await save('txn', { ...t, amount: parsed ?? 0, category: t.category.trim() || 'Other', note: t.note.trim() }); close() }}
+      onDelete={item ? () => { remove('txn', item.id); close() } : undefined}>
+      <Seg options={[{ label: 'Expense', icon: 'expense' }, { label: 'Income', icon: 'income' }]} value={income ? 1 : 0}
+        onChange={i => { const k = i === 1 ? 'income' : 'expense'; if (k !== t.kind) up({ kind: k, category: k === 'income' ? 'Freelance' : 'Food' }) }} />
+      <AmountBox value={amount} onInput={setAmount} currency={t.currency} onCurrency={c => up({ currency: c })} color={income ? 'var(--good)' : 'var(--fg)'} />
+      <Field label={income ? 'From who / what for (optional)' : 'What was it for? (optional)'} value={t.note} onInput={v => up({ note: v })} />
+      <FieldLabel>Category</FieldLabel>
+      <Chips options={cats.includes(t.category) || !t.category ? cats : [...cats, t.category]} value={t.category} onChange={v => up({ category: v })} icon={categoryIcon} />
+      <FieldLabel>{income ? 'Received via' : 'Paid with'}</FieldLabel>
+      <Chips options={Categories.methods} value={t.method} onChange={v => up({ method: v })} icon={methodIcon} />
+      <DateField label="Date" value={t.date} onChange={v => up({ date: v ?? F.today() })} clearable={false} />
+      <MoreOptions startOpen={base.customerId != null || (!!item && base.projectId != null)}>
+        <ProjectPicker value={t.projectId} onChange={v => up({ projectId: v })} />
+        <CustomerPicker value={t.customerId} onChange={v => up({ customerId: v })} />
+      </MoreOptions>
+    </Form>
+  )
+}
+
+// ---------------------------------------------------------------- project
+
+export function editProject(item?: Project, defaults: { customerId?: string | null } = {}) {
+  openForm(close => <ProjectForm item={item} defaults={defaults} close={close} />)
+}
+
+function ProjectForm({ item, defaults, close }: { item?: Project; defaults: { customerId?: string | null }; close: () => void }) {
+  const s = useApp()
+  const base: Project = item ?? {
+    id: newId(), name: '', customerId: defaults.customerId ?? null, clientName: '', price: 0, currency: s.settings.currency, status: 'active',
+    startDate: F.today(), deadline: null, description: '', info: [], billing: 'fixed', hourlyRate: 0, repo: '', createdAt: now(),
+  }
+  const space = s.spaces.find(sp => sp.kind === 'project' && sp.projectId === base.id)
+  const isOwner = !space || space.role === 'owner'
+  const [p, set] = useState(base)
+  const [price, setPrice] = useState(F.amountText(base.price))
+  const [rate, setRate] = useState(F.amountText(base.hourlyRate))
+  const up = (x: Partial<Project>) => set({ ...p, ...x })
+  const setInfo = (i: number, x: Partial<InfoItem>) => up({ info: p.info.map((it, j) => (j === i ? { ...it, ...x } : it)) })
+  const hourly = p.billing === 'hourly'
+  return (
+    <Form title={item ? 'Edit project' : 'New project'} close={close} saveEnabled={!!p.name.trim()}
+      onSave={async () => {
+        const customer = byId('customer', p.customerId)
+        await save('project', {
+          ...p, name: p.name.trim(), clientName: customer?.name ?? p.clientName.trim(),
+          price: F.parseAmount(price) ?? 0, hourlyRate: F.parseAmount(rate) ?? 0, currency: p.currency || s.settings.currency,
+          description: p.description.trim(), repo: p.repo.trim(), info: p.info.filter(i => i.label.trim() || i.value.trim()),
+        })
+        close()
+      }}
+      onDelete={item && isOwner ? () => { remove('project', item.id); close() } : undefined}>
+      <Field label="Project name" value={p.name} onInput={v => up({ name: v })} autoFocus={!item} />
+      {(!p.customerId || !isOwner) && <Field label="Client name (optional)" value={p.clientName} onInput={v => up({ clientName: v })} />}
+      <div class="row" style={{ alignItems: 'stretch' }}>
+        <div style={{ flex: 1.4 }}>
+          {hourly
+            ? <Field label="Rate per hour" value={rate} inputMode="decimal" onInput={setRate} />
+            : <Field label="Price" value={price} inputMode="decimal" onInput={setPrice} />}
+        </div>
+        <div style={{ flex: 1 }}><CurrencyField value={p.currency} onChange={v => up({ currency: v })} /></div>
+      </div>
+      <SelectField label="Status" value={p.status} onChange={v => up({ status: v })}
+        options={[{ value: 'active', label: 'Active' }, { value: 'on_hold', label: 'On hold' }, { value: 'done', label: 'Done' }, { value: 'cancelled', label: 'Cancelled' }]} />
+      <DateField label="Deadline" value={p.deadline} onChange={v => up({ deadline: v })} />
+      <MoreOptions startOpen={!!item && (!!base.description || !!base.repo || base.info.length > 0 || base.billing === 'hourly')}>
+        {isOwner && <CustomerPicker value={p.customerId} onChange={v => up({ customerId: v })} none="No saved customer" />}
+        <FieldLabel>Billing</FieldLabel>
+        <Seg options={[{ label: 'Fixed price', icon: 'tag' }, { label: 'Hourly', icon: 'timer' }]} value={hourly ? 1 : 0} onChange={i => up({ billing: i === 1 ? 'hourly' : 'fixed' })} />
+        <DateField label="Start date" value={p.startDate} onChange={v => up({ startDate: v })} />
+        <Field label="Description / scope" multiline value={p.description} onInput={v => up({ description: v })} />
+        <Field label="GitHub repository (optional)" value={p.repo} type="url" hint="e.g. github.com/you/project" onInput={v => up({ repo: v })} />
+        <FieldLabel>Project info (links, accounts, specs…)</FieldLabel>
+        {p.info.map((it, i) => (
+          <div class="row" key={i}>
+            <div style={{ flex: 0.8 }}><Field label="Label" value={it.label} onInput={v => setInfo(i, { label: v })} /></div>
+            <div style={{ flex: 1.2 }}><Field label="Value" value={it.value} onInput={v => setInfo(i, { value: v })} /></div>
+            <Round icon="close" sm label="Remove" onClick={() => up({ info: p.info.filter((_, j) => j !== i) })} />
+          </div>
+        ))}
+        <Btn kind="soft" icon="plus" onClick={() => up({ info: [...p.info, { label: '', value: '' }] })}>Add info field</Btn>
+      </MoreOptions>
+    </Form>
+  )
+}
+
+// ---------------------------------------------------------------- customer
+
+export function editCustomer(item?: Customer, prefill?: Partial<Customer>) {
+  openForm(close => <CustomerForm item={item} prefill={prefill} close={close} />)
+}
+
+function CustomerForm({ item, prefill, close }: { item?: Customer; prefill?: Partial<Customer>; close: () => void }) {
+  const base: Customer = item ?? { id: newId(), name: '', phone: '', email: '', company: '', notes: '', createdAt: now(), ...prefill }
+  const [c, set] = useState(base)
+  const up = (x: Partial<Customer>) => set({ ...c, ...x })
+  return (
+    <Form title={item ? 'Edit customer' : 'New customer'} close={close} saveEnabled={!!c.name.trim()}
+      onSave={async () => {
+        await save('customer', { ...c, name: c.name.trim(), phone: c.phone.trim(), email: c.email.trim(), company: c.company.trim(), notes: c.notes.trim() })
+        close()
+      }}
+      onDelete={item ? () => { remove('customer', item.id); close() } : undefined}>
+      <Btn kind="soft" icon="contacts" block onClick={() => pickContact(p => up({
+        name: p.name || c.name, phone: p.phones[0] ?? c.phone, email: p.emails[0] ?? c.email, company: p.company || c.company,
+      }))}>Fill from phone contacts</Btn>
+      <Field label="Name" value={c.name} icon="user" onInput={v => up({ name: v })} />
+      <Field label="Phone" value={c.phone} icon="phone" type="tel" inputMode="tel" onInput={v => up({ phone: v })} />
+      <Field label="Email" value={c.email} icon="mail" type="email" inputMode="email" onInput={v => up({ email: v })} />
+      <Field label="Company" value={c.company} icon="briefcase" onInput={v => up({ company: v })} />
+      <Field label="Notes" multiline value={c.notes} onInput={v => up({ notes: v })} />
+    </Form>
+  )
+}
+
+/** Sheet listing every contact on the phone; calls [onPick] with the chosen one. */
+export function pickContact(onPick: (c: PhoneContact) => void) {
+  openSheet(close => <ContactPicker close={close} onPick={c => { onPick(c); close() }} />)
+}
+
+function ContactPicker({ close, onPick }: { close: () => void; onPick: (c: PhoneContact) => void }) {
+  const contacts = usePhoneContacts()
+  const [q, setQ] = useState('')
+  const list = useMemo(() => filterContacts(contacts.list ?? [], q).slice(0, 300), [contacts.list, q])
+  return (
+    <>
+      <SheetTitle title="Phone contacts" sub={contacts.list ? `${contacts.list.length} on this phone` : undefined} />
+      <div class="search"><Icon name="search" size={17} /><input placeholder="Search name, number or company" value={q} onInput={e => setQ((e.target as HTMLInputElement).value)} /></div>
+      <div class="body" style={{ minHeight: 200 }}>
+        {contacts.denied && <ContactsDenied retry={contacts.load} />}
+        {!contacts.list && !contacts.denied && <div class="row" style={{ justifyContent: 'center', padding: 30 }}><span class="spinner" /></div>}
+        <div class="card flush in-card">
+          {list.map(p => (
+            <button key={p.id} class="item" style={{ width: '100%', textAlign: 'left' }} onClick={() => onPick(p)}>
+              <ContactAvatar name={p.name} />
+              <div class="main"><div class="t">{p.name}</div><div class="s">{[p.phones[0], p.company].filter(Boolean).join(' · ') || p.emails[0] || 'No number'}</div></div>
+            </button>
+          ))}
+        </div>
+      </div>
+      <Btn kind="soft" onClick={close}>Cancel</Btn>
+    </>
+  )
+}
+
+// shared phone-contacts loader (cached for the session)
+let contactsCache: PhoneContact[] | null = null
+export function usePhoneContacts() {
+  const [list, setList] = useState<PhoneContact[] | null>(contactsCache)
+  const [denied, setDenied] = useState(false)
+  const load = () => {
+    setDenied(false)
+    call<PhoneContact[] | null>('contacts.all').then(r => {
+      if (r == null) { setDenied(true); return }
+      contactsCache = r
+      setList(r)
+    }).catch(e => toast(e.message))
+  }
+  useEffect(() => { if (!contactsCache) load() }, [])
+  return { list, denied, load }
+}
+
+export function filterContacts(list: PhoneContact[], q: string) {
+  const t = q.trim().toLowerCase()
+  if (!t) return list
+  const digits = t.replace(/\D/g, '')
+  return list.filter(c =>
+    c.name.toLowerCase().includes(t) || c.company.toLowerCase().includes(t) || c.emails.some(e => e.toLowerCase().includes(t)) ||
+    (digits.length >= 3 && c.phones.some(p => p.replace(/\D/g, '').includes(digits))))
+}
+
+export function ContactAvatar({ name, size = 42 }: { name: string; size?: number }) {
+  const palette = ['mint', 'butter', 'lilac', 'sky', 'rose']
+  let h = 0
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  const c = palette[h % palette.length]
+  return <div class="avatar" style={{ width: size, height: size, fontSize: size * 0.36, background: `var(--${c})`, color: `var(--on-${c})` }}>{F.initials(name)}</div>
+}
+
+export function ContactsDenied({ retry }: { retry: () => void }) {
+  return (
+    <div class="tile t-butter" style={{ gap: 10 }}>
+      <div class="h-sm">Allow access to your contacts</div>
+      <div class="small">Carrot Note needs permission to show the people saved on your phone. Nothing is uploaded.</div>
+      <div><Btn kind="ink" sm icon="contacts" onClick={retry}>Allow contacts</Btn></div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------- debt
+
+export function editDebt(item?: Debt, defaults: { customerId?: string | null; person?: string } = {}) {
+  openForm(close => <DebtForm item={item} defaults={defaults} close={close} />)
+}
+
+function DebtForm({ item, defaults, close }: { item?: Debt; defaults: { customerId?: string | null; person?: string }; close: () => void }) {
+  const s = useApp()
+  const base: Debt = item ?? {
+    id: newId(), direction: 'owed_to_me', person: defaults.person ?? '', customerId: defaults.customerId ?? null, amount: 0,
+    currency: s.settings.currency, dueDate: null, note: '', payments: [], createdAt: now(),
+  }
+  const [d, set] = useState(base)
+  const [amount, setAmount] = useState(F.amountText(base.amount))
+  const up = (x: Partial<Debt>) => set({ ...d, ...x })
+  const parsed = F.parseAmount(amount)
+  const customer = byId('customer', d.customerId)
+  const owed = d.direction === 'owed_to_me'
+  return (
+    <Form title={item ? 'Edit debt' : 'New debt'} close={close}
+      saveEnabled={parsed != null && parsed > 0 && (!!d.person.trim() || !!customer)}
+      onSave={async () => {
+        await save('debt', { ...d, person: customer?.name ?? d.person.trim(), amount: parsed ?? 0, currency: d.currency || s.settings.currency, note: d.note.trim() })
+        close()
+      }}
+      onDelete={item ? () => { remove('debt', item.id); close() } : undefined}>
+      <Seg options={[{ label: 'They owe me', icon: 'income' }, { label: 'I owe', icon: 'expense' }]} value={owed ? 0 : 1}
+        onChange={i => up({ direction: i === 0 ? 'owed_to_me' : 'i_owe' })} />
+      <AmountBox value={amount} onInput={setAmount} currency={d.currency} onCurrency={c => up({ currency: c })} color={owed ? 'var(--good)' : 'var(--bad)'} />
+      <CustomerPicker value={d.customerId} onChange={v => up({ customerId: v })} none="Not a saved customer" />
+      {!customer && <Field label="Person name" value={d.person} icon="user" onInput={v => up({ person: v })}
+        trail={<Round icon="contacts" sm onBg label="Pick from contacts" onClick={() => pickContact(c => up({ person: c.name }))} />} />}
+      <DateField label="Due date" value={d.dueDate} onChange={v => up({ dueDate: v })} />
+      <Field label="Note" multiline value={d.note} onInput={v => up({ note: v })} />
+    </Form>
+  )
+}
+
+export function payDebt(debt: Debt) {
+  openSheet(close => <DebtPay debt={debt} close={close} />)
+}
+
+function DebtPay({ debt, close }: { debt: Debt; close: () => void }) {
+  const incoming = debt.direction === 'owed_to_me'
+  const [amount, setAmount] = useState(F.amountText(debtRemaining(debt)))
+  const [record, setRecord] = useState(true)
+  const parsed = F.parseAmount(amount)
+  return (
+    <>
+      <SheetTitle title={incoming ? 'Payment received' : 'Payment made'} sub={`${debt.person} · ${F.money(debtRemaining(debt), debt.currency)} left`} />
+      <div class="body">
+        <AmountBox value={amount} onInput={setAmount} currency={debt.currency} onCurrency={() => {}} color={incoming ? 'var(--good)' : 'var(--bad)'} />
+        <div class="card in-card"><SwitchRow title={incoming ? 'Add to income' : 'Add to expenses'} sub="Also record it in Money" on={record} onChange={setRecord} /></div>
+        <Btn block disabled={!(parsed && parsed > 0)} onClick={async () => {
+          const a = parsed!
+          await attempt(async () => {
+            await save('debt', { ...debt, payments: [...debt.payments, { id: newId(), amount: a, date: F.today(), note: '' }] })
+            if (record) await save('txn', {
+              id: newId(), kind: incoming ? 'income' : 'expense', amount: a, currency: debt.currency, category: 'Other', method: 'Cash',
+              date: F.today(), note: (incoming ? 'Debt repaid by ' : 'Debt paid to ') + debt.person, customerId: debt.customerId ?? null, projectId: null, createdAt: now(),
+            })
+          })
+          close()
+        }}>Save payment</Btn>
+      </div>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------- goals
+
+export function editGoal(item?: Goal) {
+  openForm(close => <GoalForm item={item} close={close} />)
+}
+
+function GoalForm({ item, close }: { item?: Goal; close: () => void }) {
+  const s = useApp()
+  const base: Goal = item ?? { id: newId(), name: '', target: 0, currency: s.settings.currency, deadline: null, note: '', deposits: [], createdAt: now() }
+  const [g, set] = useState(base)
+  const [target, setTarget] = useState(F.amountText(base.target))
+  const [initial, setInitial] = useState('')
+  const up = (x: Partial<Goal>) => set({ ...g, ...x })
+  const parsed = F.parseAmount(target)
+  return (
+    <Form title={item ? 'Edit goal' : 'New savings goal'} close={close} saveEnabled={!!g.name.trim() && parsed != null && parsed > 0}
+      onSave={async () => {
+        const start = F.parseAmount(initial)
+        const deposits = !item && start && start > 0 ? [{ id: newId(), amount: start, date: F.today(), note: 'Starting amount' }] : g.deposits
+        await save('goal', { ...g, name: g.name.trim(), target: parsed ?? 0, note: g.note.trim(), deposits })
+        close()
+      }}
+      onDelete={item ? () => { remove('goal', item.id); close() } : undefined}>
+      <Field label="Goal (e.g. New laptop, Emergency fund)" value={g.name} onInput={v => up({ name: v })} autoFocus={!item} />
+      <AmountBox value={target} onInput={setTarget} currency={g.currency} onCurrency={c => up({ currency: c })} color="var(--good)" />
+      {!item && <Field label="Already saved (optional)" value={initial} inputMode="decimal" onInput={setInitial} />}
+      <DateField label="Target date" value={g.deadline} onChange={v => up({ deadline: v })} />
+      <Field label="Note" multiline value={g.note} onInput={v => up({ note: v })} />
+    </Form>
+  )
+}
+
+export function moveGoal(goal: Goal) {
+  openSheet(close => <GoalMove goal={goal} close={close} />)
+}
+
+function GoalMove({ goal, close }: { goal: Goal; close: () => void }) {
+  const [amount, setAmount] = useState('')
+  const [withdraw, setWithdraw] = useState(0)
+  const [note, setNote] = useState('')
+  const parsed = F.parseAmount(amount)
+  return (
+    <>
+      <SheetTitle title={goal.name} sub={`Saved ${F.money(goalSaved(goal), goal.currency)} of ${F.money(goal.target, goal.currency)}`} />
+      <div class="body">
+        <Seg options={[{ label: 'Add', icon: 'plus' }, { label: 'Withdraw', icon: 'expense' }]} value={withdraw} onChange={setWithdraw} />
+        <AmountBox value={amount} onInput={setAmount} currency={goal.currency} onCurrency={() => {}} color={withdraw ? 'var(--bad)' : 'var(--good)'} />
+        <Field label="Note (optional)" value={note} onInput={setNote} />
+        <Btn block disabled={!(parsed && parsed > 0)} onClick={async () => {
+          await attempt(() => save('goal', { ...goal, deposits: [...goal.deposits, { id: newId(), amount: withdraw ? -parsed! : parsed!, date: F.today(), note: note.trim() }] }))
+          close()
+        }}>{withdraw ? 'Withdraw' : 'Add to goal'}</Btn>
+      </div>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------- event
+
+export function editEvent(item?: CalEvent, defaults: { date?: number; projectId?: string | null; customerId?: string | null } = {}) {
+  openForm(close => <EventForm item={item} defaults={defaults} close={close} />)
+}
+
+function EventForm({ item, defaults, close }: { item?: CalEvent; defaults: { date?: number; projectId?: string | null; customerId?: string | null }; close: () => void }) {
+  const base: CalEvent = item ?? {
+    id: newId(), title: '', date: defaults.date ?? F.today(), time: null, note: '', reminder: true,
+    projectId: defaults.projectId ?? null, customerId: defaults.customerId ?? null, createdAt: now(),
+  }
+  const [e, set] = useState(base)
+  const up = (x: Partial<CalEvent>) => set({ ...e, ...x })
+  return (
+    <Form title={item ? 'Edit event' : 'New event'} close={close} saveEnabled={!!e.title.trim()}
+      onSave={async () => { await save('event', { ...e, title: e.title.trim(), note: e.note.trim() }); close() }}
+      onDelete={item ? () => { remove('event', item.id); close() } : undefined}>
+      <Field label="Title (meeting, call, delivery…)" value={e.title} onInput={v => up({ title: v })} autoFocus={!item} />
+      <DateField label="Date" value={e.date} onChange={v => up({ date: v ?? F.today() })} clearable={false} />
+      <TimeField label="Time" value={e.time} onChange={v => up({ time: v })} />
+      <div class="card in-card"><SwitchRow title="Remind me" sub="Notification at the event time (9:00 AM if no time)" on={e.reminder} onChange={v => up({ reminder: v })} /></div>
+      <MoreOptions startOpen={!!base.note || base.customerId != null || (!!item && base.projectId != null)}>
+        <Field label="Note" multiline value={e.note} onInput={v => up({ note: v })} />
+        <ProjectPicker value={e.projectId} onChange={v => up({ projectId: v })} />
+        <CustomerPicker value={e.customerId} onChange={v => up({ customerId: v })} />
+      </MoreOptions>
+    </Form>
+  )
+}
+
+// ---------------------------------------------------------------- time
+
+export function editTime(item?: TimeEntry, defaults: { projectId?: string | null } = {}) {
+  openForm(close => <TimeForm item={item} defaults={defaults} close={close} />)
+}
+
+function TimeForm({ item, defaults, close }: { item?: TimeEntry; defaults: { projectId?: string | null }; close: () => void }) {
+  const t0 = now()
+  const base: TimeEntry = item ?? { id: newId(), projectId: defaults.projectId ?? null, start: t0 - 3_600_000, end: t0, note: '', createdAt: t0 }
+  const running = item != null && item.end == null
+  const [projectId, setProject] = useState(base.projectId ?? null)
+  const [day, setDay] = useState(F.dayOfMs(base.start))
+  const [startMin, setStart] = useState<number | null>(F.minutesOfMs(base.start))
+  const [endMin, setEnd] = useState<number | null>(base.end != null ? F.minutesOfMs(base.end) : null)
+  const [note, setNote] = useState(base.note)
+  const startMs = startMin != null ? F.msAt(day, startMin) : null
+  let endMs = endMin != null ? F.msAt(day, endMin) : null
+  if (endMs != null && startMs != null && endMs < startMs) endMs += 86_400_000
+  return (
+    <Form title={item ? 'Edit time' : 'Add time'} close={close} saveEnabled={startMs != null && (running || endMs != null)}
+      onSave={async () => {
+        await save('time', { ...base, projectId, start: startMs ?? base.start, end: running && endMs == null ? null : endMs, note: note.trim() })
+        close()
+      }}
+      onDelete={item ? () => { remove('time', item.id); close() } : undefined}>
+      <ProjectPicker value={projectId} onChange={setProject} label="Project" />
+      <DateField label="Day" value={day} onChange={v => setDay(v ?? F.today())} clearable={false} />
+      <div class="grid2">
+        <TimeField label="Start" value={startMin} onChange={setStart} />
+        <TimeField label="End" value={endMin} onChange={setEnd} />
+      </div>
+      {startMs != null && endMs != null && <div class="tile t-mint"><div class="eyebrow">Duration</div><div class="timer-clock">{F.duration(endMs - startMs)}</div></div>}
+      <Field label="What did you work on?" value={note} onInput={setNote} />
+    </Form>
+  )
+}
+
+// ---------------------------------------------------------------- budget
+
+export function editBudget(item?: Budget) {
+  openForm(close => <BudgetForm item={item} close={close} />)
+}
+
+function BudgetForm({ item, close }: { item?: Budget; close: () => void }) {
+  const s = useApp()
+  const base: Budget = item ?? { id: newId(), category: '', limit: 0, currency: s.settings.currency, createdAt: now() }
+  const [b, set] = useState(base)
+  const [limit, setLimit] = useState(F.amountText(base.limit))
+  const parsed = F.parseAmount(limit)
+  return (
+    <Form title={item ? 'Edit budget' : 'New budget'} close={close} saveEnabled={parsed != null && parsed > 0}
+      onSave={async () => { await save('budget', { ...b, limit: parsed ?? 0 }); close() }}
+      onDelete={item ? () => { remove('budget', item.id); close() } : undefined}>
+      <Hint>Set how much you want to spend per month, in total or on one category.</Hint>
+      <AmountBox value={limit} onInput={setLimit} currency={b.currency} onCurrency={c => set({ ...b, currency: c })} color="var(--accent)" />
+      <FieldLabel>Applies to</FieldLabel>
+      <Chips wrap options={['', ...Categories.expense]} value={b.category} onChange={v => set({ ...b, category: v })}
+        label={v => (v ? v : 'All spending')} icon={v => (v ? categoryIcon(v) : 'wallet')} />
+    </Form>
+  )
+}
+
+// ---------------------------------------------------------------- quick add
+
+export function quickAdd() {
+  const items: [string, string, string, () => void][] = [
+    ['Expense', 'expense', 'rose', () => editTxn(undefined, { kind: 'expense' })],
+    ['Income', 'income', 'mint', () => editTxn(undefined, { kind: 'income' })],
+    ['Task', 'tasks', 'butter', () => editTask(undefined, { date: F.today() })],
+    ['Note', 'note', 'lilac', () => editNote()],
+    ['Event', 'calendar', 'sky', () => editEvent(undefined, { date: F.today() })],
+    ['Project', 'project', 'orange', () => editProject()],
+  ]
+  openOverlay('sheet', close => {
+    const shut = close
+    return (
+      <>
+        <SheetTitle title="Add new" sub="Pick one. You can fill in the details next." />
+        <div class="body">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            {items.map(([label, icon, color, run], i) => (
+              <button key={label} class={`tile t-${color} press pop`} style={{ '--i': i, alignItems: 'center', padding: '18px 0', gap: 10 } as any}
+                onClick={() => { shut(); setTimeout(run, 120) }}>
+                <span class="tile-ico"><Icon name={icon} size={17} /></span>
+                <b style={{ fontSize: 13.5 }}>{label}</b>
+              </button>
+            ))}
+          </div>
+        </div>
+      </>
+    )
+  }, 'quickadd')
+}

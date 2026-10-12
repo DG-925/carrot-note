@@ -10,3 +10,9 @@
 -keepclasseswithmembers class com.carrotnote.app.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# Methods the web UI calls through the JavaScript bridge
+-keepclassmembers class com.carrotnote.app.web.WebBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keepattributes JavascriptInterface

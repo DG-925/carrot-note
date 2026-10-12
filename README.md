@@ -18,17 +18,30 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 
 ## Design
 
-Carrot Note 1.3 uses the **Bento Pop** look: a warm light background (with a matching dark theme), bright tiles in carrot orange, mint, butter and lilac, and a dark floating tab bar.
+Since 1.4 the whole interface is a **TypeScript + CSS** web app (`web/`) shown inside the Android app in a WebView. Kotlin keeps doing everything the phone needs: the offline database and sync, notifications and reminders, PIN and fingerprint lock, the work timer, invoices, contacts, sharing and updates. The two talk through a small bridge (`app/src/main/java/com/carrotnote/app/web/WebBridge.kt` ↔ `web/src/bridge.ts`).
 
-- **Fonts**: [Bricolage Grotesque](https://fonts.google.com/specimen/Bricolage+Grotesque) for headings and numbers, [Onest](https://fonts.google.com/specimen/Onest) for text. Both are bundled in `app/src/main/res/font` under the SIL Open Font License (see `licenses/`).
-- **Motion**: cards pop in one after another when a screen opens, buttons spring when pressed, numbers count up, charts and progress rings draw themselves, the tab highlight slides between tabs, and the **+** turns into **×** while the add sheet is open.
-- **Building blocks** live in `ui/theme/Theme.kt` (colors, type, shapes), `ui/components/Motion.kt` (press, pop-in and count-up animations) and `ui/components/Components.kt` / `Widgets.kt` (cards, tiles, chips, inputs, charts).
+- **Look**: Bento Pop. Warm light background (with a dark theme), bright tiles in carrot orange, mint, butter and lilac, and a dark floating tab bar.
+- **Fonts**: [Bricolage Grotesque](https://fonts.google.com/specimen/Bricolage+Grotesque) for headings and numbers, [Onest](https://fonts.google.com/specimen/Onest) for text, both bundled under the SIL Open Font License (see `licenses/`).
+- **Motion**: cards pop in one after another, buttons spring when pressed, numbers count up, charts and rings draw themselves, the tab highlight slides, sheets bounce up and the **+** turns into **×**.
+- **Customers** lists every contact on your phone (after you allow contacts access), with call, WhatsApp and email buttons and one tap to save someone as a customer.
+
+### Working on the UI
+
+```bash
+cd web
+npm install
+npm run dev        # builds into app/src/main/assets/web with source maps
+npm run typecheck
+```
+
+Open `app/src/main/assets/web/index.html` in a desktop browser to try the UI with example data (a mock replaces the Android bridge). Add `?theme=2` for dark mode, `?lock=1` for the lock screen (PIN `1234`) or `?auth=1` for the sign-in screen. The release workflow rebuilds the bundle before building the APK; commit the built files too so a plain Gradle build works.
 
 ## Project layout
 
 | Path | What |
 |---|---|
-| `app/` | Android app (Kotlin, Jetpack Compose, Material 3) |
+| `app/` | Android shell (Kotlin): WebView host, data, sync, notifications, lock |
+| `web/` | The UI: TypeScript (Preact) + CSS, bundled into `app/src/main/assets/web` |
 | `server/` | Cloudflare Worker API with a D1 database (`schema.sql`, `src/index.ts`) |
 | `.github/workflows/release.yml` | Builds a signed APK and publishes a GitHub Release when you push a tag |
 

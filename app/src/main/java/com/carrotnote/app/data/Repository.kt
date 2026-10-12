@@ -68,6 +68,12 @@ class Repository(context: Context, val userId: String) {
             onLocalChange?.invoke()
         }
 
+        /** All items as a JSON array (for the web UI). */
+        fun listJson(): String = AppJson.encodeToString(ListSerializer(serializer), value)
+
+        /** Saves an item sent from the web UI as JSON and returns it decoded. */
+        fun saveJson(json: String): T = AppJson.decodeFromString(serializer, json).also { save(it) }
+
         internal fun applyRow(row: LocalRow) {
             val item = if (row.deleted || row.data == null) null else runCatching {
                 AppJson.decodeFromString(serializer, row.data)
@@ -106,6 +112,14 @@ class Repository(context: Context, val userId: String) {
         db.all().forEach { row -> collections[row.type]?.applyRow(row) }
         _spaces.value = db.getMeta("spaces")?.let { runCatching { AppJson.decodeFromString(spaceList, it) }.getOrNull() }.orEmpty()
     }
+
+    /** Collection by its sync type ("task", "note", ...), or null. */
+    fun collection(type: String): Collection<out Any>? = collections[type]
+
+    /** Every collection, keyed by type. */
+    val allCollections: Map<String, Collection<out Any>> get() = collections
+
+    fun spacesJson(): String = AppJson.encodeToString(spaceList, _spaces.value)
 
     fun spaceForProject(projectId: String?): SpaceInfo? =
         if (projectId == null) null else _spaces.value.firstOrNull { it.kind == "project" && it.projectId == projectId }

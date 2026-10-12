@@ -1,0 +1,121 @@
+// Line icons drawn on a 24×24 grid with round caps.
+
+const P: Record<string, string> = {
+  home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z',
+  wallet: 'M3 7a2 2 0 0 1 2-2h13v4 M3 7v11a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2z M16 14.5h.01',
+  project: 'M4 8h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z M9 8V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3 M3 13h18',
+  note: 'M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M14 3v5h5 M8.5 13h7 M8.5 17h5',
+  plus: 'M12 5v14 M5 12h14',
+  search: 'M11 4.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13z M20 20l-4.2-4.2',
+  bell: 'M6 16v-5a6 6 0 1 1 12 0v5l1.5 2h-15z M10 20.5a2 2 0 0 0 4 0',
+  clock: 'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z M12 7.5V12l3 2',
+  timer: 'M12 6.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15z M12 10v4 M10 2.5h4 M18.5 6.5l1.5-1.5',
+  calendar: 'M5 5h14a1.5 1.5 0 0 1 1.5 1.5v12A1.5 1.5 0 0 1 19 20H5a1.5 1.5 0 0 1-1.5-1.5v-12A1.5 1.5 0 0 1 5 5z M3.5 10h17 M8 3v4 M16 3v4',
+  today: 'M5 5h14a1.5 1.5 0 0 1 1.5 1.5v12A1.5 1.5 0 0 1 19 20H5a1.5 1.5 0 0 1-1.5-1.5v-12A1.5 1.5 0 0 1 5 5z M3.5 10h17 M8 3v4 M16 3v4 M11 14h2v2h-2z',
+  check: 'M4.5 12.5 9.5 17.5 19.5 6.5',
+  right: 'M9 5l7 7-7 7',
+  left: 'M15 5l-7 7 7 7',
+  down: 'M5 9l7 7 7-7',
+  back: 'M19 12H5 M11 6l-6 6 6 6',
+  close: 'M6 6l12 12 M18 6 6 18',
+  trash: 'M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13 M10 11v6 M14 11v6',
+  edit: 'M4 20h4L19 9l-4-4L4 16z M13.5 6.5l4 4',
+  share: 'M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M8.6 13.5l6.8 4 M15.4 6.5l-6.8 4',
+  pin: 'M12 17v5 M8 3h8 M9 3v6l-3 4v2h12v-2l-3-4V3',
+  phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z',
+  whatsapp: 'M3.5 20.5l1.3-4.5A8.5 8.5 0 1 1 8 19.2z M9 8.5c0 3.5 3 6.5 6.5 6.5l1-1.5-2-1-1 1a5 5 0 0 1-2-2l1-1-1-2z',
+  mail: 'M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z M3.5 6.5 12 13l8.5-6.5',
+  users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1 M16 3.5a4 4 0 0 1 0 7.5 M19 14a5.5 5.5 0 0 1 3 5v2',
+  user: 'M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1',
+  userPlus: 'M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M3 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 4 1.5 M19 14v6 M16 17h6',
+  settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z',
+  lock: 'M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z M8 11V7a4 4 0 0 1 8 0v4',
+  signOut: 'M9 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h4 M16 17l5-5-5-5 M21 12H9',
+  download: 'M12 3v12 M7 10l5 5 5-5 M4 21h16',
+  invoice: 'M6 2h9l4 4v16l-3-2-2 2-2-2-2 2-2-2-2 2V3a1 1 0 0 1 1-1z M9 8h6 M9 12h6 M9 16h3',
+  receipt: 'M5 2h14v20l-3-2-2 2-2-2-2 2-2-2-3 2z M9 7h6 M9 11h6 M9 15h4',
+  chart: 'M4 20V10 M10 20V4 M16 20v-7 M22 20H2',
+  tag: 'M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z M7.5 7.5h.01',
+  flag: 'M5 21V4 M5 4h12l-2 4 2 4H5',
+  debt: 'M3 11l4-4 3 2 4-4 3 3 4-1v6l-4 4-2-2-2 2-3-3-3 3-4-4z',
+  goal: 'M4 12a8 7 0 0 1 14-4.5L21 6v5l-2 1a8 8 0 0 1-3 5v3h-3v-2h-3v2H7v-3.5A7 7 0 0 1 4 12z M15 10h.01',
+  inbox: 'M3 13l3-9h12l3 9v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z M3 13h5l1 3h6l1-3h5',
+  github: 'M9 19c-4.5 1.5-4.5-2.5-6-3m12 5v-3.5a3 3 0 0 0-.8-2.3c2.8-.3 5.8-1.4 5.8-6.2a4.8 4.8 0 0 0-1.3-3.3 4.5 4.5 0 0 0-.1-3.3s-1-.3-3.4 1.3a11.6 11.6 0 0 0-6 0C6.8 1.7 5.8 2 5.8 2a4.5 4.5 0 0 0-.1 3.3A4.8 4.8 0 0 0 4.4 8.6c0 4.8 3 5.9 5.8 6.2a3 3 0 0 0-.8 2.3V21',
+  camera: 'M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  image: 'M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M21 15l-5-5L5 20',
+  open: 'M14 4h6v6 M20 4l-9 9 M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
+  copy: 'M9 9h11v11H9z M5 15H4V4h11v1',
+  eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  eyeOff: 'M3 3l18 18 M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1 M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6 M9.9 9.9a3 3 0 0 0 4.2 4.2',
+  fingerprint: 'M12 11v3a8 8 0 0 1-1.5 4.5 M8 13.5V11a4 4 0 0 1 7.5-2 M16 12v1.5a12 12 0 0 1-1 4.5 M4.5 9a8 8 0 0 1 14-3 M19.5 11.5V13a16 16 0 0 1-.5 4 M5 16a14 14 0 0 0 0-4.5',
+  backspace: 'M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z M12 9l6 6 M18 9l-6 6',
+  play: 'M7 4.5v15l12-7.5z',
+  stop: 'M6 6h12v12H6z',
+  sync: 'M20 11a8 8 0 0 0-14.5-4.5L4 8 M4 4v4h4 M4 13a8 8 0 0 0 14.5 4.5L20 16 M20 20v-4h-4',
+  info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 11v5 M12 7.5h.01',
+  warning: 'M12 3l10 17H2z M12 9v5 M12 17h.01',
+  checkCircle: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M8 12l3 3 5-6',
+  menu: 'M4 7h16 M4 12h16 M4 17h10',
+  checkSquare: 'M4 4h16v16H4z M8 12l3 3 5-6',
+  square: 'M4 4h16v16H4z',
+  list: 'M9 6h11 M9 12h11 M9 18h11 M4.5 6h.01 M4.5 12h.01 M4.5 18h.01',
+  tasks: 'M4 6l2 2 3-3 M4 13l2 2 3-3 M12 7h8 M12 14h8 M4 19h16',
+  income: 'M12 5v14 M6 13l6 6 6-6',
+  expense: 'M12 19V5 M6 11l6-6 6 6',
+  more: 'M5 12h.01 M12 12h.01 M19 12h.01',
+  team: 'M8 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z M16.5 11a3 3 0 1 0 0-6 M2 20v-.5A5.5 5.5 0 0 1 7.5 14h1a5.5 5.5 0 0 1 5.5 5.5v.5 M17 14a5 5 0 0 1 5 5v1',
+  contacts: 'M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M12 11a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z M8.5 16.5a3.5 3.5 0 0 1 7 0 M3 7h2 M3 12h2 M3 17h2',
+  star: 'M12 3l2.8 5.8 6.2.9-4.5 4.4 1 6.3-5.5-3-5.5 3 1-6.3L3 9.7l6.2-.9z',
+  link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7L11.5 6.8 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5',
+  moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+  cloud: 'M7 18a4.5 4.5 0 0 1-.5-9 6 6 0 0 1 11.5 1.5A4 4 0 0 1 17.5 18z',
+  pen: 'M16 3l5 5L9 20H4v-5z',
+  // categories
+  food: 'M7 3v8a2 2 0 0 0 4 0V3 M9 13v8 M16 3c-1.7 1.5-2.5 4-2.5 7h2.5v11',
+  car: 'M5 16v-5l2-5h10l2 5v5 M3.5 16h17v3h-3v-1.5h-11V19h-3z M7.5 13h.01 M16.5 13h.01',
+  bills: 'M13 2 4 14h7l-1 8 9-12h-7z',
+  rent: 'M3 10.5 12 3l9 7.5 M5 9v11h14V9 M10 20v-6h4v6',
+  shopping: 'M5 8h14l-1 13H6z M9 8V6a3 3 0 0 1 6 0v2',
+  repeat: 'M17 2l3 3-3 3 M4 11V9a4 4 0 0 1 4-4h12 M7 22l-3-3 3-3 M20 13v2a4 4 0 0 1-4 4H4',
+  laptop: 'M5 5h14v10H5z M2.5 19h19',
+  wifi: 'M2 9a15 15 0 0 1 20 0 M5 12.5a10 10 0 0 1 14 0 M8.5 16a5 5 0 0 1 7 0 M12 19.5h.01',
+  health: 'M12 20s-8-4.5-8-10.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 8 3.5C20 15.5 12 20 12 20z',
+  film: 'M4 4h16v16H4z M8 4v16 M16 4v16 M4 9h4 M4 15h4 M16 9h4 M16 15h4',
+  education: 'M2 9l10-5 10 5-10 5z M6 11v5c3 2.5 9 2.5 12 0v-5 M22 9v6',
+  family: 'M7 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z M17 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z M3 21v-6a4 4 0 0 1 8 0v6 M13 21v-6a4 4 0 0 1 8 0v6',
+  gift: 'M3 9h18v4H3z M5 13h14v8H5z M12 9v12 M12 9S10.5 4 8 4a2.5 2.5 0 0 0 0 5 M12 9s1.5-5 4-5a2.5 2.5 0 0 1 0 5',
+  briefcase: 'M4 8h16v12H4z M9 8V5h6v3 M4 13h16',
+  coins: 'M9 9a6 3 0 1 0 0-.1z M3 9v4c0 1.7 2.7 3 6 3s6-1.3 6-3V9 M15 12c3.3 0 6 1.3 6 3s-2.7 3-6 3-6-1.3-6-3 M21 15v4c0 1.7-2.7 3-6 3s-6-1.3-6-3',
+  cash: 'M3 6h18v12H3z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M6 9v.01 M18 15v.01',
+  card: 'M3 5h18v14H3z M3 10h18 M7 15h4',
+  bank: 'M3 10l9-6 9 6 M5 10v8 M9.5 10v8 M14.5 10v8 M19 10v8 M3 21h18',
+  crypto: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M9.5 8h4a2 2 0 0 1 0 4h-4 M9.5 12h4.5a2 2 0 0 1 0 4H9.5V8 M11 6.5V8 M11 16v1.5',
+  paypal: 'M7 20l2-15h6.5a4 4 0 0 1 0 8H11l-1 7z',
+  refund: 'M4 12a8 8 0 1 0 2.5-5.8L4 8.5 M4 4v4.5h4.5',
+  other: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M8 12h.01 M12 12h.01 M16 12h.01',
+}
+
+export type IconName = keyof typeof P | string
+
+export function Icon({ name, size = 18, class: cls, stroke = 2 }: { name: IconName; size?: number; class?: string; stroke?: number }) {
+  const d = P[name] ?? P.other
+  return (
+    <svg class={'ico ' + (cls ?? '')} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width={stroke} stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      {d.split(' M').map((seg, i) => <path key={i} d={i === 0 ? seg : 'M' + seg} />)}
+    </svg>
+  )
+}
+
+const categoryIcons: Record<string, string> = {
+  Food: 'food', Transport: 'car', Bills: 'bills', Rent: 'rent', Shopping: 'shopping', Subscriptions: 'repeat',
+  Equipment: 'laptop', 'Internet & Phone': 'wifi', Health: 'health', Entertainment: 'film', Education: 'education',
+  Family: 'family', 'Project payment': 'briefcase', Salary: 'coins', Freelance: 'laptop', Bonus: 'star', Refund: 'refund',
+  Gift: 'gift', Other: 'other',
+}
+const methodIcons: Record<string, string> = {
+  Cash: 'cash', Card: 'card', 'Bank transfer': 'bank', USDT: 'crypto', Crypto: 'crypto', PayPal: 'paypal',
+  InstaPay: 'phone', Wallet: 'wallet', Other: 'other',
+}
+export const categoryIcon = (c: string) => categoryIcons[c] ?? 'tag'
+export const methodIcon = (m: string) => methodIcons[m] ?? 'wallet'

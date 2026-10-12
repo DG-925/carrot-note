@@ -13,7 +13,7 @@ import com.carrotnote.app.data.Billing
 import com.carrotnote.app.data.Project
 import com.carrotnote.app.data.TxnKind
 import com.carrotnote.app.time.TimeTracker
-import com.carrotnote.app.ui.Fmt
+import com.carrotnote.app.util.Fmt
 import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -57,7 +57,7 @@ object Invoice {
         val doc = PdfDocument()
         val page = doc.startPage(PdfDocument.PageInfo.Builder(W, H, 1).create())
         val c = page.canvas
-        val orange = Color.rgb(255, 140, 26)
+        val orange = Color.rgb(255, 107, 31)
         val ink = Color.rgb(28, 26, 24)
         val muted = Color.rgb(120, 112, 105)
         fun paint(size: Float, color: Int = ink, bold: Boolean = false, mono: Boolean = false) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
