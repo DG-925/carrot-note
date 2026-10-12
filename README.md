@@ -16,6 +16,10 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.9.1
+
+- Windows: rows of choices (categories, payment methods, filters) show every option instead of scrolling sideways, and anything that still scrolls sideways moves with the mouse wheel or by dragging.
+
 ### New in 1.9: products you rent out, and partners
 
 - **Product projects**: when you create a project, choose "Client work" or "Product we rent". A product (like a POS system) gets a **Renters** tab: who rents it, what they pay, when it started and when it runs out, with the same countdowns, reminders and Renew button as other rentals. The project shows renters, monthly income, costs and profit.

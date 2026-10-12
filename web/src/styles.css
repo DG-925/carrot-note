@@ -808,7 +808,8 @@ html.desktop button, html.desktop .press { cursor: pointer; }
   html.desktop .notes { columns: 260px; column-gap: 14px; }
   html.desktop .hero { padding: 28px 30px; }
   html.desktop .hero::before { width: 340px; height: 340px; right: -110px; top: -170px; }
-  html.desktop .content > .chips { margin: 0; padding: 2px 0; flex-wrap: wrap; overflow: visible; }
+  /* With a mouse there's room to show every choice: chip rows wrap instead of scrolling sideways. */
+  html.desktop .chips { flex-wrap: wrap; overflow: visible; margin: 0; padding: 2px 0; }
   html.desktop .shortcut { width: 104px; }
   html.desktop .add-fab, html.desktop .add-fab.low { bottom: 28px; right: 36px; }
   html.desktop[dir="rtl"] .add-fab, html.desktop[dir="rtl"] .add-fab.low { right: auto; left: 36px; }
