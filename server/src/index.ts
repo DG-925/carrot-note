@@ -531,29 +531,33 @@ function parseChanges(v: unknown): Change[] {
 
 /**
  * Rentals and invoices linked to a shared project before they were shared (or before the project
- * was shared) still sit in the user's personal space: move them in so the whole team sees them.
+ * was shared) can still sit in a member's personal space: move them in so the whole team sees them.
+ * Any member's sync moves every member's records, so nobody waits for the others to open the app.
  * Returns true when something moved.
  */
-async function adoptIntoShared(env: Env, userId: string, spaces: SpaceRow[]): Promise<boolean> {
+async function adoptIntoShared(env: Env, spaces: SpaceRow[]): Promise<boolean> {
   const shared = spaces.filter((s) => s.kind === "project" && s.project_id);
   if (!shared.length) return false;
   const waiting = await env.DB.prepare(
-    `SELECT DISTINCT json_extract(data, '$.projectId') AS pid FROM records
-     WHERE space_id = ?1 AND type IN ('rental', 'invoice') AND deleted = 0
-       AND json_extract(data, '$.projectId') IN (SELECT value FROM json_each(?2))`,
+    `SELECT DISTINCT 'p_' || json_extract(r.data, '$.projectId') AS space FROM records r
+     WHERE r.type IN ('rental', 'invoice') AND r.deleted = 0
+       AND r.space_id IN (SELECT m.user_id FROM space_members m WHERE m.space_id IN (SELECT value FROM json_each(?1)))
+       AND 'p_' || json_extract(r.data, '$.projectId') IN (SELECT value FROM json_each(?1))
+       AND r.space_id IN (SELECT m.user_id FROM space_members m WHERE m.space_id = 'p_' || json_extract(r.data, '$.projectId'))`,
   )
-    .bind(userId, JSON.stringify(shared.map((s) => s.project_id)))
-    .all<{ pid: string }>();
+    .bind(JSON.stringify(shared.map((s) => s.id)))
+    .all<{ space: string }>();
   if (!waiting.results.length) return false;
   const stmts: D1PreparedStatement[] = [];
-  for (const { pid } of waiting.results) {
-    const space = "p_" + pid;
+  for (const { space } of waiting.results) {
     stmts.push(env.DB.prepare("UPDATE spaces SET rev = rev + 1 WHERE id = ?").bind(space));
     stmts.push(
       env.DB.prepare(
         `UPDATE OR IGNORE records SET space_id = ?1, rev = (SELECT rev FROM spaces WHERE id = ?1)
-         WHERE space_id = ?2 AND type IN ('rental', 'invoice') AND deleted = 0 AND json_extract(data, '$.projectId') = ?3`,
-      ).bind(space, userId, pid),
+         WHERE type IN ('rental', 'invoice') AND deleted = 0
+           AND space_id IN (SELECT user_id FROM space_members WHERE space_id = ?1)
+           AND 'p_' || json_extract(data, '$.projectId') = ?1`,
+      ).bind(space),
     );
   }
   await env.DB.batch(stmts);
@@ -579,7 +583,7 @@ async function sync(req: Request, env: Env) {
 
   let spaces = await memberSpaces(env, user.id);
   const member = new Set(spaces.map((s) => s.id));
-  if (!legacy && (await adoptIntoShared(env, user.id, spaces))) spaces = await memberSpaces(env, user.id);
+  if (!legacy && (await adoptIntoShared(env, spaces))) spaces = await memberSpaces(env, user.id);
 
   if (changes.length > 0) {
     // Where does each (type, id) live today, in the spaces this user can see?
