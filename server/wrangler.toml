@@ -1,5 +1,6 @@
 name = "carrot-note-api"
 main = "src/index.ts"
+account_id = "a6f073d65c3c59f08d0685431b185c79"
 compatibility_date = "2025-09-01"
 workers_dev = true
 

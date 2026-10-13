@@ -166,7 +166,7 @@ npx wrangler deploy                                     # deploy the API
 
 The API is live at `https://carrot-note-api.carrot-note-api.workers.dev` (set in `gradle.properties` as `carrot.apiUrl`).
 
-**Deploying from GitHub:** add two repository secrets, `CLOUDFLARE_API_TOKEN` (Cloudflare dashboard → My Profile → API Tokens → "Edit Cloudflare Workers" template, plus D1 → Edit) and `CLOUDFLARE_ACCOUNT_ID` (shown on the Workers & Pages overview). The "Deploy API" workflow then deploys `server/` whenever it changes, or on demand from the Actions tab.
+**Deploying from GitHub:** add the repository secret `CLOUDFLARE_API_TOKEN` (Cloudflare → My Profile → API Tokens, with Workers Scripts: Edit, D1: Edit and Account Settings: Read). The account id is already in `server/wrangler.toml`. The "Deploy API" workflow then deploys `server/` whenever it changes, or on demand from the Actions tab.
 
 ## Building locally
 
