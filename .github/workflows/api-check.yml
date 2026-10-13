@@ -31,5 +31,7 @@ jobs:
           q "SELECT r.type, (r.space_id = s.owner_id) AS owner_is_project_owner, EXISTS (SELECT 1 FROM space_members m WHERE m.space_id = s.id AND m.user_id = r.space_id) AS owner_is_member, EXISTS (SELECT 1 FROM records x WHERE x.space_id = s.id AND x.type = r.type AND x.id = r.id) AS same_id_in_project, (SELECT x.deleted FROM records x WHERE x.space_id = s.id AND x.type = r.type AND x.id = r.id) AS that_copy_deleted, (strftime('%s','now') * 1000 - r.updated_at) / 60000 AS edited_minutes_ago FROM records r JOIN spaces s ON s.kind = 'project' AND s.project_id = json_extract(r.data, '\$.projectId') WHERE r.type IN ('rental', 'invoice') AND r.deleted = 0 AND r.space_id <> s.id"
           echo "== Rentals inside shared projects (deleted or not)"
           q "SELECT r.type, r.deleted, (strftime('%s','now') * 1000 - r.updated_at) / 60000 AS edited_minutes_ago FROM records r JOIN spaces s ON s.id = r.space_id WHERE s.kind = 'project' AND r.type IN ('rental', 'invoice')"
+          echo "== Records by type (not deleted), with when each type was last changed"
+          q "SELECT type, COUNT(*) AS records, MIN((strftime('%s','now') * 1000 - updated_at) / 60000) AS newest_minutes_ago FROM records WHERE deleted = 0 GROUP BY type ORDER BY type"
           echo "== Last sync per user (minutes ago, only updated hourly)"
           q "SELECT ROW_NUMBER() OVER () AS user, (strftime('%s','now') * 1000 - MAX(last_used)) / 60000 AS minutes_ago FROM sessions GROUP BY user_id"
