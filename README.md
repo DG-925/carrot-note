@@ -16,6 +16,13 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.11
+
+- **Android 5.1 and up**: the app now installs on Android 5.1.1 (API 22) and newer. Old phones need an up-to-date "Android System WebView" from the Play Store (the app says so if it's too old), and the app carries the newer security certificates those phones are missing.
+- **Live updates**: the PC app now checks for teammates' changes and new invitations every 15 seconds (the phone too), so there's no need to restart to see them.
+- **Shared projects**: invoices linked to a shared project are shared too, like rentals. The app tells you when your server still needs the update.
+- **PC home**: a real dashboard on wide windows (money and work on the left, today and renewals on the right), and big screens are scaled up automatically. Settings → Interface size, or Ctrl + / Ctrl −.
+
 ### New in 1.10.1
 
 - **Rentals in shared projects are shared**: a rental linked to a shared project (and its costs, price and renewals) shows for everyone in the team, and anyone can renew or edit it. Rentals not linked to a shared project stay private. Needs the updated API (see "Backend": run the "Deploy API" workflow or `npx wrangler deploy`); rentals added before then move in on the next sync.

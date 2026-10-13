@@ -27,7 +27,8 @@ android {
 
     defaultConfig {
         applicationId = "com.carrotnote.app"
-        minSdk = 26
+        // Android 5.1 and up. java.time and newer Java APIs come from core library desugaring.
+        minSdk = 22
         targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName
@@ -66,6 +67,13 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
+    }
+    lint {
+        // A call to an Android API newer than minSdk without a version check stops the build
+        // (release builds run these "fatal" checks too).
+        fatal += "NewApi"
+        abortOnError = true
     }
     kotlinOptions {
         jvmTarget = "17"
@@ -79,6 +87,7 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.activity:activity-ktx:1.11.0")

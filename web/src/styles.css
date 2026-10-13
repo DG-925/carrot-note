@@ -527,7 +527,7 @@ h1, h2, h3, h4 { margin: 0; font-family: var(--display); letter-spacing: -0.02em
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
 .cal-grid .wd { text-align: center; font-size: 11.5px; font-weight: 700; color: var(--muted); padding: 4px 0; }
 .day {
-  aspect-ratio: 1; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  aspect-ratio: 1; min-height: 42px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   font: 600 15px var(--display); transform: scale(.92); transition: transform .4s var(--spring), background .2s, color .2s;
 }
 .day.today { box-shadow: inset 0 0 0 2px var(--accent); font-weight: 800; }
@@ -900,3 +900,22 @@ html.desktop button, html.desktop .press { cursor: pointer; }
 .stepper { display: flex; align-items: center; gap: 4px; background: var(--bg); border-radius: 14px; padding: 4px; }
 .stepper button { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: var(--card); color: var(--fg); }
 .stepper input { width: 52px; border: 0; outline: 0; background: none; text-align: center; font: 800 18px var(--display); color: var(--fg); }
+
+/* ------------------------------------------------------------------ PC home dashboard */
+
+.dash { display: grid; grid-template-columns: minmax(0, 1fr) clamp(340px, 28%, 520px); gap: 20px; align-items: start; padding: 6px 36px 60px; }
+.dash-main, .dash-side { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.dash-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 34%); gap: 18px; align-items: stretch; }
+.dash-top .hero { justify-content: space-between; }
+.dash-tiles { display: grid; grid-template-rows: 1fr 1fr; gap: 18px; }
+.dash-tiles .tile { justify-content: center; }
+.dash-cards { columns: 340px; column-gap: 18px; }
+.dash-cards > * { break-inside: avoid; margin-bottom: 18px; width: 100%; }
+.dash-side .home-shortcuts { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; margin: 0; padding: 0; overflow: visible; }
+.dash-side .shortcut { width: auto; }
+@media (min-width: 2000px) {
+  .dash { padding-inline: 48px; gap: 24px; }
+  .dash-main, .dash-side, .dash-top, .dash-tiles { gap: 24px; }
+  .dash-cards { column-gap: 24px; }
+  .dash-cards > * { margin-bottom: 24px; }
+}

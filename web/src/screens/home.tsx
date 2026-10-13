@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'preact/hooks'
 import { call } from '../bridge'
 import * as F from '../format'
 import { editEvent, editNote, editProject, editTask, editTxn } from '../editors'
@@ -101,95 +102,130 @@ export function HomeScreen() {
   const todayMs = data.time.filter(t => !isRunning(t) && F.dayOfMs(t.start) === today).reduce((a, t) => a + duration(t), 0)
   const isNew = !data.project.length && !data.txn.length && !data.note.length && !data.task.length
 
+  const desktop = useWide()
   const hour = new Date().getHours()
   const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening'
   const first = s.user?.name.trim().split(' ')[0] || s.user?.username || ''
+
+  const hero = (
+    <Hero i={1} onClick={() => goTab('money')}>
+      <div class="row"><div class="grow"><Eyebrow>{F.monthName(today)}, so far</Eyebrow></div><PrivacyButton /></div>
+      <CountMoney totals={net} currency={cur} sign class="h-display amt" />
+      <InMain totals={net} cur={cur} />
+      {trend.some(v => v !== 0) && <div style={{ marginTop: 10 }}><Spark values={trend} /></div>}
+      <div class="row" style={{ marginTop: 12, gap: 8 }}>
+        <span class="hero-pill amt">↓ {F.totals(income, cur)} in</span>
+        <span class="hero-pill amt">↑ {F.totals(expense, cur)} out</span>
+      </div>
+      <div class="row" style={{ marginTop: 14 }}>
+        <button class="hero-btn" onClick={e => { e.stopPropagation(); editTxn(undefined, { kind: 'expense' }) }}><Icon name="expense" size={13} />Expense</button>
+        <button class="hero-btn" onClick={e => { e.stopPropagation(); editTxn(undefined, { kind: 'income' }) }}><Icon name="income" size={13} />Income</button>
+      </div>
+    </Hero>
+  )
+  const timer = <TimerTile runningStart={running?.start} project={running ? names[running.projectId ?? ''] ?? (running.note || 'No project') : undefined} todayMs={todayMs} />
+  const dueTile = (
+    <Tile color="butter" onClick={() => push({ name: 'calendar' })}>
+      <Eyebrow>Due today</Eyebrow>
+      <CountInt value={due.length} class="big-count" />
+      <div class="small semibold">{!due.length ? 'Nothing due' : `task${due.length === 1 ? '' : 's'}${late ? `, ${late} late` : ''}`}</div>
+      {openEvents.length > 0 && <div class="small semibold">+ {F.plural(openEvents.length, 'event')}</div>}
+    </Tile>
+  )
+  const welcome = isNew && (
+    <Tile color="sky" i={3}>
+      <h3 class="h-md">Welcome to Carrot Note 👋</h3>
+      <div class="small" style={{ opacity: .75, marginBottom: 8 }}>Start with one of these:</div>
+      {([['project', 'Add your first project', () => editProject()], ['note', 'Write a note', () => editNote()], ['tasks', 'Add a task for today', () => editTask(undefined, { date: today })]] as const)
+        .map(([icon, label, run]) => (
+          <button key={label} class="card press row" style={{ margin: '4px 0', color: 'var(--fg)' }} onClick={run}>
+            <Icon name={icon} size={16} class="accent" /><span class="grow semibold" style={{ textAlign: 'start' }}>{label}</span><Icon name="right" size={12} class="muted" />
+          </button>
+        ))}
+    </Tile>
+  )
+  const todayCard = (
+    <Card i={3}>
+      <div class="row"><h3 class="h-md grow">Today</h3><Btn kind="soft-bg" sm icon="plus" onClick={() => editTask(undefined, { date: today })}>Task</Btn></div>
+      <div style={{ marginTop: 6 }}>
+        {!due.length && !events.length
+          ? <p class="muted" style={{ margin: '8px 0' }}>Nothing due today. Enjoy it 🥕</p>
+          : <>
+            {events.slice(0, 3).map(e => <EventRow key={e.id} e={e} />)}
+            {due.slice(0, 5).map(t => <TaskRow key={t.id} task={t} project={names[t.projectId ?? '']} />)}
+            {due.length > 5 && <button class="link" onClick={() => push({ name: 'calendar' })}>+{due.length - 5} more in the calendar</button>}
+          </>}
+      </div>
+      <button class="link" style={{ marginTop: 8 }} onClick={() => editEvent(undefined, { date: today })}>+ Add an event for today</button>
+    </Card>
+  )
+  const projectsCard = data.project.length > 0 && (
+    <Card i={4}>
+      <div class="row"><h3 class="h-md grow">Projects</h3><button class="link" onClick={() => goTab('projects')}>See all</button></div>
+      {!active.length && <p class="muted" style={{ margin: '8px 0' }}>No projects in progress.</p>}
+      {active.slice(0, desktop ? 6 : 3).map(p => <ProjectLine key={p.id} p={p} />)}
+    </Card>
+  )
+  const notesCard = data.note.length > 0 && (
+    <Tile color="lilac" i={5}>
+      <div class="row"><h3 class="h-md grow">Notes</h3><button class="link" style={{ color: 'inherit' }} onClick={() => goTab('notes')}>See all</button></div>
+      {notes.map(n => <NoteLine key={n.id} n={n} />)}
+    </Tile>
+  )
+  const shortcuts = (
+    <div class="chips pop home-shortcuts" style={{ '--i': 6 } as any}>
+      {([['Calendar', 'calendar', 'sky', 'calendar'], ['Time', 'timer', 'mint', 'time'], ['Customers', 'users', 'rose', 'customers'],
+        ['Rentals', 'server', 'sky', 'rentals'], ['Stock', 'box', 'butter', 'stock'], ['Debts', 'debt', 'butter', 'debts'], ['Savings', 'goal', 'lilac', 'goals']] as const).map(([label, icon, color, route]) => (
+        <button key={label} class={`shortcut t-${color} press`} onClick={() => push({ name: route } as any)}>
+          <span class="box"><Icon name={icon} size={16} /></span>{label}
+        </button>
+      ))}
+    </div>
+  )
+
+  // Wide window: a dashboard with the money and work on the left, today's list on the right.
+  if (desktop) {
+    return (
+      <div class="scroll">
+        <MainHeader title={`${greeting}, ${first}`} sub={F.longDay(today)} big />
+        <div class="dash">
+          <div class="dash-main">
+            <div class="dash-top">
+              {hero}
+              <div class="dash-tiles pop" style={{ '--i': 2 } as any}>{timer}{dueTile}</div>
+            </div>
+            {welcome}
+            <div class="dash-cards">
+              <WeekInsights />
+              {projectsCard}
+              {notesCard}
+              <StockAlert />
+            </div>
+          </div>
+          <div class="dash-side">
+            {todayCard}
+            <RentalsDue />
+            {shortcuts}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div class="scroll">
       <MainHeader title={`${greeting}, ${first}`} sub={F.longDay(today)} big />
       <div class="content">
-        <Hero i={1} onClick={() => goTab('money')}>
-          <div class="row"><div class="grow"><Eyebrow>{F.monthName(today)}, so far</Eyebrow></div><PrivacyButton /></div>
-          <CountMoney totals={net} currency={cur} sign class="h-display amt" />
-          <InMain totals={net} cur={cur} />
-          {trend.some(v => v !== 0) && <div style={{ marginTop: 10 }}><Spark values={trend} /></div>}
-          <div class="row" style={{ marginTop: 12, gap: 8 }}>
-            <span class="hero-pill amt">↓ {F.totals(income, cur)} in</span>
-            <span class="hero-pill amt">↑ {F.totals(expense, cur)} out</span>
-          </div>
-          <div class="row" style={{ marginTop: 14 }}>
-            <button class="hero-btn" onClick={e => { e.stopPropagation(); editTxn(undefined, { kind: 'expense' }) }}><Icon name="expense" size={13} />Expense</button>
-            <button class="hero-btn" onClick={e => { e.stopPropagation(); editTxn(undefined, { kind: 'income' }) }}><Icon name="income" size={13} />Income</button>
-          </div>
-        </Hero>
-
-        <div class="grid2 pop" style={{ '--i': 2 } as any}>
-          <TimerTile runningStart={running?.start} project={running ? names[running.projectId ?? ''] ?? (running.note || 'No project') : undefined} todayMs={todayMs} />
-          <Tile color="butter" onClick={() => push({ name: 'calendar' })}>
-            <Eyebrow>Due today</Eyebrow>
-            <CountInt value={due.length} class="big-count" />
-            <div class="small semibold">{!due.length ? 'Nothing due' : `task${due.length === 1 ? '' : 's'}${late ? `, ${late} late` : ''}`}</div>
-            {openEvents.length > 0 && <div class="small semibold">+ {F.plural(openEvents.length, 'event')}</div>}
-          </Tile>
-        </div>
-
-        {isNew && (
-          <Tile color="sky" i={3}>
-            <h3 class="h-md">Welcome to Carrot Note 👋</h3>
-            <div class="small" style={{ opacity: .75, marginBottom: 8 }}>Start with one of these:</div>
-            {([['project', 'Add your first project', () => editProject()], ['note', 'Write a note', () => editNote()], ['tasks', 'Add a task for today', () => editTask(undefined, { date: today })]] as const)
-              .map(([icon, label, run]) => (
-                <button key={label} class="card press row" style={{ margin: '4px 0', color: 'var(--fg)' }} onClick={run}>
-                  <Icon name={icon} size={16} class="accent" /><span class="grow semibold" style={{ textAlign: 'start' }}>{label}</span><Icon name="right" size={12} class="muted" />
-                </button>
-              ))}
-          </Tile>
-        )}
-
-        <Card i={3}>
-          <div class="row"><h3 class="h-md grow">Today</h3><Btn kind="soft-bg" sm icon="plus" onClick={() => editTask(undefined, { date: today })}>Task</Btn></div>
-          <div style={{ marginTop: 6 }}>
-            {!due.length && !events.length
-              ? <p class="muted" style={{ margin: '8px 0' }}>Nothing due today. Enjoy it 🥕</p>
-              : <>
-                {events.slice(0, 3).map(e => <EventRow key={e.id} e={e} />)}
-                {due.slice(0, 5).map(t => <TaskRow key={t.id} task={t} project={names[t.projectId ?? '']} />)}
-                {due.length > 5 && <button class="link" onClick={() => push({ name: 'calendar' })}>+{due.length - 5} more in the calendar</button>}
-              </>}
-          </div>
-        </Card>
-
+        {hero}
+        <div class="grid2 pop" style={{ '--i': 2 } as any}>{timer}{dueTile}</div>
+        {welcome}
+        {todayCard}
         <RentalsDue />
-
         <StockAlert />
-
         <WeekInsights />
-
-        {data.project.length > 0 && (
-          <Card i={4}>
-            <div class="row"><h3 class="h-md grow">Projects</h3><button class="link" onClick={() => goTab('projects')}>See all</button></div>
-            {!active.length && <p class="muted" style={{ margin: '8px 0' }}>No projects in progress.</p>}
-            {active.slice(0, 3).map(p => <ProjectLine key={p.id} p={p} />)}
-          </Card>
-        )}
-
-        {data.note.length > 0 && (
-          <Tile color="lilac" i={5}>
-            <div class="row"><h3 class="h-md grow">Notes</h3><button class="link" style={{ color: 'inherit' }} onClick={() => goTab('notes')}>See all</button></div>
-            {notes.map(n => <NoteLine key={n.id} n={n} />)}
-          </Tile>
-        )}
-
-        <div class="chips pop" style={{ '--i': 6 } as any}>
-          {([['Calendar', 'calendar', 'sky', 'calendar'], ['Time', 'timer', 'mint', 'time'], ['Customers', 'users', 'rose', 'customers'],
-            ['Rentals', 'server', 'sky', 'rentals'], ['Stock', 'box', 'butter', 'stock'], ['Debts', 'debt', 'butter', 'debts'], ['Savings', 'goal', 'lilac', 'goals']] as const).map(([label, icon, color, route]) => (
-            <button key={label} class={`shortcut t-${color} press`} onClick={() => push({ name: route } as any)}>
-              <span class="box"><Icon name={icon} size={16} /></span>{label}
-            </button>
-          ))}
-        </div>
-        <button class="link" style={{ alignSelf: 'center' }} onClick={() => editEvent(undefined, { date: today })}>+ Add an event for today</button>
+        {projectsCard}
+        {notesCard}
+        {shortcuts}
       </div>
     </div>
   )
@@ -309,4 +345,19 @@ function StockAlert() {
       })}
     </Tile>
   )
+}
+
+/** True on the PC app when the window is wide enough for the dashboard layout. */
+function useWide() {
+  const query = '(min-width: 1100px)'
+  const pc = document.documentElement.classList.contains('desktop')
+  const [wide, setWide] = useState(() => pc && matchMedia(query).matches)
+  useEffect(() => {
+    if (!pc) return
+    const m = matchMedia(query)
+    const on = () => setWide(m.matches)
+    m.addEventListener('change', on)
+    return () => m.removeEventListener('change', on)
+  }, [])
+  return wide
 }

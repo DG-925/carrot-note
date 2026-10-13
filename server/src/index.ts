@@ -19,7 +19,9 @@ const MAX_AVATAR_BASE64 = 400_000;
 const MAX_FAILED_LOGINS = 10;
 const LOCKOUT_MS = 15 * 60 * 1000;
 /** Record types that follow their project into a shared space. */
-const PROJECT_SCOPED = new Set(["task", "note", "event", "rental"]);
+const PROJECT_SCOPED = new Set(["task", "note", "event", "rental", "invoice"]);
+/** Bumped when clients need to know about new server behaviour (3: rentals and invoices are shared). */
+const API_VERSION = 3;
 
 class HttpError extends Error {
   constructor(public status: number, message: string) {
@@ -420,7 +422,7 @@ async function invite(req: Request, env: Env, projectId: string) {
       env.DB.prepare(
         `UPDATE records SET space_id = ?1, rev = 1
          WHERE space_id = ?2 AND ((type = 'project' AND id = ?3)
-           OR (type IN ('task', 'note', 'event', 'rental') AND json_extract(data, '$.projectId') = ?3))`,
+           OR (type IN ('task', 'note', 'event', 'rental', 'invoice') AND json_extract(data, '$.projectId') = ?3))`,
       ).bind(spaceId, user.id, projectId),
     ]);
   } else if (space.owner_id !== user.id) {
@@ -528,8 +530,8 @@ function parseChanges(v: unknown): Change[] {
 }
 
 /**
- * Rentals linked to a shared project before rentals were shared (or before the project was shared)
- * still sit in the user's personal space: move them in so the whole team sees them.
+ * Rentals and invoices linked to a shared project before they were shared (or before the project
+ * was shared) still sit in the user's personal space: move them in so the whole team sees them.
  * Returns true when something moved.
  */
 async function adoptIntoShared(env: Env, userId: string, spaces: SpaceRow[]): Promise<boolean> {
@@ -537,7 +539,7 @@ async function adoptIntoShared(env: Env, userId: string, spaces: SpaceRow[]): Pr
   if (!shared.length) return false;
   const waiting = await env.DB.prepare(
     `SELECT DISTINCT json_extract(data, '$.projectId') AS pid FROM records
-     WHERE space_id = ?1 AND type = 'rental' AND deleted = 0
+     WHERE space_id = ?1 AND type IN ('rental', 'invoice') AND deleted = 0
        AND json_extract(data, '$.projectId') IN (SELECT value FROM json_each(?2))`,
   )
     .bind(userId, JSON.stringify(shared.map((s) => s.project_id)))
@@ -550,7 +552,7 @@ async function adoptIntoShared(env: Env, userId: string, spaces: SpaceRow[]): Pr
     stmts.push(
       env.DB.prepare(
         `UPDATE OR IGNORE records SET space_id = ?1, rev = (SELECT rev FROM spaces WHERE id = ?1)
-         WHERE space_id = ?2 AND type = 'rental' AND deleted = 0 AND json_extract(data, '$.projectId') = ?3`,
+         WHERE space_id = ?2 AND type IN ('rental', 'invoice') AND deleted = 0 AND json_extract(data, '$.projectId') = ?3`,
       ).bind(space, userId, pid),
     );
   }
@@ -690,6 +692,7 @@ async function sync(req: Request, env: Env) {
     })),
     invites: (inviteCount.results[0] as { n: number } | undefined)?.n ?? 0,
     user: publicUser(me.results[0] as UserRow),
+    apiVersion: API_VERSION,
   });
 }
 
@@ -705,7 +708,7 @@ export default {
       switch (route) {
         case "GET /":
         case "GET /api":
-          return json({ ok: true, name: "Carrot Note API", version: 2 });
+          return json({ ok: true, name: "Carrot Note API", version: API_VERSION });
         case "POST /api/register":
           return await register(req, env);
         case "POST /api/login":

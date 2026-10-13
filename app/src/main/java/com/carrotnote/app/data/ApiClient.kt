@@ -25,6 +25,8 @@ data class SyncResponse(
     val spaces: List<SpaceInfo> = emptyList(),
     val invites: Int = 0,
     val user: UserInfo? = null,
+    /** 3 and up: the server shares rentals and invoices of shared projects. 0 = an older server. */
+    val apiVersion: Int = 0,
 )
 
 @Serializable

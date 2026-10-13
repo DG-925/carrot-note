@@ -132,8 +132,12 @@ object Updater {
         _download.value = DownloadState.Idle
     }
 
-    private fun apkFile(context: Context, version: String) =
-        File(File(context.cacheDir, "updates").apply { mkdirs() }, "carrot-note-$version.apk")
+    // Before Android 7 the installer can only open files other apps can read, so the download goes
+    // to the app's folder on shared storage there.
+    private fun apkFile(context: Context, version: String): File {
+        val base = if (Build.VERSION.SDK_INT >= 24) context.cacheDir else context.getExternalFilesDir(null) ?: context.cacheDir
+        return File(File(base, "updates").apply { mkdirs() }, "carrot-note-$version.apk")
+    }
 
     suspend fun downloadAndInstall(context: Context, release: ReleaseInfo) {
         val file = apkFile(context, release.version)
@@ -149,7 +153,7 @@ object Updater {
                         setRequestProperty("User-Agent", "CarrotNote/${BuildConfig.VERSION_NAME}")
                     }
                     try {
-                        val total = conn.contentLengthLong.takeIf { it > 0 } ?: release.size
+                        val total = conn.contentLength.toLong().takeIf { it > 0 } ?: release.size
                         val tmp = File(file.path + ".part")
                         conn.inputStream.use { input ->
                             tmp.outputStream().use { out ->
@@ -179,14 +183,17 @@ object Updater {
         install(context, file)
     }
 
-    fun canInstall(context: Context): Boolean = context.packageManager.canRequestPackageInstalls()
+    fun canInstall(context: Context): Boolean =
+        Build.VERSION.SDK_INT < 26 || context.packageManager.canRequestPackageInstalls()
 
     fun openInstallPermissionSettings(context: Context) {
         Graph.lock.suppressNextLock()
-        context.startActivity(
+        val intent = if (Build.VERSION.SDK_INT >= 26) {
             Intent(AndroidSettings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
+        } else {
+            Intent(AndroidSettings.ACTION_SECURITY_SETTINGS)
+        }
+        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     fun install(context: Context, file: File = apkFile(context, _available.value?.version ?: "")) {
@@ -196,7 +203,12 @@ object Updater {
             return
         }
         Graph.lock.suppressNextLock()
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+        val uri = if (Build.VERSION.SDK_INT >= 24) {
+            FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+        } else {
+            file.setReadable(true, false)
+            Uri.fromFile(file)
+        }
         context.startActivity(
             Intent(Intent.ACTION_VIEW)
                 .setDataAndType(uri, "application/vnd.android.package-archive")

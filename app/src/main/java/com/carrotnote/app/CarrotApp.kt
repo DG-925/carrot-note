@@ -3,6 +3,7 @@ package com.carrotnote.app
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.os.Build
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 class CarrotApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        ModernTrust.install(this)
         Graph.init(this)
         createChannels()
         if (Graph.settings.autoUpdate.value) UpdateWorker.schedule(this)
@@ -33,7 +35,7 @@ class CarrotApp : Application() {
                 poll = Graph.scope.launch {
                     while (true) {
                         Graph.sync.syncNow()
-                        delay(45_000)
+                        delay(15_000)
                     }
                 }
             }
@@ -41,6 +43,8 @@ class CarrotApp : Application() {
     }
 
     private fun createChannels() {
+        // Android 8+ groups notifications into channels; older versions have none.
+        if (Build.VERSION.SDK_INT < 26) return
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_REMINDERS, "Reminders", NotificationManager.IMPORTANCE_HIGH).apply {

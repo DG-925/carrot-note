@@ -486,8 +486,10 @@ export function InvitesScreen() {
   const [list, setList] = useState<Invite[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const pending = useApp().invites
   const load = () => call<Invite[]>('invites.list').then(l => { setList(l); setError(null) }).catch(e => { setError(e.message); setList(l => l ?? []) })
-  useEffect(() => { load() }, [])
+  // New invitations arrive with the regular sync; reload when the count changes.
+  useEffect(() => { load() }, [pending])
   const answer = async (inv: Invite, accept: boolean) => {
     setBusy(inv.id)
     await attempt(() => call('invites.answer', { id: inv.id, accept }))

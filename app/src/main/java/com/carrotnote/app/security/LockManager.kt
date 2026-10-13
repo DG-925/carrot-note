@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.security.MessageDigest
 import java.security.SecureRandom
-import javax.crypto.SecretKeyFactory
-import javax.crypto.spec.PBEKeySpec
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 
 /** App lock: PIN (stored as a salted PBKDF2 hash) plus optional fingerprint / face unlock. */
 class LockManager(context: Context) {
@@ -128,9 +128,21 @@ class LockManager(context: Context) {
         _locked.value = false
     }
 
-    private fun hashPin(pin: String, salt: ByteArray): String {
-        val spec = PBEKeySpec(pin.toCharArray(), salt, 20_000, 256)
-        val key = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
-        return Base64.encodeToString(key, Base64.NO_WRAP)
+    private fun hashPin(pin: String, salt: ByteArray): String =
+        Base64.encodeToString(pbkdf2Sha256(pin.toByteArray(Charsets.UTF_8), salt, 20_000), Base64.NO_WRAP)
+
+    /**
+     * PBKDF2-HMAC-SHA256 with a 32-byte result (one block), the same as the platform's
+     * "PBKDF2WithHmacSHA256", which only exists from Android 8. HmacSHA256 exists everywhere.
+     */
+    private fun pbkdf2Sha256(password: ByteArray, salt: ByteArray, iterations: Int): ByteArray {
+        val mac = Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(password, "HmacSHA256")) }
+        var u = mac.doFinal(salt + byteArrayOf(0, 0, 0, 1))
+        val out = u.copyOf()
+        repeat(iterations - 1) {
+            u = mac.doFinal(u)
+            for (i in out.indices) out[i] = (out[i].toInt() xor u[i].toInt()).toByte()
+        }
+        return out
     }
 }

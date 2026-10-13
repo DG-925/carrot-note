@@ -9,14 +9,20 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.Icon
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
@@ -124,6 +130,10 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (webViewTooOld()) {
+            showWebViewUpdate()
+            return
+        }
         enableEdgeToEdge()
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
 
@@ -137,8 +147,13 @@ class MainActivity : AppCompatActivity() {
             isHorizontalScrollBarEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
             webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                    val url = request.url
+                // Android 5 and 6 call the older (String) version below.
+                @Deprecated("Android 5 and 6")
+                override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = openOutside(Uri.parse(url))
+
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = openOutside(request.url)
+
+                private fun openOutside(url: Uri): Boolean {
                     if (url.scheme == "file") return false
                     // Links inside the UI open in the browser, never inside the app.
                     runCatching {
@@ -188,6 +203,7 @@ class MainActivity : AppCompatActivity() {
 
     /** Long-press shortcuts on the launcher icon. */
     private fun setupShortcuts() {
+        if (Build.VERSION.SDK_INT < 25) return
         val sm = getSystemService(ShortcutManager::class.java) ?: return
         fun shortcut(id: String, label: String, icon: Int) = ShortcutInfo.Builder(this, id)
             .setShortLabel(label)
@@ -206,18 +222,61 @@ class MainActivity : AppCompatActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        bridge.emitState()
+        if (::bridge.isInitialized) bridge.emitState()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleIntent(intent)
+        if (::bridge.isInitialized) handleIntent(intent)
     }
 
     override fun onDestroy() {
-        bridge.stop()
-        web.destroy()
+        if (::bridge.isInitialized) bridge.stop()
+        if (::web.isInitialized) web.destroy()
         super.onDestroy()
+    }
+
+    /**
+     * The app's screens need Chrome 84 or newer inside Android System WebView. Old phones (Android 5,
+     * 6) often still have the WebView they shipped with, which can be updated from the Play Store.
+     */
+    private fun webViewTooOld(): Boolean {
+        val agent = runCatching { WebSettings.getDefaultUserAgent(this) }.getOrNull() ?: return false
+        val major = Regex("Chrome/(\\d+)").find(agent)?.groupValues?.get(1)?.toIntOrNull() ?: return false
+        return major < MIN_WEBVIEW
+    }
+
+    private fun showWebViewUpdate() {
+        val pad = (24 * resources.displayMetrics.density).toInt()
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(pad, pad, pad, pad)
+            setBackgroundColor(Color.WHITE)
+        }
+        box.addView(TextView(this).apply {
+            text = "Please update Android System WebView"
+            textSize = 22f
+            setTextColor(Color.rgb(28, 26, 24))
+            gravity = Gravity.CENTER
+        })
+        box.addView(TextView(this).apply {
+            text = "Carrot Note draws its screens with Android System WebView, and the one on this phone is too old. " +
+                "Update it from the Play Store (it's free), then open Carrot Note again."
+            textSize = 16f
+            setTextColor(Color.rgb(120, 112, 106))
+            gravity = Gravity.CENTER
+            setPadding(0, pad / 2, 0, pad)
+        })
+        box.addView(Button(this).apply {
+            text = "Update WebView"
+            setOnClickListener {
+                val id = "com.google.android.webview"
+                runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$id"))) }
+                    .onFailure { runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$id"))) } }
+            }
+        })
+        setContentView(box)
     }
 
     private fun handleIntent(intent: Intent?) {
@@ -243,5 +302,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_SHORTCUT = "com.carrotnote.app.SHORTCUT"
+        /** Oldest Chrome version inside WebView the UI works on (flex gap, CSS used throughout). */
+        const val MIN_WEBVIEW = 84
     }
 }

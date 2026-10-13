@@ -20,7 +20,7 @@ await esbuild.build({
   minify: !dev,
   sourcemap: dev ? 'inline' : false,
   format: 'iife',
-  target: desktop ? ['chrome105', 'safari15'] : ['chrome90'],
+  target: desktop ? ['chrome105', 'safari15'] : ['chrome84'],
   jsx: 'automatic',
   jsxImportSource: 'preact',
   outdir: out,

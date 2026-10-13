@@ -202,11 +202,14 @@ export function SettingsScreen() {
           <div class="small" style={{ marginTop: 10, color: sync.error ? 'var(--bad)' : 'var(--muted)' }}>
             {sync.syncing ? 'Syncing…' : sync.error ? `Sync problem: ${sync.error}` : sync.lastSync > 0 ? `Last synced ${new Date(sync.lastSync).toLocaleString(dateLocale())}` : 'Not synced yet'}
           </div>
+          {sync.lastSync > 0 && (sync.apiVersion ?? 0) < 3 && <div class="small warn" style={{ marginTop: 4 }}>Your server is an older version, so rentals and invoices in shared projects aren't shared yet.</div>}
           <div class="row" style={{ marginTop: 12 }}>
             <Btn sm icon="sync" busy={sync.syncing} onClick={() => attempt(() => call('sync.now'))}>Sync now</Btn>
             <Btn sm kind="soft-bg" icon="lock" onClick={changePassword}>Password</Btn>
           </div>
         </Card>
+
+        {document.documentElement.classList.contains('desktop') && <ZoomCard />}
 
         <Card i={2}>
           <h3 class="h-md" style={{ marginBottom: 10 }}>Preferences</h3>
@@ -341,5 +344,21 @@ function DeleteDialog({ close }: { close: () => void }) {
         }}>Delete forever</Btn>
       </div>
     </>
+  )
+}
+
+/** PC only: how big everything is drawn. Auto scales up on very large screens. */
+function ZoomCard() {
+  const [z, setZ] = useState<{ setting: string; auto?: number } | null>(null)
+  useEffect(() => { call<{ setting: string; auto: number }>('ui.zoom').then(setZ).catch(() => {}) }, [])
+  if (!z) return null
+  const pick = (v: string) => attempt(async () => { await call('ui.zoom', { value: v }); setZ({ ...z, setting: v }) })
+  return (
+    <Card i={2}>
+      <h3 class="h-md" style={{ marginBottom: 4 }}>Interface size</h3>
+      <div class="small muted" style={{ marginBottom: 10 }}>Make everything bigger on large screens. Ctrl + and Ctrl − also work.</div>
+      <Chips wrap options={['auto', '1', '1.25', '1.5', '1.75', '2']} value={z.setting} onChange={pick}
+        label={v => (v === 'auto' ? `Auto (${Math.round((z.auto ?? 1) * 100)}%)` : `${Math.round(Number(v) * 100)}%`)} />
+    </Card>
   )
 }

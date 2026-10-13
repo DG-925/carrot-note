@@ -194,6 +194,7 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
             put("sync", buildJsonObject {
                 put("syncing", sync.syncing)
                 put("lastSync", sync.lastSync)
+                put("apiVersion", sync.apiVersion)
                 put("error", sync.error?.let { JsonPrimitive(it) } ?: JsonNull)
             })
             put("release", release?.let {
@@ -454,7 +455,7 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
             ); ok
         }
         "app.copy" -> {
-            activity.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Carrot Note", a.str("text")))
+            ContextCompat.getSystemService(activity, ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("Carrot Note", a.str("text")))
             toast(a.strOrNull("toast") ?: "Copied"); ok
         }
         "app.toast" -> { toast(a.str("text")); ok }

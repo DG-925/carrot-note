@@ -12,6 +12,7 @@ import { toast } from '../ui'
 import { httpFetch, inTauri } from './http'
 import { deleteDb, openDb, readAll, write } from './idb'
 import { printPdf, type PdfDoc } from './pdf'
+import { applyZoom, autoZoom, zoomSetting } from './zoom'
 
 declare const __APP_VERSION__: string
 const VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0'
@@ -39,7 +40,7 @@ const settings = ls.get('settings', { currency: 'USD', theme: 1, autoUpdate: tru
 const pin = ls.get<{ hash?: string; salt?: string; length: number; delay: number; fails: number; until: number }>('pin', { length: 4, delay: 30, fails: 0, until: 0 })
 let locked = !!pin.hash
 let invites = 0
-let syncState: { syncing: boolean; lastSync: number; error: string | null } = { syncing: false, lastSync: 0, error: null }
+let syncState: { syncing: boolean; lastSync: number; error: string | null; apiVersion?: number } = { syncing: false, lastSync: 0, error: null }
 let release: { version: string; notes: string; size: number; url: string } | null = null
 let started = false
 
@@ -115,7 +116,7 @@ class Repo {
     return projectId ? this.spaces.find(s => s.kind === 'project' && s.projectId === projectId)?.id : undefined
   }
   private spaceHint(type: string, id: string, item: Json): string {
-    const projectId = type === 'project' ? id : ['task', 'note', 'event', 'rental'].includes(type) ? item?.projectId : null
+    const projectId = type === 'project' ? id : ['task', 'note', 'event', 'rental', 'invoice'].includes(type) ? item?.projectId : null
     return this.spaceFor(projectId) ?? this.userId
   }
 
@@ -266,6 +267,7 @@ function runSync(): Promise<boolean> {
     emitState()
     try {
       let cursors: Record<string, number> = r.meta.cursors ?? {}
+      let apiVersion = 0
       const dirty = r.dirty()
       const chunks = dirty.length ? Array.from({ length: Math.ceil(dirty.length / 100) }, (_, i) => dirty.slice(i * 100, i * 100 + 100)) : [[]]
       for (const chunk of chunks) {
@@ -280,12 +282,13 @@ function runSync(): Promise<boolean> {
         cursors = Object.fromEntries(Object.entries(resp.cursors ?? {}).filter(([k]) => k === r.userId || (resp.spaces ?? []).some((s: Json) => s.id === k))) as Record<string, number>
         await r.setMeta({ cursors })
         invites = resp.invites ?? 0
+        apiVersion = Number(resp.apiVersion) || 0
         if (resp.user) { session.user = resp.user; saveSession() }
         types.forEach(t => emitTable(t))
       }
       const now = Date.now()
       await r.setMeta({ last_sync: now })
-      syncState = { syncing: false, lastSync: now, error: null }
+      syncState = { syncing: false, lastSync: now, error: null, apiVersion }
       emitState()
       return true
     } catch (e) {
@@ -310,9 +313,15 @@ async function hashPin(value: string, salt: string) {
 }
 const cooldown = () => Math.max(0, pin.until - Date.now())
 
+// While the window is open, pull teammates' changes and new invitations every 15 seconds, and
+// right away when the window comes back.
+setInterval(() => { if (!document.hidden && repo && !locked) syncNow() }, 15_000)
+window.addEventListener('focus', () => { if (repo && !locked && Date.now() - syncState.lastSync > 5_000) syncNow() })
+
 let hiddenAt = 0
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { hiddenAt = Date.now(); return }
+  if (repo && !locked) syncNow()
   if (pin.hash && repo && !locked && hiddenAt && Date.now() - hiddenAt >= pin.delay * 1000) { locked = true; emitState() }
 })
 
@@ -559,6 +568,7 @@ const handlers: Record<string, (a: Json) => unknown> = {
 
   // sync, team, invitations
   'sync.now': () => syncNow(),
+  'ui.zoom': async a => (a.value ? { setting: a.value, value: await applyZoom(String(a.value)) } : { setting: zoomSetting(), auto: autoZoom() }),
   'team.search': async a => (await api<Json>('GET', '/api/users/search?q=' + encodeURIComponent(a.query))).users ?? [],
   'team.invite': async a => { await syncNow(); await api('POST', `/api/projects/${encodeURIComponent(a.projectId)}/invite`, { username: a.username }); await syncNow(); return true },
   'team.remove': async a => { await api('POST', `/api/spaces/${encodeURIComponent(a.spaceId)}/remove`, { userId: a.userId }); await syncNow(); return true },

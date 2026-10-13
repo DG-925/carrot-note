@@ -152,7 +152,8 @@ export interface NativeState {
   invites: number
   settings: { currency: string; theme: number; autoUpdate: boolean }
   lock: { pinEnabled: boolean; pinLength: number; biometric: boolean; biometricAvailable: boolean; delay: number; secureScreen: boolean }
-  sync: { syncing: boolean; lastSync: number; error: string | null }
+  /** [apiVersion] 3+ means the server shares rentals and invoices of shared projects. */
+  sync: { syncing: boolean; lastSync: number; error: string | null; apiVersion?: number }
   release: { version: string; notes: string; size: number } | null
   download: { state: 'idle' | 'downloading' | 'failed' | 'ready'; progress?: number; message?: string; canInstall?: boolean }
 }

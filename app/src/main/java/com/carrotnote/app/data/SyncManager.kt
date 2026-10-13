@@ -22,7 +22,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.TimeUnit
 
-data class SyncState(val syncing: Boolean = false, val lastSync: Long = 0, val error: String? = null)
+data class SyncState(val syncing: Boolean = false, val lastSync: Long = 0, val error: String? = null, val apiVersion: Int = 0)
 
 class SyncManager(private val context: Context, private val scope: CoroutineScope) {
     private val mutex = Mutex()
@@ -48,8 +48,10 @@ class SyncManager(private val context: Context, private val scope: CoroutineScop
             var cursors = repo.cursors
             val dirty = repo.dirtyRecords()
             val chunks = if (dirty.isEmpty()) listOf(emptyList()) else dirty.chunked(100)
+            var apiVersion = 0
             for (chunk in chunks) {
                 val resp = Graph.api.sync(token, SyncRequest(cursors, chunk))
+                apiVersion = resp.apiVersion
                 if (Graph.repoOrNull !== repo) {
                     _state.value = SyncState()
                     return false
@@ -61,13 +63,13 @@ class SyncManager(private val context: Context, private val scope: CoroutineScop
                 repo.cursors = cursors
                 Graph.setInviteCount(resp.invites)
                 resp.user?.let { Graph.session.updateUser(it) }
-                if (resp.changes.any { it.type == "task" || it.type == "event" || it.type == "rental" }) {
+                if (resp.changes.any { it.type == "task" || it.type == "event" || it.type == "rental" || it.type == "invoice" }) {
                     Reminders.rescheduleAll(context, repo)
                 }
                 if (resp.changes.any { it.type == "time" }) TimeTracker.refreshNotification(context)
             }
             repo.lastSyncAt = nowMs()
-            _state.value = SyncState(syncing = false, lastSync = repo.lastSyncAt)
+            _state.value = SyncState(syncing = false, lastSync = repo.lastSyncAt, apiVersion = apiVersion)
             true
         } catch (e: ApiException) {
             if (e.status == 401) {

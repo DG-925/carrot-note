@@ -155,6 +155,10 @@ export function ProjectDetail({ id }: { id: string }) {
             </Tile>
           </div>
 
+          {space && s.sync.lastSync > 0 && (s.sync.apiVersion ?? 0) < 3 && <Card class="wide">
+            <div class="row top"><Icon name="warning" size={16} class="warn" />
+              <div class="grow small"><b>Rentals and invoices aren't shared yet.</b> Your Carrot Note server is an older version. Update it (run "Deploy API" on GitHub, or <code>npx wrangler deploy</code> in the server folder) and everyone in this project will see them.</div></div>
+          </Card>}
           {p.repo && <RepoCard repo={p.repo} />}
 
           <Seg i={4} options={tabs.map(t => ({ label: t.label }))} value={tabs.indexOf(current)} onChange={setTab} />
