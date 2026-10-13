@@ -28,6 +28,9 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon lintDebug assembleDebug
+      - name: Show lint errors
+        if: failure()
+        run: grep -B1 -A4 "Error:" app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt || true
       - name: Lint report
         if: always()
         uses: actions/upload-artifact@v4

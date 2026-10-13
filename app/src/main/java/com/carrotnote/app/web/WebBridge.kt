@@ -510,7 +510,7 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
             ?: return@runCatching null
         // Turn it upright using the photo's EXIF orientation.
         val rotation = cr.openInputStream(uri)?.use {
-            when (android.media.ExifInterface(it).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, 1)) {
+            when (androidx.exifinterface.media.ExifInterface(it).getAttributeInt(androidx.exifinterface.media.ExifInterface.TAG_ORIENTATION, 1)) {
                 6 -> 90f; 3 -> 180f; 8 -> 270f; else -> 0f
             }
         } ?: 0f
