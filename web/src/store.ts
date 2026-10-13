@@ -34,7 +34,7 @@ function loadPrefs(): Prefs {
 
 const emptyTables = (): Tables => ({
   project: [], task: [], note: [], txn: [], goal: [], customer: [], debt: [], event: [], time: [], budget: [], rental: [], invoice: [], recurring: [], secret: [], vault: [], item: [],
-  quote: [], wallet: [], transfer: [], supplier: [], price: [], doc: [], activity: [], target: [], msgtpl: [],
+  quote: [], wallet: [], transfer: [], supplier: [], price: [], doc: [], activity: [], target: [], msgtpl: [], setting: [],
 })
 
 let state: AppState = {
@@ -114,7 +114,18 @@ on('state', (s: NativeState) => {
 })
 on('table', (p: { type: TableName; items: any[] }) => {
   setState({ data: { ...state.data, [p.type]: p.items } })
+  // The main currency is shared by all devices: follow a change made on another one.
+  if (p.type === 'setting') {
+    const cur = p.items.find(x => x.id === 'currency')?.value
+    if (cur && cur !== state.settings?.currency) call('settings.set', { currency: cur }).catch(() => {})
+  }
 })
+
+/** Changes the main currency here and on the user's other devices. */
+export async function setMainCurrency(currency: string) {
+  await call('settings.set', { currency })
+  await save('setting', { id: 'currency', value: currency })
+}
 on('spaces', (spaces: SpaceInfo[]) => setState({ spaces }))
 on('insets', (i: AppState['insets']) => {
   setState({ insets: i })
@@ -181,7 +192,7 @@ export const save = <K extends TableName>(type: K, item: Tables[K][number]) => {
 const typeNames: Record<TableName, string> = {
   project: 'Project', task: 'Task', note: 'Note', txn: 'Transaction', goal: 'Goal', customer: 'Customer',
   debt: 'Debt', event: 'Event', time: 'Time entry', budget: 'Budget', rental: 'Rental',
-  invoice: 'Invoice', recurring: 'Recurring payment', secret: 'Vault item', vault: 'Vault', item: 'Stock item', quote: 'Quote', wallet: 'Wallet', transfer: 'Transfer', supplier: 'Supplier', price: 'Price', doc: 'File', activity: 'Activity', target: 'Target', msgtpl: 'Message',
+  invoice: 'Invoice', recurring: 'Recurring payment', secret: 'Vault item', vault: 'Vault', item: 'Stock item', quote: 'Quote', wallet: 'Wallet', transfer: 'Transfer', supplier: 'Supplier', price: 'Price', doc: 'File', activity: 'Activity', target: 'Target', msgtpl: 'Message', setting: 'Setting',
 }
 
 /** Deletes an item and offers Undo for a few seconds. */

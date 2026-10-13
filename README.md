@@ -16,6 +16,11 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.12.1
+
+- **Everything syncs between phone and PC**: an app that was older than the data (for example a phone on 1.11 when a price list was saved on the PC) used to skip those records for good. Now they are kept, and after this update each app downloads everything once more, so anything missing shows up.
+- **Main currency syncs too**: changing it in Settings changes it on your other devices.
+
 ### New in 1.12
 
 - **Quotes**: send a price offer as a PDF or on WhatsApp. When the client says yes, one tap turns it into a project and a draft invoice. See what's waiting and your win rate.

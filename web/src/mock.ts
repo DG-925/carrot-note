@@ -130,7 +130,7 @@ function sample() {
       { id: 'rc1', kind: 'expense', amount: 750, currency: 'EGP', category: 'Subscriptions', method: 'Card', note: 'Figma Professional', projectId: null, customerId: null, period: 'monthly', nextDate: t + 18, active: true, createdAt: now },
       { id: 'rc2', kind: 'income', amount: 3000, currency: 'EGP', category: 'Freelance', method: 'Bank transfer', note: 'Café Kanaka care plan', projectId: null, customerId: null, period: 'monthly', nextDate: t + 5, active: true, createdAt: now },
     ],
-    secret: [], vault: [], msgtpl: [],
+    secret: [], vault: [], msgtpl: [], setting: [],
     budget: [{ id: id(), category: '', limit: 15000, currency: 'EGP', createdAt: now }, { id: id(), category: 'Food', limit: 1500, currency: 'EGP', createdAt: now }],
   } as Record<string, any[]>
 }
@@ -198,7 +198,7 @@ export function installMock() {
   const params = new URLSearchParams(location.search)
   import('./nav').then(n => { (window as any).__carrotPush = n.push })  // lets preview tests open any page
   let data: Record<string, any[]> = store('data') ?? sample()
-  for (const k of ['rental', 'invoice', 'recurring', 'secret', 'vault', 'item', 'quote', 'wallet', 'transfer', 'supplier', 'price', 'doc', 'activity', 'target', 'msgtpl']) if (!data[k]) data[k] = sample()[k]
+  for (const k of ['rental', 'invoice', 'recurring', 'secret', 'vault', 'item', 'quote', 'wallet', 'transfer', 'supplier', 'price', 'doc', 'activity', 'target', 'msgtpl', 'setting']) if (!data[k]) data[k] = sample()[k]
   const vaultKeys: Record<string, string> = {}
   let signedIn = params.has('auth') ? false : store('signedIn') ?? true
   let theme = Number(params.get('theme') ?? store('theme') ?? 1)
@@ -206,7 +206,7 @@ export function installMock() {
   let github: string = params.has('nogh') ? '' : 'adham-dev'
   const emit = (name: string, payload: unknown) => setTimeout(() => window.__native.emit(name, payload), 0)
   const state = () => ({
-    signedIn, locked, version: '1.12.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
+    signedIn, locked, version: '1.12.1', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
     user: { id: 'u1', email: 'you@example.com', name: 'Adham Kassem', username: 'adham', bio: 'Freelance Android and web developer.', github, avatarRev: 0 },
     settings: { currency: 'EGP', theme, autoUpdate: true },
     lock: { pinEnabled: true, pinLength: 4, biometric: false, biometricAvailable: false, delay: 30, secureScreen: false },

@@ -118,11 +118,12 @@ class Repository(context: Context, val userId: String) {
     val activity = Collection("activity", JsonObject.serializer()) { it.id() }
     val targets = Collection("target", JsonObject.serializer()) { it.id() }
     val messageTemplates = Collection("msgtpl", JsonObject.serializer()) { it.id() }
+    val settingsRecords = Collection("setting", JsonObject.serializer()) { it.id() }
 
     private val collections = listOf(
         projects, tasks, notes, txns, goals, customers, debts, events, time, budgets, rentals,
         invoices, recurring, receipts, secrets, vault, items,
-        quotes, wallets, transfers, suppliers, prices, docs, activity, targets, messageTemplates,
+        quotes, wallets, transfers, suppliers, prices, docs, activity, targets, messageTemplates, settingsRecords,
     )
         .associateBy { it.type }
 
@@ -184,6 +185,17 @@ class Repository(context: Context, val userId: String) {
         get() = db.getMeta("last_sync")?.toLongOrNull() ?: 0L
         set(value) = db.setMeta("last_sync", value.toString())
 
+    init {
+        // Older versions skipped record types they didn't know yet (like a price list saved on the PC)
+        // but still moved their sync cursors past them. When this version knows new types, download
+        // everything once more so nothing saved elsewhere is missing here.
+        val known = collections.keys.sorted().joinToString(",")
+        if (db.getMeta("known_types") != known) {
+            cursors = emptyMap()
+            db.setMeta("known_types", known)
+        }
+    }
+
     fun dirtyRecords(): List<SyncRecord> =
         db.dirty().map { SyncRecord(it.type, it.id, it.data, it.updatedAt, it.deleted, it.space) }
 
@@ -199,14 +211,14 @@ class Repository(context: Context, val userId: String) {
         val applied = ArrayList<LocalRow>()
         db.transaction {
             for (r in records) {
-                if (r.type !in collections) continue
+                // Types this version doesn't know are still stored, so a later version can show them.
                 val local = db.get(r.type, r.id)
                 if (local != null && local.updatedAt > r.updatedAt) continue
                 // A tombstone left behind when a record moved to another space is not a delete.
                 if (r.deleted && local != null && !local.deleted && local.space != null && r.space != null && local.space != r.space) continue
                 val row = LocalRow(r.type, r.id, r.data, r.updatedAt, r.deleted, dirty = false, space = r.space)
                 db.put(row)
-                applied += row
+                if (r.type in collections) applied += row
             }
         }
         applied.forEach { collections[it.type]?.applyRow(it) }

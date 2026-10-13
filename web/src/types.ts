@@ -187,7 +187,7 @@ export interface Tables {
   debt: Debt[]; event: CalEvent[]; time: TimeEntry[]; budget: Budget[]; rental: Rental[]
   invoice: Invoice[]; recurring: Recurring[]; secret: Secret[]; vault: VaultMeta[]; item: StockItem[]
   quote: Quote[]; wallet: Wallet[]; transfer: Transfer[]; supplier: Supplier[]; price: PriceItem[]; doc: DocFile[]
-  activity: Activity[]; target: Target[]; msgtpl: MsgTemplate[]
+  activity: Activity[]; target: Target[]; msgtpl: MsgTemplate[]; setting: SyncedSetting[]
 }
 export type TableName = keyof Tables
 
@@ -250,3 +250,6 @@ export const rentalPeriods: { value: string; label: string; short: string; month
   { value: 'once', label: 'One time', short: 'one time', months: 0 },
 ]
 export const rentalPeriod = (p: string) => rentalPeriods.find(x => x.value === p) ?? rentalPeriods[0]
+
+/** A setting shared by all of the user's devices, like the main currency (id "currency"). */
+export interface SyncedSetting { id: string; value: string }

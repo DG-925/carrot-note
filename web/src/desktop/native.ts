@@ -18,7 +18,7 @@ declare const __APP_VERSION__: string
 const VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0'
 const API = 'https://carrot-note-api.carrot-note-api.workers.dev'
 const REPO = 'DG-925/carrot-note'
-const TYPES = ['project', 'task', 'note', 'txn', 'goal', 'customer', 'debt', 'event', 'time', 'budget', 'rental', 'invoice', 'recurring', 'receipt', 'secret', 'vault', 'item', 'quote', 'wallet', 'transfer', 'supplier', 'price', 'doc', 'activity', 'target', 'msgtpl']
+const TYPES = ['project', 'task', 'note', 'txn', 'goal', 'customer', 'debt', 'event', 'time', 'budget', 'rental', 'invoice', 'recurring', 'receipt', 'secret', 'vault', 'item', 'quote', 'wallet', 'transfer', 'supplier', 'price', 'doc', 'activity', 'target', 'msgtpl', 'setting']
 const ALLOWED = ['https://date.nager.at/', 'https://open.er-api.com/', 'https://api.github.com/', 'https://rdap.org/']
 
 type Json = any
@@ -98,6 +98,10 @@ class Repo {
       repo.applyRow(row)
     }
     for (const [k, v] of await readAll<Json>(db, 'meta')) repo.meta[k] = v
+    // Older versions skipped record types they didn't know yet but still moved their sync cursors
+    // past them. When this version knows new types, download everything once more.
+    const known = [...TYPES].sort().join(',')
+    if (repo.meta.knownTypes !== known) await repo.setMeta({ cursors: {}, knownTypes: known })
     return repo
   }
 
@@ -155,7 +159,7 @@ class Repo {
     const puts: [string, Row][] = []
     const types = new Set<string>()
     for (const r of list) {
-      if (!this.tables[r.type]) continue
+      // Types this version doesn't know are still stored, so a later version can show them.
       const local = this.rows.get(key(r.type, r.id))
       if (local && local.updatedAt > r.updatedAt) continue
       if (r.deleted && local && !local.deleted && local.space && r.space && local.space !== r.space) continue
@@ -163,7 +167,7 @@ class Repo {
       this.rows.set(key(r.type, r.id), row)
       this.applyRow(row)
       puts.push([key(r.type, r.id), row])
-      types.add(r.type)
+      if (this.tables[r.type]) types.add(r.type)
     }
     await write(this.db, 'rows', puts)
     return types

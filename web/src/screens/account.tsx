@@ -6,7 +6,7 @@ import * as F from '../format'
 import { Icon } from '../icons'
 import { pop as popNav, push } from '../nav'
 import { duration, Categories, type GithubProfile } from '../types'
-import { useApp, setLanguage } from '../store'
+import { useApp, setLanguage, setMainCurrency } from '../store'
 import { Avatar, Btn, Card, Chips, Field, FieldLabel, Hint, PageHeader, Round, SelectField, SheetTitle, SwitchRow, Tile, attempt, confirm, openDialog, openSheet, toast } from '../ui'
 import { PinSetup } from './auth'
 import { dateLocale } from '../i18n'
@@ -214,7 +214,7 @@ export function SettingsScreen() {
         <Card i={2}>
           <h3 class="h-md" style={{ marginBottom: 10 }}>Preferences</h3>
           <div class="col">
-            <SelectField label="Main currency" value={s.settings.currency} onChange={v => set({ currency: v })}
+            <SelectField label="Main currency" value={s.settings.currency} onChange={v => attempt(() => setMainCurrency(v))}
               options={(Categories.currencies.includes(s.settings.currency) ? Categories.currencies : [s.settings.currency, ...Categories.currencies]).map(c => ({ value: c, label: c }))} />
             <FieldLabel>Language</FieldLabel>
             <div class="chips" data-notr>
