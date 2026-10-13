@@ -31,7 +31,7 @@ object TimeTracker {
         repo.time.save(TimeEntry(projectId = projectId, start = nowMs(), note = note))
         refreshNotification(context)
         TimerCheck.schedule(context)
-        com.carrotnote.app.widget.TodayWidget.refresh(context)
+        com.carrotnote.app.widget.Widgets.refresh(context)
     }
 
     fun stop(context: Context, notify: Boolean = true) {
@@ -40,7 +40,7 @@ object TimeTracker {
         repo.time.value.filter { it.running }.forEach { repo.time.save(it.copy(end = now)) }
         TimerCheck.cancel(context)
         if (notify) refreshNotification(context)
-        com.carrotnote.app.widget.TodayWidget.refresh(context)
+        com.carrotnote.app.widget.Widgets.refresh(context)
     }
 
     fun format(ms: Long): String {

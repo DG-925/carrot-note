@@ -131,7 +131,16 @@ function runShortcut() {
   setDrawer(false)
   setTimeout(() => {
     if (id === 'expense') editTxn(undefined, { kind: 'expense' })
+    else if (id === 'income') editTxn(undefined, { kind: 'income' })
     else if (id === 'task') editTask(undefined, { date: F.today() })
+    else if (id === 'home') goTab('home')
+    else if (id === 'money') goTab('money')
+    else if (id.startsWith('task-open:')) {
+      // A task tapped on the home-screen widget.
+      const task = getState().data.task.find(t => t.id === id.slice('task-open:'.length))
+      goTab('home')
+      if (task) editTask(task)
+    }
     else if (id === 'timer') { goTab(getNav().tab); push({ name: 'time' }) }
     else if (id === 'search') push({ name: 'search' })
   }, 250)

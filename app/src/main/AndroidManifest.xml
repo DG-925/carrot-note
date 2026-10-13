@@ -62,6 +62,18 @@
         </receiver>
 
         <receiver
+            android:name=".widget.MoneyWidget"
+            android:exported="false"
+            android:label="Carrot Note · Money">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_money_info" />
+        </receiver>
+
+        <receiver
             android:name=".time.TimerReceiver"
             android:exported="false" />
 

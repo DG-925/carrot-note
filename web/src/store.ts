@@ -61,7 +61,14 @@ export function setPrefs(patch: Partial<Prefs>) {
   const prefs = { ...state.prefs, ...patch }
   try { localStorage.setItem('carrot.prefs', JSON.stringify(prefs)) } catch { /* storage blocked */ }
   document.documentElement.classList.toggle('private', prefs.privacy)
+  const widgetChanged = prefs.privacy !== state.prefs.privacy || prefs.lang !== state.prefs.lang
   setState({ prefs })
+  if (widgetChanged) tellWidgets()
+}
+
+/** The phone's home-screen widgets hide amounts and use the language the app does. */
+function tellWidgets() {
+  call('settings.set', { hideAmounts: !!state.prefs.privacy, lang: currentLang() }).catch(() => {})
 }
 /** Switches the interface language; the page reloads in the new language. */
 export function setLanguage(lang: Lang) {
@@ -107,7 +114,9 @@ export function useApp(): AppState {
   return state
 }
 
+let widgetsTold = false
 on('state', (s: NativeState) => {
+  if (!widgetsTold) { widgetsTold = true; setTimeout(tellWidgets, 0) }
   const wasSignedIn = state.signedIn
   setState({ ...s, loaded: true, data: s.signedIn ? state.data : emptyTables(), spaces: s.signedIn ? state.spaces : [] })
   if (wasSignedIn && !s.signedIn) setState({ data: emptyTables() })

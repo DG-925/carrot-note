@@ -85,6 +85,22 @@ class Settings(context: Context) {
         prefs.edit().putBoolean("auto_update", v).apply(); _autoUpdate.value = v
     }
 
+    /** Mirrors the app's "Hide amounts" so the home-screen widgets hide them too. */
+    val hideAmounts: Boolean get() = prefs.getBoolean("hide_amounts", false)
+
+    /** The app's language ("en" or "ar"), for the home-screen widgets. */
+    val language: String get() = prefs.getString("language", "en") ?: "en"
+
+    /** Returns true when something the widgets show changed. */
+    fun setWidgetPrefs(hide: Boolean?, lang: String?): Boolean {
+        val changed = (hide != null && hide != hideAmounts) || (lang != null && lang != language)
+        if (changed) prefs.edit().apply {
+            if (hide != null) putBoolean("hide_amounts", hide)
+            if (lang != null) putString("language", lang)
+        }.apply()
+        return changed
+    }
+
     var snoozedVersion: String?
         get() = prefs.getString("snoozed_version", null)
         set(v) = prefs.edit().putString("snoozed_version", v).apply()

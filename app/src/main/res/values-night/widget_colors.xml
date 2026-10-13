@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="w_bg">#FF1C1917</color>
+    <color name="w_card">#FF2A2623</color>
+    <color name="w_text">#FFF5F1EC</color>
+    <color name="w_muted">#FFA39A92</color>
+    <color name="w_line">#FF332E2A</color>
+    <color name="w_accent">#FFFF7A2E</color>
+    <color name="w_accent_text">#FFFF9A5C</color>
+    <color name="w_bad">#FFFF6B6B</color>
+    <color name="w_good">#FF4ADE80</color>
+    <color name="w_hero_a">#FFF0661D</color>
+    <color name="w_hero_b">#FFD94C0C</color>
+    <color name="w_on_hero">#FFFFFFFF</color>
+    <color name="w_on_hero_soft">#D9FFFFFF</color>
+    <color name="w_hero_chip">#33FFFFFF</color>
+</resources>

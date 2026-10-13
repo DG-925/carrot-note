@@ -1,55 +1,385 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- The "Today" home-screen widget. TodayWidget shows or hides parts to fit the widget's size. The
+     sample text is what the widget picker shows on Android 12 and newer (previewLayout). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/w_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg"
     android:orientation="vertical"
-    android:padding="14dp">
+    android:padding="8dp">
 
+    <!-- Orange header: date and this month's money. -->
     <LinearLayout
+        android:id="@+id/w_hero"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@drawable/widget_hero"
         android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="9dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp">
 
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:layout_marginEnd="8dp"
-            android:contentDescription="@null"
-            android:src="@drawable/ic_widget_mark" />
-
-        <TextView
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Today"
-            android:textColor="#1E1A17"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/w_date"
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="15dp"
+                    android:layout_height="15dp"
+                    android:layout_marginEnd="5dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_widget_mark_white" />
+
+                <TextView
+                    android:id="@+id/w_date"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:maxLines="1"
+                    android:text="Tue, 13 Oct · October so far"
+                    android:textColor="@color/w_on_hero_soft"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/w_net"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:fontFamily="sans-serif-black"
+                android:maxLines="1"
+                android:text="+5,385 EGP"
+                android:textColor="@color/w_on_hero"
+                android:textSize="24sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/w_inout"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#8A817A"
-            android:textSize="12sp" />
+            android:gravity="end"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/w_in"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/widget_hero_chip"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:paddingStart="8dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="2dp"
+                android:text="↓ 16,000 in"
+                android:textColor="@color/w_on_hero"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/w_out"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/widget_hero_chip"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:paddingStart="8dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="2dp"
+                android:text="↑ 10,615 out"
+                android:textColor="@color/w_on_hero"
+                android:textSize="11sp" />
+        </LinearLayout>
     </LinearLayout>
 
-    <TextView android:id="@+id/w_task1" style="@style/WidgetTask" />
-    <TextView android:id="@+id/w_task2" style="@style/WidgetTask" />
-    <TextView android:id="@+id/w_task3" style="@style/WidgetTask" />
-
-    <TextView
-        android:id="@+id/w_empty"
+    <!-- Tasks due today or late. Tap the circle to finish one, tap the text to open it. -->
+    <LinearLayout
+        android:id="@+id/w_tasks"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:maxLines="1"
-        android:ellipsize="end"
-        android:textColor="#8A817A"
-        android:textSize="13sp" />
+        android:layout_marginTop="4dp"
+        android:orientation="vertical"
+        android:paddingStart="2dp"
+        android:paddingEnd="6dp">
+
+        <LinearLayout
+            android:id="@+id/w_row1"
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/w_check1"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:contentDescription="Mark done"
+                android:padding="5dp"
+                android:src="@drawable/ic_w_check_off" />
+
+            <TextView
+                android:id="@+id/w_title1"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Send invoice to Nour Bakery"
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/w_when1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text="6:00 PM"
+                android:textColor="@color/w_muted"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/w_late1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:visibility="gone"
+                android:text="Yesterday"
+                android:textColor="@color/w_bad"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/w_row2"
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/w_check2"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:contentDescription="Mark done"
+                android:padding="5dp"
+                android:src="@drawable/ic_w_check_off" />
+
+            <TextView
+                android:id="@+id/w_title2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Fix login crash on Android 10"
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/w_when2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/w_muted"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/w_late2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text="Yesterday"
+                android:textColor="@color/w_bad"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/w_row3"
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/w_check3"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:contentDescription="Mark done"
+                android:padding="5dp"
+                android:src="@drawable/ic_w_check_off" />
+
+            <TextView
+                android:id="@+id/w_title3"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Reply to Lina about the photo"
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/w_when3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/w_muted"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/w_late3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:visibility="gone"
+                android:text="Yesterday"
+                android:textColor="@color/w_bad"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/w_row4"
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/w_check4"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:contentDescription="Mark done"
+                android:padding="5dp"
+                android:src="@drawable/ic_w_check_off" />
+
+            <TextView
+                android:id="@+id/w_title4"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Offline sync for orders"
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/w_when4"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/w_muted"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/w_late4"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:visibility="gone"
+                android:text="Yesterday"
+                android:textColor="@color/w_bad"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/w_row5"
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/w_check5"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:contentDescription="Mark done"
+                android:padding="5dp"
+                android:src="@drawable/ic_w_check_off" />
+
+            <TextView
+                android:id="@+id/w_title5"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Call the printer shop"
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/w_when5"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/w_muted"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/w_late5"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:visibility="gone"
+                android:text="Yesterday"
+                android:textColor="@color/w_bad"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/w_more"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="+ 2 more · 1 event today"
+            android:textColor="@color/w_muted"
+            android:textSize="12sp" />
+    </LinearLayout>
 
     <!-- Spacer. A plain View is only allowed in widgets from Android 12, FrameLayout works everywhere. -->
     <FrameLayout
@@ -57,57 +387,151 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
-    <LinearLayout
-        android:id="@+id/w_timer_row"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/widget_chip"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="6dp">
-
-        <TextView
-            android:id="@+id/w_timer_label"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="#1E1A17"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-
-        <Chronometer
-            android:id="@+id/w_timer_clock"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:textColor="#FF6B1F"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/w_timer_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/widget_button"
-            android:paddingStart="12dp"
-            android:paddingTop="6dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="6dp"
-            android:textColor="#FFFFFF"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
     <TextView
-        android:id="@+id/w_rentals"
+        android:id="@+id/w_footer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:textColor="#C2410C"
-        android:textSize="12sp"
-        android:textStyle="bold" />
+        android:layout_marginStart="8dp"
+        android:layout_marginBottom="6dp"
+        android:drawablePadding="5dp"
+        android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
+        android:gravity="center_vertical"
+        android:maxLines="1"
+        android:text="2 rentals to renew this week"
+        android:textColor="@color/w_accent_text"
+        android:textSize="12sp" />
+
+    <!-- Timer and quick add. -->
+    <LinearLayout
+        android:id="@+id/w_actions"
+        android:layout_width="match_parent"
+        android:layout_height="38dp"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/w_timer"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1.25"
+            android:background="@drawable/widget_chip"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
+
+            <ImageView
+                android:id="@+id/w_timer_icon"
+                android:layout_width="15dp"
+                android:layout_height="15dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_w_play" />
+
+            <TextView
+                android:id="@+id/w_timer_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text="Timer"
+                android:textColor="@color/w_text"
+                android:textSize="13sp" />
+
+            <Chronometer
+                android:id="@+id/w_timer_clock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:fontFamily="sans-serif-medium"
+                android:textColor="@color/w_on_hero"
+                android:textSize="13sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/w_add_expense"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_chip"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_w_expense" />
+
+            <TextView
+                android:id="@+id/w_add_expense_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text="Expense"
+                android:textColor="@color/w_text"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/w_add_income"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_chip"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_w_income" />
+
+            <TextView
+                android:id="@+id/w_add_income_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text="Income"
+                android:textColor="@color/w_text"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/w_add_task"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_chip"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_w_task" />
+
+            <TextView
+                android:id="@+id/w_add_task_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text="Task"
+                android:textColor="@color/w_text"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+    </LinearLayout>
 </LinearLayout>

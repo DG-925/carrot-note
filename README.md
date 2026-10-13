@@ -16,6 +16,12 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.13: home-screen widgets
+
+- **Today widget** (resize it to show more or less): this month's money in the orange header, tasks due today or late that you tick off right on the home screen (repeating tasks get their next one), a timer you start and stop from there, quick Expense / Income / Task buttons that open straight into the form, and rentals to renew or your next event. Tap a task to open it, tap the header to open Money.
+- **Money widget** (2×2): this month's money, in and out, progress towards your monthly income target, and Expense / Income buttons.
+- Both follow the phone's dark mode, hide amounts when "Hide amounts" is on, and use the app's language.
+
 ### New in 1.12.1
 
 - **Everything syncs between phone and PC**: an app that was older than the data (for example a phone on 1.11 when a price list was saved on the PC) used to skip those records for good. Now they are kept, and after this update each app downloads everything once more, so anything missing shows up.

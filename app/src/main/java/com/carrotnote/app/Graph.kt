@@ -68,8 +68,11 @@ object Graph {
         // Keep the home-screen widget and the uptime checks in step with the data.
         dataJob?.cancel()
         dataJob = scope.launch {
-            kotlinx.coroutines.flow.merge(repo.tasks.flow, repo.time.flow, repo.rentals.flow, repo.events.flow).collect {
-                com.carrotnote.app.widget.TodayWidget.refresh(app)
+            kotlinx.coroutines.flow.merge(
+                repo.tasks.flow, repo.time.flow, repo.rentals.flow, repo.events.flow, repo.txns.flow, repo.targets.flow,
+                repo.projects.flow, settings.currency,
+            ).collect {
+                com.carrotnote.app.widget.Widgets.refresh(app)
             }
         }
         rentalJob?.cancel()
@@ -101,7 +104,7 @@ object Graph {
         dataJob?.cancel()
         rentalJob?.cancel()
         com.carrotnote.app.monitor.Uptime.reschedule(app)
-        com.carrotnote.app.widget.TodayWidget.refresh(app)
+        com.carrotnote.app.widget.Widgets.refresh(app)
         _invites.value = 0
         if (repo != null) {
             repo.close()

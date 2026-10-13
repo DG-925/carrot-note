@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Carrot Note</string>
-    <string name="widget_today_description">Tasks due today, a timer button and rentals to renew</string>
+    <string name="widget_today_description">Today: money this month, tasks you can tick off, a timer and quick add</string>
+    <string name="widget_money_description">This month\'s money, your income target, and quick expense or income</string>
 </resources>

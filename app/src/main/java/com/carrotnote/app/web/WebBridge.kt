@@ -305,6 +305,9 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
         // ---- settings and lock
         "settings.set" -> {
             a.strOrNull("currency")?.let { if (it.isNotBlank()) Graph.settings.setCurrency(it) }
+            if (Graph.settings.setWidgetPrefs(a.boolOrNull("hideAmounts"), a.strOrNull("lang")?.takeIf { it == "en" || it == "ar" })) {
+                com.carrotnote.app.widget.Widgets.refresh(activity)
+            }
             a.intOrNull("theme")?.let { Graph.settings.setTheme(it) }
             a.boolOrNull("autoUpdate")?.let {
                 Graph.settings.setAutoUpdate(it)

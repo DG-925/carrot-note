@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget colors. The launcher picks values-night when the phone is in dark mode. -->
+<resources>
+    <color name="w_bg">#FFFFFFFF</color>
+    <color name="w_card">#FFF4F1EC</color>
+    <color name="w_text">#FF1E1A17</color>
+    <color name="w_muted">#FF8A817A</color>
+    <color name="w_line">#FFECE7E1</color>
+    <color name="w_accent">#FFFF6B1F</color>
+    <color name="w_accent_text">#FFC2410C</color>
+    <color name="w_bad">#FFD93A3A</color>
+    <color name="w_good">#FF1E9E63</color>
+    <color name="w_hero_a">#FFFF7A2E</color>
+    <color name="w_hero_b">#FFFF5A12</color>
+    <color name="w_on_hero">#FFFFFFFF</color>
+    <color name="w_on_hero_soft">#D9FFFFFF</color>
+    <color name="w_hero_chip">#33FFFFFF</color>
+</resources>

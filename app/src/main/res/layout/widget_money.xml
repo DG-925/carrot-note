@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The small "Money" home-screen widget: this month's money, the income target and quick add. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/m_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_hero_full"
+    android:orientation="vertical"
+    android:paddingStart="14dp"
+    android:paddingTop="12dp"
+    android:paddingEnd="14dp"
+    android:paddingBottom="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="15dp"
+            android:layout_height="15dp"
+            android:layout_marginEnd="5dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_widget_mark_white" />
+
+        <TextView
+            android:id="@+id/m_month"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="October so far"
+            android:textColor="@color/w_on_hero_soft"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/m_net"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:fontFamily="sans-serif-black"
+        android:maxLines="1"
+        android:text="+5,385 EGP"
+        android:textColor="@color/w_on_hero"
+        android:textSize="22sp" />
+
+    <TextView
+        android:id="@+id/m_inout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-medium"
+        android:maxLines="1"
+        android:text="↓ 16,000  ↑ 10,615"
+        android:textColor="@color/w_on_hero_soft"
+        android:textSize="12sp" />
+
+    <LinearLayout
+        android:id="@+id/m_target"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical">
+
+        <ProgressBar
+            android:id="@+id/m_target_bar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:max="100"
+            android:progress="80"
+            android:progressDrawable="@drawable/widget_progress" />
+
+        <TextView
+            android:id="@+id/m_target_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="80% of 20,000 target"
+            android:textColor="@color/w_on_hero_soft"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- Spacer. A plain View is only allowed in widgets from Android 12, FrameLayout works everywhere. -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="34dp"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/m_add_expense"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/widget_hero_chip"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="15dp"
+                android:layout_height="15dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_w_up_hero" />
+
+            <TextView
+                android:id="@+id/m_add_expense_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text="Expense"
+                android:textColor="@color/w_on_hero"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/m_add_income"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_hero_chip"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="15dp"
+                android:layout_height="15dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_w_down_hero" />
+
+            <TextView
+                android:id="@+id/m_add_income_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text="Income"
+                android:textColor="@color/w_on_hero"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>
