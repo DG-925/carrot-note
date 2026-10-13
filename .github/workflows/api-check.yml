@@ -1,0 +1,28 @@
+name: API check
+
+# Read-only look at the sync database: for each shared project, how many members it has and how
+# many rentals and invoices live in it, plus rentals/invoices still waiting in a personal space.
+# Prints counts only. Run it by hand from the Actions tab.
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Counts
+        working-directory: server
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          q() { npx --yes wrangler@4.149.0 d1 execute DB --remote --json --command "$1" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s);for(const x of r)console.table(x.results)})'; }
+          echo "== Shared projects (space numbered, members, invites, rentals, invoices, tasks)"
+          q "SELECT ROW_NUMBER() OVER () AS project, (SELECT COUNT(*) FROM space_members m WHERE m.space_id = s.id) AS members, (SELECT COUNT(*) FROM invites i WHERE i.space_id = s.id) AS invites, (SELECT COUNT(*) FROM records r WHERE r.space_id = s.id AND r.type = 'rental' AND r.deleted = 0) AS rentals, (SELECT COUNT(*) FROM records r WHERE r.space_id = s.id AND r.type = 'invoice' AND r.deleted = 0) AS invoices, (SELECT COUNT(*) FROM records r WHERE r.space_id = s.id AND r.type = 'task' AND r.deleted = 0) AS tasks, s.rev FROM spaces s WHERE s.kind = 'project'"
+          echo "== Rentals/invoices of a shared project still in a personal space"
+          q "SELECT r.type, COUNT(*) AS waiting FROM records r JOIN spaces s ON s.kind = 'project' AND s.project_id = json_extract(r.data, '\$.projectId') WHERE r.type IN ('rental', 'invoice') AND r.deleted = 0 AND r.space_id <> s.id GROUP BY r.type"
+          echo "== Last sync per user (minutes ago)"
+          q "SELECT ROW_NUMBER() OVER () AS user, (strftime('%s','now') * 1000 - MAX(last_used)) / 60000 AS minutes_ago FROM sessions GROUP BY user_id"
