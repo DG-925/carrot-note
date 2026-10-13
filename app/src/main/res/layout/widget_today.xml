@@ -51,7 +51,8 @@
         android:textColor="#8A817A"
         android:textSize="13sp" />
 
-    <View
+    <!-- Spacer. A plain View is only allowed in widgets from Android 12, FrameLayout works everywhere. -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1" />
