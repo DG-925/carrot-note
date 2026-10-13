@@ -2,9 +2,12 @@ name: API check
 
 # Read-only look at the sync database: for each shared project, how many members it has and how
 # many rentals and invoices live in it, plus rentals/invoices still waiting in a personal space.
-# Prints counts only. Run it by hand from the Actions tab.
+# Prints counts only. Run it by hand from the Actions tab (it also runs when this file changes).
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/api-check.yml"
 
 jobs:
   check:
