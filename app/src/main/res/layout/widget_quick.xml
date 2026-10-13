@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Quick add" widget: one tap to a new expense, income, task or note, or to start the timer. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/q_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:orientation="horizontal"
+    android:padding="6dp">
+
+    <LinearLayout
+        android:id="@+id/q_expense"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical">
+        <ImageView
+            android:id="@+id/q_expense_icon"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_w_expense_rose"
+            android:background="@drawable/widget_tile_rose"
+            android:padding="9dp" />
+        <TextView
+            android:id="@+id/q_expense_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Expense"
+            android:textColor="@color/w_text"
+            android:textSize="11sp" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/q_income"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical">
+        <ImageView
+            android:id="@+id/q_income_icon"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_w_income_mint"
+            android:background="@drawable/widget_tile_mint"
+            android:padding="9dp" />
+        <TextView
+            android:id="@+id/q_income_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Income"
+            android:textColor="@color/w_text"
+            android:textSize="11sp" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/q_task"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical">
+        <ImageView
+            android:id="@+id/q_task_icon"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_w_task_lilac"
+            android:background="@drawable/widget_tile_lilac"
+            android:padding="9dp" />
+        <TextView
+            android:id="@+id/q_task_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Task"
+            android:textColor="@color/w_text"
+            android:textSize="11sp" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/q_note"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical">
+        <ImageView
+            android:id="@+id/q_note_icon"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_w_note_butter"
+            android:background="@drawable/widget_tile_butter"
+            android:padding="9dp" />
+        <TextView
+            android:id="@+id/q_note_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Note"
+            android:textColor="@color/w_text"
+            android:textSize="11sp" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/q_timer"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical">
+        <ImageView
+            android:id="@+id/q_timer_icon"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_w_play_sky"
+            android:background="@drawable/widget_tile_sky"
+            android:padding="9dp" />
+        <TextView
+            android:id="@+id/q_timer_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Timer"
+            android:textColor="@color/w_text"
+            android:textSize="11sp" />
+    </LinearLayout>
+</LinearLayout>

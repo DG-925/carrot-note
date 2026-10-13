@@ -16,11 +16,22 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
-### New in 1.13: home-screen widgets
+### New in 1.13: 10 home-screen widgets
 
-- **Today widget** (resize it to show more or less): this month's money in the orange header, tasks due today or late that you tick off right on the home screen (repeating tasks get their next one), a timer you start and stop from there, quick Expense / Income / Task buttons that open straight into the form, and rentals to renew or your next event. Tap a task to open it, tap the header to open Money.
-- **Money widget** (2×2): this month's money, in and out, progress towards your monthly income target, and Expense / Income buttons.
-- Both follow the phone's dark mode, hide amounts when "Hide amounts" is on, and use the app's language.
+Long-press your home screen → Widgets → Carrot Note:
+
+1. **Today** (resizable): this month's money, tasks due today or late that you tick off right there (repeating tasks get their next one), the timer, quick Expense / Income / Task, and rentals to renew or your next event.
+2. **Money** (2×2): this month's money, in and out, progress towards your income target, Expense / Income buttons.
+3. **Quick add** (4×1): Expense, Income, Task, Note and Timer in one strip.
+4. **Timer** (2×2): one-tap start and stop, a live clock on orange while it runs, and the hours tracked today.
+5. **Agenda** (4×3): today's and tomorrow's events and tasks in time order.
+6. **Renew soon** (4×2): rentals in order of when they run out, with the days left.
+7. **Savings goal** (2×2): the goal closest to its deadline, with its progress bar.
+8. **Targets** (4×2): this month's targets with progress bars.
+9. **Owed to you** (2×2): unpaid invoices and debts, who owes the most, and what you owe.
+10. **Pinned note** (2×2): your pinned note or checklist.
+
+All of them follow the phone's dark mode, hide amounts when "Hide amounts" is on, use the app's language, and open the right page when tapped.
 
 ### New in 1.12.1
 

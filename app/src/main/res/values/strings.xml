@@ -3,4 +3,12 @@
     <string name="app_name">Carrot Note</string>
     <string name="widget_today_description">Today: money this month, tasks you can tick off, a timer and quick add</string>
     <string name="widget_money_description">This month\'s money, your income target, and quick expense or income</string>
+    <string name="widget_quick_description">Quick add: expense, income, task, note or timer in one tap</string>
+    <string name="widget_timer_description">Start and stop the timer, with a live clock and today\'s hours</string>
+    <string name="widget_agenda_description">Today\'s and tomorrow\'s events and tasks</string>
+    <string name="widget_renew_description">Rentals in order of when they run out</string>
+    <string name="widget_goal_description">Your savings goal and how close you are</string>
+    <string name="widget_targets_description">Progress on this month\'s targets</string>
+    <string name="widget_owed_description">Unpaid invoices and debts owed to you, and what you owe</string>
+    <string name="widget_note_description">Your pinned note or checklist</string>
 </resources>

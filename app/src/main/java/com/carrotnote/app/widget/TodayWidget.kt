@@ -2,12 +2,9 @@ package com.carrotnote.app.widget
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
-import android.appwidget.AppWidgetProvider
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Bundle
 import android.os.SystemClock
 import android.text.format.DateFormat
 import android.view.View
@@ -26,15 +23,9 @@ import java.util.Calendar
  * The "Today" home-screen widget: this month's money, tasks due (tick them off right there), the
  * timer and quick add. It shows more or less depending on how big it is on the home screen.
  */
-class TodayWidget : AppWidgetProvider() {
+class TodayWidget : CarrotWidget() {
 
-    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        ids.forEach { manager.updateAppWidget(it, build(context, manager, it)) }
-    }
-
-    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) {
-        manager.updateAppWidget(id, build(context, manager, id))
-    }
+    override fun build(context: Context, manager: AppWidgetManager, widgetId: Int): RemoteViews = buildViews(context, manager, widgetId)
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
@@ -62,14 +53,8 @@ class TodayWidget : AppWidgetProvider() {
         private val whens = intArrayOf(R.id.w_when1, R.id.w_when2, R.id.w_when3, R.id.w_when4, R.id.w_when5)
         private val lates = intArrayOf(R.id.w_late1, R.id.w_late2, R.id.w_late3, R.id.w_late4, R.id.w_late5)
 
-        fun refresh(context: Context) {
-            val manager = AppWidgetManager.getInstance(context) ?: return
-            val ids = manager.getAppWidgetIds(ComponentName(context, TodayWidget::class.java))
-            ids.forEach { manager.updateAppWidget(it, build(context, manager, it)) }
-        }
-
         /** Ticks a task off; a repeating task gets its next copy, like in the app. */
-        private fun complete(context: Context, id: String) {
+        fun complete(context: Context, id: String) {
             val repo = Graph.repoOrNull ?: return
             val task = repo.tasks.get(id) ?: return
             if (task.done) return
@@ -94,7 +79,7 @@ class TodayWidget : AppWidgetProvider() {
             else -> day + 1
         }
 
-        private fun build(context: Context, manager: AppWidgetManager, widgetId: Int): RemoteViews {
+        private fun buildViews(context: Context, manager: AppWidgetManager, widgetId: Int): RemoteViews {
             val v = RemoteViews(context.packageName, R.layout.widget_today)
             val (width, height) = Widgets.sizeOf(manager, widgetId, 300, 260)
             val narrow = width < 250
@@ -151,11 +136,7 @@ class TodayWidget : AppWidgetProvider() {
                 v.setViewVisibility(R.id.w_timer_clock, View.GONE)
                 v.setChronometer(R.id.w_timer_clock, SystemClock.elapsedRealtime(), null, false)
             }
-            val toggle = PendingIntent.getBroadcast(
-                context, 9101, Intent(context, TodayWidget::class.java).setAction(ACTION_TOGGLE),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            )
-            v.setOnClickPendingIntent(R.id.w_timer, toggle)
+            v.setOnClickPendingIntent(R.id.w_timer, Widgets.toggleTimer(context, 9101))
 
             // Footer: what's being tracked, rentals to renew, or the next event.
             val renew = repo.rentals.value.count { r -> r.status == "active" && r.expiryDate != null && r.expiryDate <= day + maxOf(7, r.remindDays) }
@@ -215,7 +196,7 @@ class TodayWidget : AppWidgetProvider() {
         }
 
         /** Minutes after midnight as the phone shows times ("6:00 PM" or "18:00"). */
-        private fun clock(context: Context, minutes: Int): String {
+        fun clock(context: Context, minutes: Int): String {
             val c = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, minutes / 60); set(Calendar.MINUTE, minutes % 60) }
             return DateFormat.getTimeFormat(context).format(c.time)
         }

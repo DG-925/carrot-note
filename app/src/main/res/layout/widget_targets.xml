@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Targets" widget: progress on this month's targets. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_lilac"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_w_flag"
+            android:layout_marginEnd="6dp" />
+        <TextView
+            android:id="@+id/tg_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="This month's targets"
+            android:textColor="@color/w_text"
+            android:textSize="14sp" />
+        <TextView
+            android:id="@+id/tg_day"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:maxLines="1"
+            android:text="Day 13 of 31"
+            android:textColor="@color/w_muted"
+            android:textSize="12sp" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/g1_slot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="9dp">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/g1_label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="Income"
+                android:textColor="@color/w_text"
+                android:textSize="13sp" />
+            <TextView
+                android:id="@+id/g1_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:maxLines="1"
+                android:text="16,000 / 20,000 EGP"
+                android:textColor="@color/w_muted"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <ProgressBar
+            android:id="@+id/g1_bar"
+            android:style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="4dp"
+            android:max="100"
+            android:progress="80"
+            android:progressDrawable="@drawable/widget_progress_lilac" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/g2_slot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="9dp">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/g2_label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="Pieces sold"
+                android:textColor="@color/w_text"
+                android:textSize="13sp" />
+            <TextView
+                android:id="@+id/g2_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:maxLines="1"
+                android:text="8 / 6 · done 🎉"
+                android:textColor="@color/w_muted"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <ProgressBar
+            android:id="@+id/g2_bar"
+            android:style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="4dp"
+            android:max="100"
+            android:progress="100"
+            android:progressDrawable="@drawable/widget_progress_lilac" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/g3_slot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="9dp">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/g3_label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="New clients"
+                android:textColor="@color/w_text"
+                android:textSize="13sp" />
+            <TextView
+                android:id="@+id/g3_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:maxLines="1"
+                android:text="1 / 3"
+                android:textColor="@color/w_muted"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <ProgressBar
+            android:id="@+id/g3_bar"
+            android:style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="4dp"
+            android:max="100"
+            android:progress="33"
+            android:progressDrawable="@drawable/widget_progress_lilac" />
+    </LinearLayout>
+    <TextView
+        android:id="@+id/tg_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:visibility="gone"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:text="Set targets in the app: Money → Targets"
+        android:textColor="@color/w_muted"
+        android:textSize="13sp" />
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+</LinearLayout>

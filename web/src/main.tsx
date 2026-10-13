@@ -135,6 +135,19 @@ function runShortcut() {
     else if (id === 'task') editTask(undefined, { date: F.today() })
     else if (id === 'home') goTab('home')
     else if (id === 'money') goTab('money')
+    else if (id === 'note') editNote(undefined, {})
+    else if (id === 'time') push({ name: 'time' })
+    else if (id === 'calendar') push({ name: 'calendar' })
+    else if (id === 'rentals') push({ name: 'rentals' })
+    else if (id === 'goals') push({ name: 'goals' })
+    else if (id === 'targets') push({ name: 'targets' })
+    else if (id === 'debts') push({ name: 'debts' })
+    else if (id.startsWith('rental-open:')) push({ name: 'rental', id: id.slice('rental-open:'.length) })
+    else if (id.startsWith('note-open:')) {
+      const note = getState().data.note.find(n => n.id === id.slice('note-open:'.length))
+      goTab('notes')
+      if (note) editNote(note)
+    }
     else if (id.startsWith('task-open:')) {
       // A task tapped on the home-screen widget.
       const task = getState().data.task.find(t => t.id === id.slice('task-open:'.length))

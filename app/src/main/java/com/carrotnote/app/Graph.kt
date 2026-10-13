@@ -70,7 +70,8 @@ object Graph {
         dataJob = scope.launch {
             kotlinx.coroutines.flow.merge(
                 repo.tasks.flow, repo.time.flow, repo.rentals.flow, repo.events.flow, repo.txns.flow, repo.targets.flow,
-                repo.projects.flow, settings.currency,
+                repo.projects.flow, repo.goals.flow, repo.notes.flow, repo.debts.flow, repo.invoices.flow, repo.items.flow,
+                repo.customers.flow, settings.currency,
             ).collect {
                 com.carrotnote.app.widget.Widgets.refresh(app)
             }

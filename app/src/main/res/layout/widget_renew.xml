@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Renew soon" widget: rentals in order of when they run out. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/r_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_w_renew"
+            android:layout_marginEnd="6dp" />
+        <TextView
+            android:id="@+id/r_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="Renew soon"
+            android:textColor="@color/w_text"
+            android:textSize="14sp" />
+        <TextView
+            android:id="@+id/r_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:maxLines="1"
+            android:text="5 active"
+            android:textColor="@color/w_muted"
+            android:textSize="12sp" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/r_row1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        android:visibility="visible">
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_weight="1">
+            <TextView
+                android:id="@+id/r_name1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="FitZone booking bot"
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+            <TextView
+                android:id="@+id/r_sub1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="FitZone · 1,800 EGP"
+                android:textColor="@color/w_muted"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <TextView
+            android:id="@+id/r_left1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:visibility="gone"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="@color/w_accent_text"
+            android:textSize="13sp" />
+        <TextView
+            android:id="@+id/r_late1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:visibility="visible"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Expired"
+            android:textColor="@color/w_bad"
+            android:textSize="13sp" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/r_row2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        android:visibility="visible">
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_weight="1">
+            <TextView
+                android:id="@+id/r_name2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="Bakery POS server"
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+            <TextView
+                android:id="@+id/r_sub2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="Nour Bakery · 900 EGP"
+                android:textColor="@color/w_muted"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <TextView
+            android:id="@+id/r_left2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:visibility="visible"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="2d"
+            android:textColor="@color/w_accent_text"
+            android:textSize="13sp" />
+        <TextView
+            android:id="@+id/r_late2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:visibility="gone"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Expired"
+            android:textColor="@color/w_bad"
+            android:textSize="13sp" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/r_row3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        android:visibility="visible">
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_weight="1">
+            <TextView
+                android:id="@+id/r_name3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="CarrotPOS"
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+            <TextView
+                android:id="@+id/r_sub3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="Sweet Corner · 1,000 EGP"
+                android:textColor="@color/w_muted"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <TextView
+            android:id="@+id/r_left3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:visibility="visible"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="2d"
+            android:textColor="@color/w_accent_text"
+            android:textSize="13sp" />
+        <TextView
+            android:id="@+id/r_late3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:visibility="gone"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Expired"
+            android:textColor="@color/w_bad"
+            android:textSize="13sp" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/r_row4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        android:visibility="visible">
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_weight="1">
+            <TextView
+                android:id="@+id/r_name4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="linahassan.design"
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+            <TextView
+                android:id="@+id/r_sub4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="Lina Hassan · 25 USD"
+                android:textColor="@color/w_muted"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <TextView
+            android:id="@+id/r_left4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:visibility="visible"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="165d"
+            android:textColor="@color/w_accent_text"
+            android:textSize="13sp" />
+        <TextView
+            android:id="@+id/r_late4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:visibility="gone"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Expired"
+            android:textColor="@color/w_bad"
+            android:textSize="13sp" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/r_row5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        android:visibility="gone">
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_weight="1">
+            <TextView
+                android:id="@+id/r_name5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text=""
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+            <TextView
+                android:id="@+id/r_sub5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text=""
+                android:textColor="@color/w_muted"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <TextView
+            android:id="@+id/r_left5"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:visibility="visible"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="@color/w_accent_text"
+            android:textSize="13sp" />
+        <TextView
+            android:id="@+id/r_late5"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:visibility="gone"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Expired"
+            android:textColor="@color/w_bad"
+            android:textSize="13sp" />
+    </LinearLayout>
+    <TextView
+        android:id="@+id/r_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:visibility="gone"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:text="No rentals yet"
+        android:textColor="@color/w_muted"
+        android:textSize="13sp" />
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+</LinearLayout>

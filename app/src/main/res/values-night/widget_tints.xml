@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Soft card colors for the widgets, matching the app's tiles. -->
+<resources>
+    <color name="w_mint">#FF1E3A2C</color>
+    <color name="w_lilac">#FF2D2742</color>
+    <color name="w_butter">#FF3A3220</color>
+    <color name="w_sky">#FF1D2A3C</color>
+    <color name="w_rose">#FF3E2329</color>
+    <color name="w_mint_deep">#FF4ADE80</color>
+    <color name="w_lilac_deep">#FFA996FF</color>
+    <color name="w_butter_deep">#FFFFC94A</color>
+    <color name="w_sky_deep">#FF7DB3FF</color>
+    <color name="w_rose_deep">#FFFF7A90</color>
+    <color name="w_track">#26FFFFFF</color>
+</resources>

@@ -24,11 +24,27 @@ import kotlin.math.roundToLong
 /** Shared helpers for the home-screen widgets. */
 object Widgets {
 
+    /** Every widget the app offers. */
+    private val all: List<CarrotWidget> by lazy {
+        listOf(TodayWidget(), MoneyWidget(), QuickWidget(), TimerWidget(), AgendaWidget(), RenewWidget(), GoalWidget(), TargetsWidget(), OwedWidget(), NoteWidget())
+    }
+
     /** Redraws every Carrot Note widget on the home screen. */
     fun refresh(context: Context) {
-        TodayWidget.refresh(context)
-        MoneyWidget.refresh(context)
+        all.forEach { it.refreshAll(context) }
     }
+
+    /** Starts or stops the timer (handled by [TodayWidget], which is always registered). */
+    fun toggleTimer(context: Context, requestCode: Int): PendingIntent = PendingIntent.getBroadcast(
+        context, requestCode, Intent(context, TodayWidget::class.java).setAction(TodayWidget.ACTION_TOGGLE),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
+
+    /** Local day of a time in milliseconds. */
+    fun dayOf(ms: Long): Long = java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toEpochDay()
+
+    /** "3:24" hours and minutes. */
+    fun hm(ms: Long): String { val m = ms / 60_000; return "${m / 60}:${(m % 60).toString().padStart(2, '0')}" }
 
     /** Opens the app and runs one of its shortcuts ("expense", "task-open:<id>", …). */
     fun openApp(context: Context, shortcut: String, requestCode: Int): PendingIntent {
@@ -76,6 +92,39 @@ object Widgets {
         "of" to "من",
         "target" to "الهدف",
         "Mark done" to "تم",
+        "Note" to "ملاحظة",
+        "Stop" to "إيقاف",
+        "Start" to "ابدأ",
+        "tracked today" to "مسجل اليوم",
+        "Agenda" to "الأجندة",
+        "Today" to "اليوم",
+        "Tomorrow" to "غدًا",
+        "Late" to "متأخرة",
+        "All day" to "طوال اليوم",
+        "Nothing planned for today or tomorrow 🥕" to "لا شيء مخطط لليوم أو الغد 🥕",
+        "Renew soon" to "تجديد قريب",
+        "active" to "نشط",
+        "Expired" to "منتهي",
+        "No rentals yet" to "لا توجد إيجارات بعد",
+        "Savings goal" to "هدف الادخار",
+        "days left" to "يوم متبقٍ",
+        "Reached 🎉" to "تحقق 🎉",
+        "No goals yet. Add one in Money → Goals" to "لا توجد أهداف بعد. أضف واحدًا من الأموال ← الأهداف",
+        "This month's targets" to "أهداف هذا الشهر",
+        "Day" to "اليوم",
+        "Profit" to "الربح",
+        "Pieces sold" to "القطع المباعة",
+        "New clients" to "عملاء جدد",
+        "Hours worked" to "ساعات العمل",
+        "Set targets in the app: Money → Targets" to "حدد أهدافك في التطبيق: الأموال ← الأهداف",
+        "Owed to you" to "مستحق لك",
+        "Invoices" to "الفواتير",
+        "Debts" to "الديون",
+        "You owe" to "عليك",
+        "Nobody owes you anything 🎉" to "لا أحد مدين لك 🎉",
+        "Pinned note" to "ملاحظة مثبتة",
+        "Latest note" to "آخر ملاحظة",
+        "No notes yet" to "لا توجد ملاحظات بعد",
     )
 
     fun t(s: String): String = if (arabic) ar[s] ?: s else s

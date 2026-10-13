@@ -74,6 +74,102 @@
         </receiver>
 
         <receiver
+            android:name=".widget.QuickWidget"
+            android:exported="false"
+            android:label="Carrot Note · Quick add">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_quick_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.TimerWidget"
+            android:exported="false"
+            android:label="Carrot Note · Timer">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_timer_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.AgendaWidget"
+            android:exported="false"
+            android:label="Carrot Note · Agenda">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_agenda_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.RenewWidget"
+            android:exported="false"
+            android:label="Carrot Note · Renew soon">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_renew_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.GoalWidget"
+            android:exported="false"
+            android:label="Carrot Note · Savings goal">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_goal_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.TargetsWidget"
+            android:exported="false"
+            android:label="Carrot Note · Targets">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_targets_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.OwedWidget"
+            android:exported="false"
+            android:label="Carrot Note · Owed to you">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_owed_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.NoteWidget"
+            android:exported="false"
+            android:label="Carrot Note · Pinned note">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_note_info" />
+        </receiver>
+
+        <receiver
             android:name=".time.TimerReceiver"
             android:exported="false" />
 

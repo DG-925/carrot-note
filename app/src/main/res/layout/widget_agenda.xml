@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Agenda" widget: today's and tomorrow's events and tasks. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/a_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_w_cal_text"
+            android:layout_marginEnd="6dp" />
+        <TextView
+            android:id="@+id/a_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="Agenda"
+            android:textColor="@color/w_text"
+            android:textSize="14sp" />
+        <TextView
+            android:id="@+id/a_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:maxLines="1"
+            android:text="Tue, 13 Oct"
+            android:textColor="@color/w_muted"
+            android:textSize="12sp" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/a_slot1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/a_day1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:visibility="visible"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Today"
+            android:textColor="@color/w_muted"
+            android:textSize="11sp" />
+        <LinearLayout
+            android:id="@+id/a_item1"
+            android:layout_width="match_parent"
+            android:layout_height="26dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="visible">
+            <ImageView
+                android:id="@+id/a_dot1"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_w_dot_event"
+                android:layout_marginEnd="8dp" />
+            <TextView
+                android:id="@+id/a_time1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="58dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text="4:30 PM"
+                android:textColor="@color/w_accent_text"
+                android:textSize="12sp" />
+            <TextView
+                android:id="@+id/a_title1"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="Call with Karim"
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/a_slot2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/a_day2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:visibility="gone"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Tomorrow"
+            android:textColor="@color/w_muted"
+            android:textSize="11sp" />
+        <LinearLayout
+            android:id="@+id/a_item2"
+            android:layout_width="match_parent"
+            android:layout_height="26dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="visible">
+            <ImageView
+                android:id="@+id/a_dot2"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_w_dot_task"
+                android:layout_marginEnd="8dp" />
+            <TextView
+                android:id="@+id/a_time2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="58dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text="6:00 PM"
+                android:textColor="@color/w_accent_text"
+                android:textSize="12sp" />
+            <TextView
+                android:id="@+id/a_title2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="Send invoice to Nour Bakery"
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/a_slot3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/a_day3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:visibility="gone"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Tomorrow"
+            android:textColor="@color/w_muted"
+            android:textSize="11sp" />
+        <LinearLayout
+            android:id="@+id/a_item3"
+            android:layout_width="match_parent"
+            android:layout_height="26dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="visible">
+            <ImageView
+                android:id="@+id/a_dot3"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_w_dot_event"
+                android:layout_marginEnd="8dp" />
+            <TextView
+                android:id="@+id/a_time3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="58dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text="All day"
+                android:textColor="@color/w_accent_text"
+                android:textSize="12sp" />
+            <TextView
+                android:id="@+id/a_title3"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="Reply to Lina"
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/a_slot4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/a_day4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:visibility="gone"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Tomorrow"
+            android:textColor="@color/w_muted"
+            android:textSize="11sp" />
+        <LinearLayout
+            android:id="@+id/a_item4"
+            android:layout_width="match_parent"
+            android:layout_height="26dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+            <ImageView
+                android:id="@+id/a_dot4"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_w_dot_task"
+                android:layout_marginEnd="8dp" />
+            <TextView
+                android:id="@+id/a_time4"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="58dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/w_accent_text"
+                android:textSize="12sp" />
+            <TextView
+                android:id="@+id/a_title4"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text=""
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/a_slot5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/a_day5"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:visibility="visible"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Tomorrow"
+            android:textColor="@color/w_muted"
+            android:textSize="11sp" />
+        <LinearLayout
+            android:id="@+id/a_item5"
+            android:layout_width="match_parent"
+            android:layout_height="26dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="visible">
+            <ImageView
+                android:id="@+id/a_dot5"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_w_dot_event"
+                android:layout_marginEnd="8dp" />
+            <TextView
+                android:id="@+id/a_time5"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="58dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text="10:00 AM"
+                android:textColor="@color/w_accent_text"
+                android:textSize="12sp" />
+            <TextView
+                android:id="@+id/a_title5"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="Design review"
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/a_slot6"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/a_day6"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:visibility="gone"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Tomorrow"
+            android:textColor="@color/w_muted"
+            android:textSize="11sp" />
+        <LinearLayout
+            android:id="@+id/a_item6"
+            android:layout_width="match_parent"
+            android:layout_height="26dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+            <ImageView
+                android:id="@+id/a_dot6"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_w_dot_task"
+                android:layout_marginEnd="8dp" />
+            <TextView
+                android:id="@+id/a_time6"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="58dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/w_accent_text"
+                android:textSize="12sp" />
+            <TextView
+                android:id="@+id/a_title6"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text=""
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/a_slot7"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/a_day7"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:visibility="gone"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="Tomorrow"
+            android:textColor="@color/w_muted"
+            android:textSize="11sp" />
+        <LinearLayout
+            android:id="@+id/a_item7"
+            android:layout_width="match_parent"
+            android:layout_height="26dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+            <ImageView
+                android:id="@+id/a_dot7"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_w_dot_event"
+                android:layout_marginEnd="8dp" />
+            <TextView
+                android:id="@+id/a_time7"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="58dp"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/w_accent_text"
+                android:textSize="12sp" />
+            <TextView
+                android:id="@+id/a_title7"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text=""
+                android:textColor="@color/w_text"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+    <TextView
+        android:id="@+id/a_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:visibility="gone"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:text="Nothing planned for today or tomorrow 🥕"
+        android:textColor="@color/w_muted"
+        android:textSize="13sp" />
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+</LinearLayout>
