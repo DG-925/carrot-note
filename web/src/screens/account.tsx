@@ -225,6 +225,7 @@ export function SettingsScreen() {
             <Chips wrap options={['1', '2', '0']} value={String(s.settings.theme)} onChange={v => set({ theme: Number(v) })}
               label={v => ({ '0': 'System', '1': 'Light', '2': 'Dark' } as any)[v]} icon={v => ({ '0': 'settings', '1': 'star', '2': 'moon' } as any)[v]} />
             {!notif && <Btn kind="soft-bg" icon="bell" onClick={async () => setNotif(!!(await attempt(() => call<boolean>('notifications.request'))))}>Allow notifications (reminders and updates)</Btn>}
+            <Btn kind="soft-bg" icon="whatsapp" onClick={() => push({ name: 'messages' } as any)}>Message templates</Btn>
           </div>
         </Card>
 

@@ -10,6 +10,7 @@ import { rentalKind } from '../types'
 import { togglePrivacy, useApp } from '../store'
 import { InMain } from './money'
 import { salesBetween, stockOf, stockState } from './stock'
+import { TargetsCard } from './targets'
 import { duration, isRunning, type Note, type Project } from '../types'
 import { Btn, Card, CountInt, CountMoney, Eyebrow, Hero, MainHeader, Ring, Spark, Tile, useNow, type TileColor } from '../ui'
 
@@ -175,7 +176,8 @@ export function HomeScreen() {
   const shortcuts = (
     <div class="chips pop home-shortcuts" style={{ '--i': 6 } as any}>
       {([['Calendar', 'calendar', 'sky', 'calendar'], ['Time', 'timer', 'mint', 'time'], ['Customers', 'users', 'rose', 'customers'],
-        ['Rentals', 'server', 'sky', 'rentals'], ['Stock', 'box', 'butter', 'stock'], ['Debts', 'debt', 'butter', 'debts'], ['Savings', 'goal', 'lilac', 'goals']] as const).map(([label, icon, color, route]) => (
+        ['Rentals', 'server', 'sky', 'rentals'], ['Stock', 'box', 'butter', 'stock'], ['Quotes', 'pen', 'lilac', 'quotes'], ['Wallets', 'wallet', 'mint', 'wallets'],
+        ['Debts', 'debt', 'butter', 'debts'], ['Insights', 'chart', 'sky', 'insights']] as const).map(([label, icon, color, route]) => (
         <button key={label} class={`shortcut t-${color} press`} onClick={() => push({ name: route } as any)}>
           <span class="box"><Icon name={icon} size={16} /></span>{label}
         </button>
@@ -198,6 +200,7 @@ export function HomeScreen() {
             <div class="dash-cards">
               <WeekInsights />
               {projectsCard}
+              <TargetsCard />
               {notesCard}
               <StockAlert />
             </div>
@@ -221,6 +224,7 @@ export function HomeScreen() {
         {welcome}
         {todayCard}
         <RentalsDue />
+        <TargetsCard />
         <StockAlert />
         <WeekInsights />
         {projectsCard}

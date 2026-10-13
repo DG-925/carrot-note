@@ -11,6 +11,9 @@ export type Route =
   | { name: 'rental'; id: string } | { name: 'rentals' }
   | { name: 'invoices' } | { name: 'invoice'; id: string } | { name: 'report' } | { name: 'vault' } | { name: 'recurring' }
   | { name: 'stock' } | { name: 'item'; id: string }
+  | { name: 'quotes' } | { name: 'quote'; id: string } | { name: 'wallets' } | { name: 'wallet'; id: string }
+  | { name: 'suppliers' } | { name: 'supplier'; id: string } | { name: 'prices' } | { name: 'insights' }
+  | { name: 'docs' } | { name: 'doc'; id: string } | { name: 'messages' } | { name: 'activity'; id?: string } | { name: 'targets' }
   | { name: 'calendar' } | { name: 'time' } | { name: 'customers' } | { name: 'debts' } | { name: 'goals' }
   | { name: 'invites' } | { name: 'search' } | { name: 'profile' } | { name: 'settings' }
 

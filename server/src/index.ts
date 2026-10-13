@@ -19,9 +19,9 @@ const MAX_AVATAR_BASE64 = 400_000;
 const MAX_FAILED_LOGINS = 10;
 const LOCKOUT_MS = 15 * 60 * 1000;
 /** Record types that follow their project into a shared space. */
-const PROJECT_SCOPED = new Set(["task", "note", "event", "rental", "invoice"]);
-/** Bumped when clients need to know about new server behaviour (3: rentals and invoices are shared). */
-const API_VERSION = 3;
+const PROJECT_SCOPED = new Set(["task", "note", "event", "rental", "invoice", "quote", "activity"]);
+/** Bumped when clients need to know about new server behaviour (3: rentals and invoices are shared, 4: quotes and activity). */
+const API_VERSION = 4;
 
 class HttpError extends Error {
   constructor(public status: number, message: string) {
@@ -422,7 +422,7 @@ async function invite(req: Request, env: Env, projectId: string) {
       env.DB.prepare(
         `UPDATE records SET space_id = ?1, rev = 1
          WHERE space_id = ?2 AND ((type = 'project' AND id = ?3)
-           OR (type IN ('task', 'note', 'event', 'rental', 'invoice') AND json_extract(data, '$.projectId') = ?3))`,
+           OR (type IN ('task', 'note', 'event', 'rental', 'invoice', 'quote') AND json_extract(data, '$.projectId') = ?3))`,
       ).bind(spaceId, user.id, projectId),
     ]);
   } else if (space.owner_id !== user.id) {
@@ -540,7 +540,7 @@ async function adoptIntoShared(env: Env, spaces: SpaceRow[]): Promise<boolean> {
   if (!shared.length) return false;
   const waiting = await env.DB.prepare(
     `SELECT DISTINCT 'p_' || json_extract(r.data, '$.projectId') AS space FROM records r
-     WHERE r.type IN ('rental', 'invoice') AND r.deleted = 0
+     WHERE r.type IN ('rental', 'invoice', 'quote') AND r.deleted = 0
        AND r.space_id IN (SELECT m.user_id FROM space_members m WHERE m.space_id IN (SELECT value FROM json_each(?1)))
        AND 'p_' || json_extract(r.data, '$.projectId') IN (SELECT value FROM json_each(?1))
        AND r.space_id IN (SELECT m.user_id FROM space_members m WHERE m.space_id = 'p_' || json_extract(r.data, '$.projectId'))`,
@@ -554,7 +554,7 @@ async function adoptIntoShared(env: Env, spaces: SpaceRow[]): Promise<boolean> {
     stmts.push(
       env.DB.prepare(
         `UPDATE OR IGNORE records SET space_id = ?1, rev = (SELECT rev FROM spaces WHERE id = ?1)
-         WHERE type IN ('rental', 'invoice') AND deleted = 0
+         WHERE type IN ('rental', 'invoice', 'quote') AND deleted = 0
            AND space_id IN (SELECT user_id FROM space_members WHERE space_id = ?1)
            AND 'p_' || json_extract(data, '$.projectId') = ?1`,
       ).bind(space),

@@ -109,10 +109,20 @@ class Repository(context: Context, val userId: String) {
     val secrets = Collection("secret", JsonObject.serializer()) { it.id() }
     val vault = Collection("vault", JsonObject.serializer()) { it.id() }
     val items = Collection("item", JsonObject.serializer()) { it.id() }
+    val quotes = Collection("quote", JsonObject.serializer()) { it.id() }
+    val wallets = Collection("wallet", JsonObject.serializer()) { it.id() }
+    val transfers = Collection("transfer", JsonObject.serializer()) { it.id() }
+    val suppliers = Collection("supplier", JsonObject.serializer()) { it.id() }
+    val prices = Collection("price", JsonObject.serializer()) { it.id() }
+    val docs = Collection("doc", JsonObject.serializer()) { it.id() }
+    val activity = Collection("activity", JsonObject.serializer()) { it.id() }
+    val targets = Collection("target", JsonObject.serializer()) { it.id() }
+    val messageTemplates = Collection("msgtpl", JsonObject.serializer()) { it.id() }
 
     private val collections = listOf(
         projects, tasks, notes, txns, goals, customers, debts, events, time, budgets, rentals,
         invoices, recurring, receipts, secrets, vault, items,
+        quotes, wallets, transfers, suppliers, prices, docs, activity, targets, messageTemplates,
     )
         .associateBy { it.type }
 
@@ -141,7 +151,7 @@ class Repository(context: Context, val userId: String) {
     private fun spaceHint(type: String, id: String, json: String): String {
         val projectId = when (type) {
             "project" -> id
-            "task", "note", "event", "rental", "invoice" -> runCatching {
+            "task", "note", "event", "rental", "invoice", "quote", "activity" -> runCatching {
                 (AppJson.parseToJsonElement(json) as JsonObject)["projectId"]?.jsonPrimitive?.contentOrNull
             }.getOrNull()
             else -> null

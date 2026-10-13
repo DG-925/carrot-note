@@ -129,6 +129,9 @@ data class Txn(
     val createdAt: Long = nowMs(),
     /** Id of the "receipt" record holding a photo of the receipt. */
     val receiptId: String? = null,
+    /** Wallet the money came into or went out of (null: the wallet holding [method]). */
+    val walletId: String? = null,
+    val supplierId: String? = null,
 )
 
 @Serializable
@@ -180,6 +183,7 @@ data class Debt(
     val note: String = "",
     val payments: List<DebtPayment> = emptyList(),
     val createdAt: Long = nowMs(),
+    val supplierId: String? = null,
 ) {
     val paid: Double get() = payments.sumOf { it.amount }
     val remaining: Double get() = (amount - paid).coerceAtLeast(0.0)

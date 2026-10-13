@@ -23,6 +23,15 @@ import { ReportScreen } from './screens/report'
 import { VaultScreen } from './screens/vault'
 import { RecurringScreen } from './screens/recurring'
 import { ItemDetail, StockScreen, stockOf, stockState } from './screens/stock'
+import { QuoteDetail, QuotesScreen, quoteState } from './screens/quotes'
+import { WalletDetail, WalletsScreen } from './screens/wallets'
+import { SupplierDetail, SuppliersScreen } from './screens/suppliers'
+import { PricesScreen } from './screens/prices'
+import { InsightsScreen } from './screens/insights'
+import { DocDetail, DocsScreen } from './screens/docs'
+import { MessagesScreen } from './screens/messages'
+import { ActivityScreen } from './screens/activity'
+import { TargetsScreen } from './screens/targets'
 import { runRecurring } from './recurring'
 import { startMasonry } from './masonry'
 import { startWheelScroll } from './wheel'
@@ -84,6 +93,19 @@ function routeScreen(r: Route) {
     case 'recurring': return <RecurringScreen />
     case 'stock': return <StockScreen />
     case 'item': return <ItemDetail id={r.id} />
+    case 'quotes': return <QuotesScreen />
+    case 'quote': return <QuoteDetail id={r.id} />
+    case 'wallets': return <WalletsScreen />
+    case 'wallet': return <WalletDetail id={r.id} />
+    case 'suppliers': return <SuppliersScreen />
+    case 'supplier': return <SupplierDetail id={r.id} />
+    case 'prices': return <PricesScreen />
+    case 'insights': return <InsightsScreen />
+    case 'docs': return <DocsScreen />
+    case 'doc': return <DocDetail id={r.id} />
+    case 'messages': return <MessagesScreen />
+    case 'activity': return <ActivityScreen id={r.id} />
+    case 'targets': return <TargetsScreen />
     case 'calendar': return <CalendarScreen />
     case 'time': return <TimeScreen />
     case 'customers': return <CustomersScreen />
@@ -231,12 +253,16 @@ function Sidebar() {
   const unpaid = data.invoice.filter(i => ['sent', 'partial', 'overdue'].includes(invoiceState(i))).length
   const dueToday = data.task.filter(t => !t.done && t.dueDate != null && t.dueDate <= F.today()).length
   const lowStock = data.item.filter(i => !i.archived && i.lowStock > 0 && stockState(i) !== 'ok').length
+  const openQuotes = data.quote.filter(q => quoteState(q) === 'sent').length
+  const endingDocs = data.doc.filter(d => d.endDate != null && d.endDate >= F.today() && d.endDate <= F.today() + 30).length
   const groups: [string, [string, string, string, string, number?][]][] = [
     ['', [['Home', 'home', 'orange', 'home'], ['Money', 'wallet', 'mint', 'money'], ['Projects', 'project', 'sky', 'projects'], ['Notes', 'note', 'lilac', 'notes'],
       ['Calendar', 'calendar', 'butter', 'calendar', dueToday]]],
-    ['Work', [['Time', 'timer', 'mint', 'time'], ['Invoices', 'invoice', 'orange', 'invoices', unpaid], ['Rentals', 'server', 'sky', 'rentals', renew],
-      ['Stock', 'box', 'butter', 'stock', lowStock], ['Customers', 'users', 'rose', 'customers'], ...(s.invites > 0 ? [['Invitations', 'inbox', 'orange', 'invites', s.invites] as [string, string, string, string, number]] : [])]],
-    ['Money', [['Recurring', 'repeat', 'mint', 'recurring'], ['Debts', 'debt', 'butter', 'debts'], ['Savings', 'goal', 'lilac', 'goals'], ['Report', 'chart', 'lilac', 'report']]],
+    ['Work', [['Time', 'timer', 'mint', 'time'], ['Quotes', 'pen', 'lilac', 'quotes', openQuotes], ['Invoices', 'invoice', 'orange', 'invoices', unpaid], ['Rentals', 'server', 'sky', 'rentals', renew],
+      ['Stock', 'box', 'butter', 'stock', lowStock], ['Suppliers', 'briefcase', 'rose', 'suppliers'], ['Contracts & files', 'pen', 'sky', 'docs', endingDocs],
+      ...(s.spaces.length ? [['Team activity', 'team', 'lilac', 'activity'] as [string, string, string, string]] : []), ['Customers', 'users', 'rose', 'customers'], ...(s.invites > 0 ? [['Invitations', 'inbox', 'orange', 'invites', s.invites] as [string, string, string, string, number]] : [])]],
+    ['Money', [['Wallets', 'wallet', 'mint', 'wallets'], ['Recurring', 'repeat', 'mint', 'recurring'], ['Debts', 'debt', 'butter', 'debts'], ['Savings', 'goal', 'lilac', 'goals'],
+      ['Targets', 'flag', 'orange', 'targets'], ['Price list', 'tag', 'butter', 'prices'], ['Insights', 'chart', 'sky', 'insights'], ['Report', 'chart', 'lilac', 'report']]],
     ['Private', [['Vault', 'lock', 'rose', 'vault']]],
   ]
   return (
@@ -311,6 +337,14 @@ function Drawer() {
     ['Rentals', 'server', 'sky', 'rentals', renewSoon ? `${renewSoon} to renew` : `${activeRentals.length} active`],
     ['Invoices', 'invoice', 'orange', 'invoices', unpaidInvoices ? `${unpaidInvoices} unpaid` : `${data.invoice.length} total`],
     ['Stock', 'box', 'butter', 'stock', `${data.item.filter(i => !i.archived).reduce((a, i) => a + Math.max(0, stockOf(i).qty), 0)} in stock`],
+    ['Quotes', 'pen', 'lilac', 'quotes', `${data.quote.filter(q => quoteState(q) === 'sent').length} waiting`],
+    ['Wallets', 'wallet', 'mint', 'wallets', F.plural(data.wallet.filter(w => !w.archived).length, 'wallet')],
+    ['Suppliers', 'briefcase', 'rose', 'suppliers', `${data.supplier.length} saved`],
+    ['Contracts & files', 'pen', 'sky', 'docs', F.plural(data.doc.length, 'file')],
+    ['Price list', 'tag', 'butter', 'prices', `${data.price.length} saved`],
+    ['Targets', 'flag', 'orange', 'targets', F.plural(data.target.length, 'target')],
+    ['Insights', 'chart', 'sky', 'insights', 'Charts & trends'],
+    ...(s.spaces.length ? [['Team activity', 'team', 'lilac', 'activity', 'Shared projects'] as [string, string, string, string, string]] : []),
     ['Recurring', 'repeat', 'mint', 'recurring', `${data.recurring.filter(r => r.active).length} active`],
     ['Report', 'chart', 'lilac', 'report', `${new Date().getFullYear()} so far`],
     ['Vault', 'lock', 'rose', 'vault', `${data.secret.length} saved`],

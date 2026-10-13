@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import { call } from './bridge'
 import * as F from './format'
+import { WalletPicker } from './screens/wallets'
+import { SupplierPicker } from './screens/suppliers'
 import { categoryIcon, Icon, methodIcon } from './icons'
 import { openOverlay, push } from './nav'
 import { myRepos, repoPath, repoUrl, verifyRepo, languageColor, type GhRepo } from './github'
@@ -187,11 +189,11 @@ function NoteForm({ item, defaults, close }: { item?: Note; defaults: { projectI
 
 // ---------------------------------------------------------------- money
 
-export function editTxn(item?: Txn, defaults: { kind?: string; projectId?: string | null; customerId?: string | null; date?: number; note?: string; amount?: number } = {}) {
+export function editTxn(item?: Txn, defaults: { kind?: string; projectId?: string | null; customerId?: string | null; date?: number; note?: string; amount?: number; supplierId?: string | null } = {}) {
   openForm(close => <TxnForm item={item} defaults={defaults} close={close} />)
 }
 
-function TxnForm({ item, defaults, close }: { item?: Txn; defaults: { kind?: string; projectId?: string | null; customerId?: string | null; date?: number; note?: string; amount?: number }; close: () => void }) {
+function TxnForm({ item, defaults, close }: { item?: Txn; defaults: { kind?: string; projectId?: string | null; customerId?: string | null; date?: number; note?: string; amount?: number; supplierId?: string | null }; close: () => void }) {
   const st = getState()
   const kind0 = defaults.kind ?? 'expense'
   const base: Txn = item ?? {
@@ -199,6 +201,7 @@ function TxnForm({ item, defaults, close }: { item?: Txn; defaults: { kind?: str
     currency: (defaults.projectId && byId('project', defaults.projectId)?.currency) || st.settings.currency,
     category: kind0 === 'income' ? (defaults.projectId ? 'Project payment' : 'Freelance') : 'Food',
     method: 'Cash', date: defaults.date ?? F.today(), note: defaults.note ?? '', projectId: defaults.projectId ?? null, customerId: defaults.customerId ?? null, createdAt: now(),
+    supplierId: defaults.supplierId ?? null,
   }
   const [t, set] = useState(base)
   const [repeat, setRepeat] = useState('')
@@ -246,6 +249,8 @@ function TxnForm({ item, defaults, close }: { item?: Txn; defaults: { kind?: str
       <FieldLabel>{income ? 'Received via' : 'Paid with'}</FieldLabel>
       <Chips options={Categories.methods} value={t.method} onChange={v => up({ method: v })} icon={methodIcon} />
       <DateField label="Date" value={t.date} onChange={v => up({ date: v ?? F.today() })} clearable={false} />
+      <WalletPicker value={t.walletId} onChange={v => up({ walletId: v })} currency={t.currency} method={t.method} />
+      {!income && <SupplierPicker value={t.supplierId} onChange={v => up({ supplierId: v })} />}
       <FieldLabel>Receipt</FieldLabel>
       {receipt === null && <div class="receipt-box"><span class="spinner" /></div>}
       {receipt && <div class="receipt-box" onClick={() => viewPhoto(receipt)}>
@@ -446,35 +451,9 @@ function RepoPicker({ close, onPick }: { close: () => void; onPick: (url: string
 
 /** Sheet with a friendly "please pay" message to send on WhatsApp or anywhere else. */
 export function askForPayment(o: { person: string; amount: number; currency: string; customerId?: string | null; dueDate?: number | null; what?: string }) {
-  openSheet(close => <PaymentReminder o={o} close={close} />)
-}
-
-function PaymentReminder({ o, close }: { o: Parameters<typeof askForPayment>[0]; close: () => void }) {
-  const s = useApp()
-  const customer = byId('customer', o.customerId)
-  const first = (customer?.name || o.person).trim().split(' ')[0]
-  const me = s.user?.name.trim().split(' ')[0]
-  const due = o.dueDate != null ? (o.dueDate < F.today() ? `, which was due on ${F.date(o.dueDate)}` : `, due on ${F.date(o.dueDate)}`) : ''
-  const [text, setText] = useState(
-    `Hi ${first}, hope you're doing well! Just a friendly reminder about the ${F.money(o.amount, o.currency)}${o.what ? ` for ${o.what}` : ''}${due}. ` +
-    `Let me know if you have any questions. Thank you!${me ? `\n\n${me}` : ''}`)
-  const phone = customer?.phone ?? ''
-  return (
-    <>
-      <SheetTitle title="Ask for payment" sub={`${F.money(o.amount, o.currency)} from ${customer?.name || o.person}`} />
-      <div class="body">
-        <Field label="Message" multiline value={text} onInput={setText} />
-        <Btn block kind="t-mint" class="t-mint" icon="whatsapp" onClick={() => { call('app.whatsapp', { phone, text }); close() }}>
-          {phone ? `WhatsApp ${first}` : 'Send on WhatsApp'}
-        </Btn>
-        <div class="grid2">
-          <Btn kind="soft" icon="share" onClick={() => { call('app.share', { subject: 'Payment reminder', text }); close() }}>Share</Btn>
-          <Btn kind="soft" icon="copy" onClick={() => { call('app.copy', { text }); close() }}>Copy</Btn>
-        </div>
-        {!phone && <Hint>Tip: save {first} as a customer with a phone number to open the chat directly.</Hint>}
-      </div>
-    </>
-  )
+  import('./screens/messages').then(m => m.sendMessage('payment', {
+    name: o.person, customerId: o.customerId, amount: o.amount, currency: o.currency, date: o.dueDate, what: o.what,
+  }, 'Ask for payment'))
 }
 
 // ---------------------------------------------------------------- currency converter
@@ -644,15 +623,15 @@ export function ContactsDenied({ retry }: { retry: () => void }) {
 
 // ---------------------------------------------------------------- debt
 
-export function editDebt(item?: Debt, defaults: { customerId?: string | null; person?: string } = {}) {
+export function editDebt(item?: Debt, defaults: { customerId?: string | null; person?: string; supplierId?: string | null; direction?: string } = {}) {
   openForm(close => <DebtForm item={item} defaults={defaults} close={close} />)
 }
 
-function DebtForm({ item, defaults, close }: { item?: Debt; defaults: { customerId?: string | null; person?: string }; close: () => void }) {
+function DebtForm({ item, defaults, close }: { item?: Debt; defaults: { customerId?: string | null; person?: string; supplierId?: string | null; direction?: string }; close: () => void }) {
   const s = useApp()
   const base: Debt = item ?? {
-    id: newId(), direction: 'owed_to_me', person: defaults.person ?? '', customerId: defaults.customerId ?? null, amount: 0,
-    currency: s.settings.currency, dueDate: null, note: '', payments: [], createdAt: now(),
+    id: newId(), direction: defaults.direction ?? 'owed_to_me', person: defaults.person ?? '', customerId: defaults.customerId ?? null, amount: 0,
+    currency: s.settings.currency, dueDate: null, note: '', payments: [], createdAt: now(), supplierId: defaults.supplierId ?? null,
   }
   const [d, set] = useState(base)
   const [amount, setAmount] = useState(F.amountText(base.amount))
@@ -876,9 +855,12 @@ export function quickAdd() {
     ['Rental', 'server', 'sky', () => import('./screens/rentals').then(m => m.editRental())],
     ['Debt', 'debt', 'butter', () => editDebt()],
     ['Invoice', 'invoice', 'orange', () => import('./screens/invoices').then(m => m.editInvoice())],
+    ['Quote', 'pen', 'lilac', () => import('./screens/quotes').then(m => m.editQuote())],
     ['Sale', 'tag', 'mint', () => import('./screens/stock').then(m => m.quickSale())],
     ['Stock item', 'box', 'butter', () => import('./screens/stock').then(m => m.editItem())],
     ['Recurring', 'repeat', 'mint', () => import('./screens/recurring').then(m => m.editRecurring())],
+    ['Transfer', 'convert', 'mint', () => import('./screens/wallets').then(m => m.moveMoney())],
+    ['File', 'camera', 'sky', () => import('./screens/docs').then(m => m.editDoc())],
     ['Login', 'lock', 'lilac', () => push({ name: 'vault' })],
     ['Report', 'chart', 'sky', () => push({ name: 'report' })],
   ]

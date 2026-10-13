@@ -18,7 +18,7 @@ declare const __APP_VERSION__: string
 const VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0'
 const API = 'https://carrot-note-api.carrot-note-api.workers.dev'
 const REPO = 'DG-925/carrot-note'
-const TYPES = ['project', 'task', 'note', 'txn', 'goal', 'customer', 'debt', 'event', 'time', 'budget', 'rental', 'invoice', 'recurring', 'receipt', 'secret', 'vault', 'item']
+const TYPES = ['project', 'task', 'note', 'txn', 'goal', 'customer', 'debt', 'event', 'time', 'budget', 'rental', 'invoice', 'recurring', 'receipt', 'secret', 'vault', 'item', 'quote', 'wallet', 'transfer', 'supplier', 'price', 'doc', 'activity', 'target', 'msgtpl']
 const ALLOWED = ['https://date.nager.at/', 'https://open.er-api.com/', 'https://api.github.com/', 'https://rdap.org/']
 
 type Json = any
@@ -116,7 +116,7 @@ class Repo {
     return projectId ? this.spaces.find(s => s.kind === 'project' && s.projectId === projectId)?.id : undefined
   }
   private spaceHint(type: string, id: string, item: Json): string {
-    const projectId = type === 'project' ? id : ['task', 'note', 'event', 'rental', 'invoice'].includes(type) ? item?.projectId : null
+    const projectId = type === 'project' ? id : ['task', 'note', 'event', 'rental', 'invoice', 'quote', 'activity'].includes(type) ? item?.projectId : null
     return this.spaceFor(projectId) ?? this.userId
   }
 
@@ -276,6 +276,7 @@ function runSync(): Promise<boolean> {
         })
         if (repo !== r) return false
         const types = await r.applyRemote(resp.changes ?? [])
+        notifyActivity(r, resp.changes ?? [])
         await r.markClean(chunk)
         const spaces = (resp.spaces ?? []).filter((s: Json) => s.kind === 'project')
         await r.setSpaces(spaces)
@@ -326,6 +327,26 @@ document.addEventListener('visibilitychange', () => {
 })
 
 // ---------------------------------------------------------------- reminders and checks (while the app is open)
+
+const ACTIVITY_WORDS: Record<string, string> = { created: 'added', updated: 'changed', deleted: 'deleted', completed: 'finished', paid: 'recorded a payment on', split: 'split earnings in' }
+const ACTIVITY_TYPES: Record<string, string> = { project: 'the project', task: 'task', note: 'note', event: 'event', rental: 'renter', invoice: 'invoice', quote: 'quote', doc: 'file' }
+
+/** A notification when a teammate changes something in a shared project. */
+function notifyActivity(r: Repo, changes: Json[]) {
+  const me = session.user?.id
+  let seen = 0
+  try { seen = Number(localStorage.getItem('carrot.activitySeen')) || 0 } catch { /* private mode */ }
+  const fresh = changes
+    .filter(c => c.type === 'activity' && !c.deleted && c.data)
+    .map(c => { try { return JSON.parse(c.data) } catch { return null } })
+    .filter((a): a is Json => !!a && a.userId !== me && a.at > seen && a.at > Date.now() - 6 * 3_600_000)
+    .sort((a, b) => a.at - b.at)
+  if (!fresh.length) return
+  try { localStorage.setItem('carrot.activitySeen', String(fresh[fresh.length - 1].at)) } catch { /* private mode */ }
+  const project = r.get('project', fresh[0].projectId)?.name ?? 'Shared project'
+  const line = (a: Json) => `${a.name} ${ACTIVITY_WORDS[a.action] ?? a.action} ${ACTIVITY_TYPES[a.type] ?? a.type}${a.title && a.type !== 'project' ? ` “${a.title}”` : ''}`
+  notify(project, fresh.length === 1 ? line(fresh[0]) : `${line(fresh[fresh.length - 1])} and ${fresh.length - 1} more`)
+}
 
 async function notify(title: string, body: string) {
   try {

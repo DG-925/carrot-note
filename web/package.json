@@ -1,7 +1,7 @@
 {
   "name": "carrot-note-web",
   "private": true,
-  "version": "1.11.0",
+  "version": "1.12.0",
   "description": "Carrot Note UI (TypeScript + CSS), bundled into the Android app's assets.",
   "scripts": {
     "build": "node build.mjs",

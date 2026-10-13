@@ -34,6 +34,7 @@ function loadPrefs(): Prefs {
 
 const emptyTables = (): Tables => ({
   project: [], task: [], note: [], txn: [], goal: [], customer: [], debt: [], event: [], time: [], budget: [], rental: [], invoice: [], recurring: [], secret: [], vault: [], item: [],
+  quote: [], wallet: [], transfer: [], supplier: [], price: [], doc: [], activity: [], target: [], msgtpl: [],
 })
 
 let state: AppState = {
@@ -125,9 +126,49 @@ on('insets', (i: AppState['insets']) => {
 
 // ---- data helpers
 
+// ---------------------------------------------------------------- activity in shared projects
+
+const LOGGED: string[] = ['project', 'task', 'note', 'event', 'rental', 'invoice', 'quote', 'doc']
+/** The last activity line written for each record, so quick edits update one line instead of adding many. */
+const recentLines = new Map<string, { id: string; at: number }>()
+
+function projectOf(type: string, item: any): string | null {
+  return type === 'project' ? item?.id ?? null : item?.projectId ?? null
+}
+
+/** Writes "who did what" for records of shared projects, so teammates see it in the project's activity. */
+function logActivity(type: string, item: any, before: any, action?: string) {
+  if (!LOGGED.includes(type) || !item) return
+  const pid = projectOf(type, item) ?? projectOf(type, before)
+  if (!pid || !state.spaces.some(sp => sp.kind === 'project' && sp.projectId === pid)) return
+  const me = state.user
+  if (!me) return
+  const what = action
+    ?? (!before ? 'created'
+      : type === 'task' && item.done && !before.done ? 'completed'
+      : type === 'event' && item.done && !before.done ? 'completed'
+      : type === 'invoice' && (item.payments?.length ?? 0) > (before.payments?.length ?? 0) ? 'paid'
+      : type === 'project' && (item.splits?.length ?? 0) !== (before.splits?.length ?? 0) ? 'split'
+      : 'updated')
+  const title = item.title || item.name || item.number || item.clientName || ''
+  const key = `${type}:${item.id}:${what}`
+  const now = Date.now()
+  const last = recentLines.get(key)
+  const id = last && now - last.at < 120_000 ? last.id : newId()
+  recentLines.set(key, { id, at: now })
+  const line = { id, projectId: pid, userId: me.id, name: me.name || '@' + me.username, action: what, type, title, at: now }
+  const list = state.data.activity
+  setState({ data: { ...state.data, activity: [...list.filter(x => x.id !== id), line] } })
+  call('data.save', { type: 'activity', item: line }).catch(() => {})
+  // Keep the newest 150 lines of each project.
+  const mine = list.filter(x => x.projectId === pid).sort((a, b) => b.at - a.at)
+  for (const old of mine.slice(150)) call('data.delete', { type: 'activity', id: old.id }).catch(() => {})
+}
+
 export const save = <K extends TableName>(type: K, item: Tables[K][number]) => {
   // Show the change right away; the native side confirms with a fresh table.
   const list = state.data[type] as any[] | undefined
+  if (type !== 'activity') logActivity(type, item, list?.find(x => x.id === (item as any).id))
   // Receipts aren't kept in the page (photos are loaded on demand), so only update known tables.
   if (list) {
     const i = list.findIndex(x => x.id === (item as any).id)
@@ -140,7 +181,7 @@ export const save = <K extends TableName>(type: K, item: Tables[K][number]) => {
 const typeNames: Record<TableName, string> = {
   project: 'Project', task: 'Task', note: 'Note', txn: 'Transaction', goal: 'Goal', customer: 'Customer',
   debt: 'Debt', event: 'Event', time: 'Time entry', budget: 'Budget', rental: 'Rental',
-  invoice: 'Invoice', recurring: 'Recurring payment', secret: 'Vault item', vault: 'Vault', item: 'Stock item',
+  invoice: 'Invoice', recurring: 'Recurring payment', secret: 'Vault item', vault: 'Vault', item: 'Stock item', quote: 'Quote', wallet: 'Wallet', transfer: 'Transfer', supplier: 'Supplier', price: 'Price', doc: 'File', activity: 'Activity', target: 'Target', msgtpl: 'Message',
 }
 
 /** Deletes an item and offers Undo for a few seconds. */
@@ -148,6 +189,7 @@ export const remove = (type: TableName, id: string) => {
   const list = state.data[type] as any[] | undefined
   if (!list) return call('data.delete', { type, id })
   const item = list.find(x => x.id === id)
+  if (type !== 'activity') logActivity(type, item, item, 'deleted')
   setState({ data: { ...state.data, [type]: list.filter(x => x.id !== id) } })
   const done = call('data.delete', { type, id })
   if (item) toast(`${typeNames[type]} deleted`, { label: 'Undo', run: () => { save(type, item).catch(e => toast(e.message)) } })

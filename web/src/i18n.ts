@@ -187,6 +187,48 @@ const patterns: [RegExp, (m: RegExpExecArray) => string | null][] = [
   [/^Carrot Note (\d[\d.]*) · made for freelancers 🥕$/, m => `كاروت نوت ${m[1]} · صُنع للمستقلين 🥕`],
   [/^Public repositories of @(.+)$/, m => `المستودعات العامة لـ @${m[1]}`],
   [/^([\d,.]+ [A-Z]{3,4}) left$/, m => `باقي ${m[1]}`],
+  // 1.12: quotes, wallets, files, insights, targets, activity.
+  [/^valid until (.+)$/i, m => `صالح حتى ${m[1]}`],
+  [/^(Sent|Drafted|Accepted|Declined) (\d[^·]*|[^A-Za-z·]*[\u0600-\u06FF][^A-Za-z·]*)$/, m => `${({ Sent: 'أُرسل', Drafted: 'مسودة', Accepted: 'قُبل', Declined: 'رُفض' } as Record<string, string>)[m[1]]} ${m[2]}`],
+  [/^From quote (.+)$/, m => `من العرض ${m[1]}`],
+  [/^Tax \(([\d.]+)%\)$/, m => `الضريبة (${m[1]}٪)`],
+  [/^Discount$/, () => 'الخصم'],
+  [/^Date (.+)$/, m => `التاريخ ${m[1]}`],
+  [/^Currency ([A-Z]{3,4})$/, m => `العملة ${m[1]}`],
+  [/^To (.+)$/, m => (m[1] === 'a wallet' ? 'إلى محفظة' : `إلى ${m[1]}`)],
+  [/^From (.+)$/, m => (m[1] === 'a wallet' ? 'من محفظة' : `من ${m[1]}`)],
+  [/^Also in (.+)$/, m => `موجودة أيضًا في ${m[1]}`],
+  [/^Moved (.+) to (.+)$/, m => `تم تحويل ${m[1]} إلى ${m[2]}`],
+  [/^Arrives as \(([A-Z]{3,4})\)$/, m => `يصل بـ (${m[1]})`],
+  [/^Automatic \((.+)\)$/, m => `تلقائي (${m[1]})`],
+  [/^Done \((\d+) added\)$/, m => `تم (أُضيف ${m[1]})`],
+  [/^Last (\d+) months$/, m => `آخر ${m[1]} أشهر`],
+  [/^Profit$/, () => 'الربح'],
+  [/^Profit · last (\d+) months$/, m => `الربح · آخر ${m[1]} أشهر`],
+  [/^Page (\d+)$/, m => `صفحة ${m[1]}`],
+  [/^(\d+) days? left$/, m => `باقي ${m[1]} ${+m[1] === 1 ? 'يوم' : 'أيام'}`],
+  [/^ended$/, () => 'انتهى'],
+  [/^Ends (.+)$/, m => `ينتهي ${m[1]}`],
+  [/^(.+) · activity$/, m => `${m[1]} · النشاط`],
+  [/^([\d.]+) h$/, m => `${m[1]} س`],
+  [/^(\d+) (pieces?|clients?)$/, m => `${m[1]} ${m[2].startsWith('piece') ? 'قطعة' : 'عميل'}`],
+  [/^(.+) of (.+)$/, m => (/\d/.test(m[1]) && /\d/.test(m[2]) ? `${tr(m[1])} من ${tr(m[2])}` : null)],
+  [/^(.+) to go$/, m => `باقي ${tr(m[1])}`],
+  [/^behind$/, () => 'متأخر'],
+  [/^Each month \((.+)\)$/, m => `كل شهر (${m[1] === 'h' ? 'ساعات' : m[1] === 'pieces' ? 'قطع' : 'عملاء'})`],
+  [/^Counts money in ([A-Z]{3,4}) recorded this month\.$/, m => `يحسب الأموال بـ ${m[1]} المسجلة هذا الشهر.`],
+  [/^Day (\d+) of (\d+)\. Targets start again on the 1st of each month\.$/, m => `اليوم ${m[1]} من ${m[2]}. تبدأ الأهداف من جديد أول كل شهر.`],
+  [/^WhatsApp (.+)$/, m => `واتساب ${m[1]}`],
+  [/^(\d+) sold$/, m => `بيع ${m[1]}`],
+  [/^Profit each (.+)$/, m => `ربح القطعة ${m[1]}`],
+  [/^(\d+) of (\d+) · (\d+)%$/, m => `${m[1]} من ${m[2]} · ${m[3]}٪`],
+  [/^owe (.+)$/, m => `عليك ${m[1]}`],
+  [/^In ([A-Z]{3,4}) only\. Money in other currencies isn't counted here\.$/, m => `بـ ${m[1]} فقط. الأموال بالعملات الأخرى لا تُحسب هنا.`],
+  [/^(added|changed|deleted|finished|recorded a payment on|split earnings in) (the project|task|note|event|renter|invoice|quote|file)(?: “(.+)”)?$/, m => {
+    const v: Record<string, string> = { added: 'أضاف', changed: 'عدّل', deleted: 'حذف', finished: 'أنهى', 'recorded a payment on': 'سجّل دفعة على', 'split earnings in': 'قسّم الأرباح في' }
+    const w: Record<string, string> = { 'the project': 'المشروع', task: 'مهمة', note: 'ملاحظة', event: 'موعد', renter: 'مستأجر', invoice: 'فاتورة', quote: 'عرض سعر', file: 'ملف' }
+    return `${v[m[1]]} ${w[m[2]]}${m[3] ? ` «${m[3]}»` : ''}`
+  }],
 ]
 
 /** Translates [s] keeping its surrounding spaces; parts joined by " · " are translated one by one. */

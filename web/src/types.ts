@@ -46,6 +46,9 @@ export interface Txn {
   note: string; projectId?: string | null; customerId?: string | null; createdAt: number
   /** Id of the "receipt" record with a photo of the receipt. */
   receiptId?: string | null
+  /** The wallet the money came into / went out of; without one, the wallet holding that method is used. */
+  walletId?: string | null
+  supplierId?: string | null
 }
 
 export interface GoalDeposit { id: string; amount: number; date: number; note: string }
@@ -60,6 +63,7 @@ export interface DebtPayment { id: string; amount: number; date: number; note: s
 export interface Debt {
   id: string; direction: string; person: string; customerId?: string | null; amount: number; currency: string
   dueDate?: number | null; note: string; payments: DebtPayment[]; createdAt: number
+  supplierId?: string | null
 }
 
 export interface CalEvent {
@@ -112,6 +116,7 @@ export interface StockMove {
   /** For sales: the average cost of one unit when it was sold, so profit stays right later. */
   unitCost?: number
   txnId?: string | null; debtId?: string | null; createdAt: number
+  supplierId?: string | null
 }
 /** Something physical bought to sell again (a PC, a phone, parts…). */
 export interface StockItem {
@@ -119,6 +124,47 @@ export interface StockItem {
   sellPrice: number; lowStock: number; notes: string; photoId?: string | null; archived?: boolean
   moves: StockMove[]; createdAt: number
 }
+
+/** A price offer. Accepting it can turn it into a project and an invoice. */
+export interface Quote {
+  id: string; number: string; title: string; customerId?: string | null; clientName: string; projectId?: string | null
+  issueDate: number; validUntil?: number | null; currency: string; items: InvoiceItem[]
+  discount: number; discountPercent: boolean; taxPercent: number; total: number
+  /** draft, sent, accepted or declined */
+  status: string; notes: string; invoiceId?: string | null; createdAt: number
+}
+
+/** Where money sits: cash, a bank account, InstaPay, a USDT wallet… */
+export interface Wallet {
+  id: string; name: string; kind: string; currency: string; opening: number
+  /** Payment methods that land here when a transaction has no wallet chosen. */
+  methods: string[]; archived?: boolean; createdAt: number
+}
+/** Money moved from one wallet to another ([toAmount] differs when the currencies differ). */
+export interface Transfer { id: string; from: string; to: string; amount: number; toAmount: number; date: number; note: string; createdAt: number }
+
+export interface Supplier { id: string; name: string; phone: string; email: string; company: string; notes: string; createdAt: number }
+
+/** A service or product with its usual price, to reuse in invoices, quotes and renters. */
+export interface PriceItem { id: string; name: string; kind: string; price: number; currency: string; unit: string; period: string; notes: string; createdAt: number }
+
+/** A contract, ID copy or agreement, with photos of its pages and an optional end date. */
+export interface DocFile {
+  id: string; title: string; kind: string; customerId?: string | null; projectId?: string | null; supplierId?: string | null
+  startDate?: number | null; endDate?: number | null; remindDays: number; photoIds: string[]; note: string
+  eventId?: string | null; createdAt: number
+}
+
+/** Something a teammate did in a shared project. */
+export interface Activity {
+  id: string; projectId: string; userId: string; name: string; action: string; type: string; title: string; at: number
+}
+
+/** A goal for each month: income, profit, sales or new clients. */
+export interface Target { id: string; metric: string; amount: number; currency: string; createdAt: number }
+
+/** A WhatsApp message with {placeholders}. */
+export interface MsgTemplate { id: string; kind: string; title: string; text: string; createdAt: number }
 
 export interface SpaceMember { id: string; username: string; name: string; avatarRev: number; role: string }
 export interface SpaceInfo {
@@ -140,6 +186,8 @@ export interface Tables {
   project: Project[]; task: TaskItem[]; note: Note[]; txn: Txn[]; goal: Goal[]; customer: Customer[]
   debt: Debt[]; event: CalEvent[]; time: TimeEntry[]; budget: Budget[]; rental: Rental[]
   invoice: Invoice[]; recurring: Recurring[]; secret: Secret[]; vault: VaultMeta[]; item: StockItem[]
+  quote: Quote[]; wallet: Wallet[]; transfer: Transfer[]; supplier: Supplier[]; price: PriceItem[]; doc: DocFile[]
+  activity: Activity[]; target: Target[]; msgtpl: MsgTemplate[]
 }
 export type TableName = keyof Tables
 

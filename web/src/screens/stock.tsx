@@ -5,6 +5,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { call } from '../bridge'
 import * as F from '../format'
 import { CustomerPicker, viewPhoto } from '../editors'
+import { SupplierPicker } from './suppliers'
 import { Icon, methodIcon } from '../icons'
 import { pop as popNav, push } from '../nav'
 import { byId, getState, remove, save, useApp } from '../store'
@@ -311,6 +312,7 @@ function MoveForm({ id, kind, close }: { id: string; kind: 'buy' | 'sell'; close
   const [date, setDate] = useState(F.today())
   const [customerId, setCustomerId] = useState<string | null>(null)
   const [person, setPerson] = useState('')
+  const [supplierId, setSupplierId] = useState<string | null>(null)
   const [later, setLater] = useState(0)
   const [method, setMethod] = useState('Cash')
   const [record, setRecord] = useState(true)
@@ -322,9 +324,9 @@ function MoveForm({ id, kind, close }: { id: string; kind: 'buy' | 'sell'; close
   return (
     <Form title={sell ? `Sell ${it.name}` : `Buy ${it.name}`} close={close} saveLabel={sell ? 'Sell' : 'Save'} saveEnabled={qty > 0 && !tooMany}
       onSave={async () => {
-        const who = (customerId && byId('customer', customerId)?.name) || person.trim()
+        const who = (customerId && byId('customer', customerId)?.name) || (supplierId && byId('supplier', supplierId)?.name) || person.trim()
         const move: StockMove = {
-          id: newId(), kind, qty, price: p, date, person: person.trim(), customerId, note: note.trim(), createdAt: Date.now(),
+          id: newId(), kind, qty, price: p, date, person: who, customerId, supplierId: sell ? null : supplierId, note: note.trim(), createdAt: Date.now(),
           ...(sell ? { unitCost: Math.round(st.avg * 100) / 100 } : {}),
         }
         const label = `${it.name}${qty > 1 ? ` × ${qty}` : ''}${who ? ` · ${who}` : ''}`
@@ -335,7 +337,7 @@ function MoveForm({ id, kind, close }: { id: string; kind: 'buy' | 'sell'; close
           move.txnId = newId()
           await save('txn', {
             id: move.txnId, kind: sell ? 'income' : 'expense', amount: total, currency: it.currency, category: sell ? 'Sales' : 'Stock purchase',
-            method, date, note: label, projectId: null, customerId: sell ? customerId : null, createdAt: Date.now(),
+            method, date, note: label, projectId: null, customerId: sell ? customerId : null, supplierId: sell ? null : supplierId, createdAt: Date.now(),
           })
         }
         const latest = byId('item', id) ?? it
@@ -365,7 +367,10 @@ function MoveForm({ id, kind, close }: { id: string; kind: 'buy' | 'sell'; close
         {!customerId && <Field label="Sold to (optional)" value={person} icon="user" onInput={setPerson} />}
         <Seg options={[{ label: 'Paid now', icon: 'cash' }, { label: 'Pays later', icon: 'clock' }]} value={later} onChange={setLater} />
         {later === 1 && <Hint>It goes to Debts as money they owe you.</Hint>}
-      </> : <Field label="Bought from (optional)" value={person} icon="user" onInput={setPerson} />}
+      </> : <>
+        <SupplierPicker value={supplierId} onChange={setSupplierId} />
+        {!supplierId && <Field label="Bought from (optional)" value={person} icon="user" onInput={setPerson} />}
+      </>}
       {later === 0 && <>
         <div class="card in-card">
           <SwitchRow title={sell ? 'Add to my income' : 'Add to my expenses'} sub={sell ? 'As a "Sales" income in Money' : 'As a "Stock purchase" expense in Money'} on={record} onChange={setRecord} />

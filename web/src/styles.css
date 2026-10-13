@@ -774,6 +774,7 @@ h1, h2, h3, h4 { margin: 0; font-family: var(--display); letter-spacing: -0.02em
 /* amounts keep their own left-to-right order inside Arabic text */
 [dir="rtl"] .num, [dir="rtl"] .amt, [dir="rtl"] .timer-clock, [dir="rtl"] .countdown-hero, [dir="rtl"] .h-display { direction: ltr; unicode-bidi: isolate; }
 [dir="rtl"] div.num:not(.center), [dir="rtl"] div.amt:not(.center), [dir="rtl"] div.h-display, [dir="rtl"] div.countdown-hero { text-align: right; }
+[dir="rtl"] .amt.bidi, [dir="rtl"] .num.bidi { direction: rtl; unicode-bidi: normal; }
 [dir="rtl"] .cd { direction: rtl !important; text-align: inherit; }
 [dir="rtl"] div.countdown-hero.cd { text-align: right; }
 
@@ -919,3 +920,22 @@ html.desktop button, html.desktop .press { cursor: pointer; }
   .dash-cards { column-gap: 24px; }
   .dash-cards > * { margin-bottom: 24px; }
 }
+
+/* ------------------------------------------------------------------ 1.12: files, targets, activity */
+
+.doc-pages { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.doc-pages.small { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+.doc-pages img { width: 100%; aspect-ratio: 3 / 4; min-height: 120px; object-fit: cover; border-radius: 14px; background: var(--card); cursor: zoom-in; }
+.doc-pages.small img { min-height: 80px; }
+.doc-page-edit { position: relative; }
+.doc-page-edit .round { position: absolute; top: 6px; right: 6px; }
+[dir="rtl"] .doc-page-edit .round { right: auto; left: 6px; }
+.doc-page-loading { aspect-ratio: 3 / 4; min-height: 80px; border-radius: 14px; background: var(--card); display: grid; place-items: center; }
+.target-rings { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; margin-top: 10px; }
+.target-ring { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; text-align: center; }
+.target-ring .ring .lbl { font-size: 12px; }
+.act-badge { position: absolute; right: -3px; bottom: -3px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; box-shadow: 0 0 0 2px var(--card); }
+[dir="rtl"] .act-badge { right: auto; left: -3px; }
+.card.flush-card { padding: 0 16px 4px; }
+.card.flush-card > .row:first-child { margin: 0 -2px; padding-inline: 0 !important; }
+.item.picked .badge-ico { background: var(--mint); color: var(--on-mint); }

@@ -10,6 +10,9 @@ import { EventRow, NoteCard, ProjectCard, TaskRow, TimeRow, TxnRow, projectRecei
 import { useApp } from '../store'
 import { RentalCard, editRental, productStats } from './rentals'
 import { PartnersPanel, editSplit } from './partners'
+import { ProjectActivity } from './activity'
+import { QuoteCard } from './quotes'
+import { DocCard, editDoc } from './docs'
 import { InvoiceCard, editInvoice } from './invoices'
 import { setTaskDone, save as saveItem } from '../store'
 import type { TaskItem } from '../types'
@@ -159,6 +162,7 @@ export function ProjectDetail({ id }: { id: string }) {
             <div class="row top"><Icon name="warning" size={16} class="warn" />
               <div class="grow small"><b>Rentals and invoices aren't shared yet.</b> Your Carrot Note server is an older version. Update it (run "Deploy API" on GitHub, or <code>npx wrangler deploy</code> in the server folder) and everyone in this project will see them.</div></div>
           </Card>}
+          {space && <ProjectActivity projectId={id} />}
           {p.repo && <RepoCard repo={p.repo} />}
 
           <Seg i={4} options={tabs.map(t => ({ label: t.label }))} value={tabs.indexOf(current)} onChange={setTab} />
@@ -198,6 +202,10 @@ export function ProjectDetail({ id }: { id: string }) {
               <Btn kind="t-rose" class="t-rose" sm icon="expense" onClick={() => editTxn(undefined, { kind: 'expense', projectId: id })}>Add cost</Btn>
               <Btn kind="t-sky" class="t-sky" sm icon="invoice" onClick={() => editInvoice(undefined, { projectId: id, customerId: p.customerId })}>New invoice</Btn>
             </div>
+            {s.data.quote.some(x => x.projectId === id) && <>
+              <div class="section-h"><h3>Quotes</h3></div>
+              {s.data.quote.filter(x => x.projectId === id).sort((a, b) => b.issueDate - a.issueDate).map(x => <QuoteCard key={x.id} q={x} />)}
+            </>}
             {s.data.invoice.some(x => x.projectId === id) && <>
               <div class="section-h"><h3>Invoices</h3></div>
               {s.data.invoice.filter(x => x.projectId === id).sort((a, b) => b.issueDate - a.issueDate).map(x => <InvoiceCard key={x.id} inv={x} />)}
@@ -222,6 +230,10 @@ export function ProjectDetail({ id }: { id: string }) {
                 ? s.data.rental.filter(r => r.projectId === id).map(r => <RentalCard key={r.id} r={r} />)
                 : <Hint>VPS, hosting, bots or domains you rent for this project.</Hint>}
             </>}
+            <div class="section-h"><h3>Contracts & files</h3><button class="link" onClick={() => editDoc(undefined, { projectId: id, customerId: p.customerId })}>+ Add</button></div>
+            {s.data.doc.filter(d => d.projectId === id).length
+              ? s.data.doc.filter(d => d.projectId === id).map(d => <DocCard key={d.id} d={d} />)
+              : <Hint>Photos of the contract, agreements or specs for this project.</Hint>}
             <div class="section-h"><h3>Events & meetings</h3><button class="link" onClick={() => editEvent(undefined, { projectId: id })}>+ Add</button></div>
             {events.length ? <div class="card flush">{events.map(e => <EventRow key={e.id} e={e} showDate />)}</div> : <Hint>No events. Add meetings, calls or delivery dates.</Hint>}
           </>}

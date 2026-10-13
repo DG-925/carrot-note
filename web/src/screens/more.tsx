@@ -543,6 +543,10 @@ export function SearchScreen() {
     ['Events', s.data.event.filter(e => has(e.title, e.note)).map(e => ({ icon: 'calendar', tint: 'sky', title: e.title, sub: F.date(e.date) + (e.done ? ' · done' : ''), open: () => editEvent(e) }))],
     ['Rentals', s.data.rental.filter(r => has(r.name, r.clientName, r.provider, r.details)).map(r => ({ icon: rentalKind(r.kind).icon, tint: 'sky', title: r.name || rentalKind(r.kind).label, sub: [r.clientName, r.expiryDate != null ? 'Expires ' + F.dateShort(r.expiryDate) : ''].filter(Boolean).join(' · '), open: () => push({ name: 'rental', id: r.id }) }))],
     ['Stock', s.data.item.filter(it => has(it.name, it.sku, it.category, it.notes)).map(it => ({ icon: 'box', tint: 'butter', title: it.name, sub: [it.category, `${Math.max(0, stockOf(it).qty)} in stock`].filter(Boolean).join(' · '), open: () => push({ name: 'item', id: it.id }) }))],
+    ['Quotes', s.data.quote.filter(q => has(q.number, q.title, q.clientName, q.notes)).map(q => ({ icon: 'pen', tint: 'lilac', title: q.title || q.number, sub: [q.number, q.clientName].filter(Boolean).join(' · '), open: () => push({ name: 'quote', id: q.id }) }))],
+    ['Suppliers', s.data.supplier.filter(x => has(x.name, x.company, x.phone, x.email, x.notes)).map(x => ({ icon: 'briefcase', tint: 'rose', title: x.name, sub: x.company || x.phone, open: () => push({ name: 'supplier', id: x.id }) }))],
+    ['Contracts & files', s.data.doc.filter(d => has(d.title, d.note)).map(d => ({ icon: 'pen', tint: 'sky', title: d.title, sub: d.endDate != null ? 'Ends ' + F.dateShort(d.endDate) : '', open: () => push({ name: 'doc', id: d.id }) }))],
+    ['Price list', s.data.price.filter(x => has(x.name, x.notes)).map(x => ({ icon: 'tag', tint: 'butter', title: x.name, sub: F.money(x.price, x.currency), open: () => push({ name: 'prices' }) }))],
   ] as [string, Hit[]][]).filter(g => g[1].length)
   return (
     <div class="scroll">

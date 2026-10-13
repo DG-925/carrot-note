@@ -5,6 +5,8 @@ import { useState } from 'preact/hooks'
 import { call } from '../bridge'
 import * as F from '../format'
 import { askForPayment, CustomerPicker, ProjectPicker } from '../editors'
+import { pickPrice } from './prices'
+import { sendMessage } from './messages'
 import { Icon } from '../icons'
 import { pop as popNav, push } from '../nav'
 import { byId, getState, remove, save, useApp } from '../store'
@@ -169,6 +171,9 @@ export function InvoiceDetail({ id }: { id: string }) {
             person: clientOf(inv), amount: t.due, currency: inv.currency, customerId: inv.customerId, dueDate: inv.dueDate, what: `invoice ${inv.number}`,
           })}>Remind</Btn>}
           <Btn kind="soft-bg" icon="share" onClick={() => shareInvoicePdf(inv)}>PDF</Btn>
+          <Btn kind="t-mint" class="t-mint" icon="whatsapp" onClick={() => sendMessage(st === 'paid' ? 'thanks' : 'invoice', {
+            name: clientOf(inv), customerId: inv.customerId, amount: st === 'paid' ? t.total : t.due, currency: inv.currency, date: inv.dueDate, number: inv.number,
+          }, st === 'paid' ? 'Say thank you' : 'Send invoice')}>Message</Btn>
         </div>
 
         <Card i={3}>
@@ -341,6 +346,11 @@ function InvoiceForm({ item, defaults, close }: { item?: Invoice; defaults: { cu
   const t = invoiceTotals(current)
   const setItem = (id: string, p: Partial<InvoiceItem>) => up({ items: inv.items.map(x => (x.id === id ? { ...x, ...p } : x)) })
   const setText = (id: string, k: 'qty' | 'price', v: string) => setTexts({ ...texts, [id]: { ...texts[id], [k]: v } })
+  // The price list picker adds lines one at a time while its sheet stays open.
+  const addOne = (x: InvoiceItem) => {
+    setTexts(prev => ({ ...prev, [x.id]: { qty: F.amountText(x.qty) || '1', price: F.amountText(x.price) } }))
+    set(prev => ({ ...prev, items: [...prev.items.filter(y => y.description || y.price > 0), x] }))
+  }
   const addItems = (list: InvoiceItem[]) => {
     setTexts({ ...texts, ...Object.fromEntries(list.map(x => [x.id, { qty: F.amountText(x.qty) || '1', price: F.amountText(x.price) }])) })
     up({ items: [...inv.items.filter(x => x.description || (F.parseAmount(texts[x.id]?.price ?? '') ?? 0) > 0), ...list] })
@@ -388,6 +398,7 @@ function InvoiceForm({ item, defaults, close }: { item?: Invoice; defaults: { cu
       <div class="row wrap">
         <Btn kind="soft" sm icon="plus" onClick={() => addItems([{ id: newId(), description: '', qty: 1, price: 0 }])}>Add item</Btn>
         {inv.projectId && <Btn kind="soft" sm icon="project" onClick={() => addItems(projectItems(inv.projectId!))}>Add from project</Btn>}
+        <Btn kind="soft" sm icon="tag" onClick={() => pickPrice(p => addOne({ id: newId(), description: p.name, qty: 1, price: p.price }))}>From price list</Btn>
       </div>
 
       <div class="row">

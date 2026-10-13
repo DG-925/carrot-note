@@ -45,7 +45,11 @@ function sample() {
       txn('expense', 420, 'Food', 'Cash', 2, 'Lunch with Karim'),
       txn('expense', 1250, 'Food', 'Card', 4),
       txn('expense', 2100, 'Equipment', 'Card', 6, 'USB-C hub'),
-    ].filter(x => x.date >= today() - new Date().getDate() + 1),
+    ].filter(x => x.date >= today() - new Date().getDate() + 1).concat(Array.from({ length: 11 }, (_, m) => [
+      txn('income', 9000 + ((m * 3700) % 8000), 'Project payment', 'Bank transfer', 30 * (m + 1) + 3, 'Nour Bakery', 'p1'),
+      txn('income', 2200 + ((m * 1300) % 3000), 'Rental', 'InstaPay', 30 * (m + 1) + 8, 'CarrotPOS rentals', 'p4'),
+      txn('expense', 5000 + ((m * 2100) % 4000), 'Rent', 'Bank transfer', 30 * (m + 1) + 5, 'Office desk'),
+    ]).flat()),
     goal: [{ id: id(), name: 'New laptop', target: 60000, currency: 'EGP', deadline: t + 90, note: '', deposits: [{ id: id(), amount: 24000, date: t - 20, note: '' }], createdAt: now }],
     customer: [{ id: 'c1', name: 'Nour Bakery', phone: '+20 100 123 4567', email: 'hello@nourbakery.example', company: 'Nour Bakery', notes: '', createdAt: now }],
     debt: [{ id: id(), direction: 'owed_to_me', person: 'Karim Adel', customerId: null, amount: 1500, currency: 'EGP', dueDate: t + 3, note: '', payments: [{ id: id(), amount: 500, date: t - 2, note: '' }], createdAt: now }],
@@ -57,7 +61,7 @@ function sample() {
     item: [
       { id: 'i1', name: 'Dell Latitude 7490 · i7 16GB', sku: 'DL7490-01', category: 'Laptops', condition: 'used', currency: 'EGP', sellPrice: 14500, lowStock: 1, notes: 'Battery 88%. Charger included.', photoId: null, createdAt: now,
         moves: [
-          { id: 'm1', kind: 'buy', qty: 3, price: 11000, date: t - 20, person: 'Hany (wholesale)', note: '', createdAt: now - 20 * DAY },
+          { id: 'm1', kind: 'buy', qty: 3, price: 11000, date: t - 20, person: 'Hany (wholesale)', supplierId: 's1', note: '', createdAt: now - 20 * DAY },
           { id: 'm2', kind: 'sell', qty: 1, price: 14500, unitCost: 11000, date: t - 6, person: 'Omar', note: '', createdAt: now - 6 * DAY },
           { id: 'm3', kind: 'sell', qty: 1, price: 14000, unitCost: 11000, date: t, person: 'Sara', note: '', createdAt: now },
         ] },
@@ -80,11 +84,53 @@ function sample() {
       { id: 'i2', number: 'INV-0002', customerId: null, projectId: 'p2', clientName: 'Lina Hassan', clientDetails: '', issueDate: t - 3, dueDate: t + 11, currency: 'EGP',
         items: [{ id: 'it3', description: 'Portfolio site · deposit', qty: 1, price: 4000 }], discount: 0, discountPercent: false, taxPercent: 0, total: 4000, status: 'sent', payments: [], notes: '', createdAt: now },
     ],
+    quote: [
+      { id: 'q1', number: 'QUO-0001', title: 'Ordering app', customerId: null, clientName: 'Café Kanaka', projectId: null, issueDate: t - 4, validUntil: t + 10, currency: 'EGP',
+        items: [{ id: 'qi1', description: 'Ordering app (Android + web)', qty: 1, price: 22000 }, { id: 'qi2', description: 'Admin dashboard', qty: 1, price: 6000 }],
+        discount: 10, discountPercent: true, taxPercent: 0, total: 25200, status: 'sent', notes: 'Half up front, half on delivery.', invoiceId: null, createdAt: now - 4 * DAY },
+      { id: 'q2', number: 'QUO-0002', title: 'Landing page refresh', customerId: 'c1', clientName: 'Nour Bakery', projectId: null, issueDate: t - 1, validUntil: t + 14, currency: 'EGP',
+        items: [{ id: 'qi3', description: 'Landing page redesign', qty: 1, price: 5000 }], discount: 0, discountPercent: false, taxPercent: 0, total: 5000, status: 'draft', notes: '', invoiceId: null, createdAt: now - DAY },
+      { id: 'q3', number: 'QUO-0000', title: 'Bakery POS app', customerId: 'c1', clientName: 'Nour Bakery', projectId: 'p1', issueDate: t - 45, validUntil: t - 31, currency: 'EGP',
+        items: [{ id: 'qi4', description: 'POS app', qty: 1, price: 18000 }], discount: 0, discountPercent: false, taxPercent: 0, total: 18000, status: 'accepted', notes: '', invoiceId: 'i1', createdAt: now - 45 * DAY },
+    ],
+    wallet: [
+      { id: 'w1', name: 'Cash', kind: 'cash', currency: 'EGP', opening: 2500, methods: ['Cash'], createdAt: now - 90 * DAY },
+      { id: 'w2', name: 'CIB bank', kind: 'bank', currency: 'EGP', opening: 18000, methods: ['Bank transfer', 'Card'], createdAt: now - 90 * DAY },
+      { id: 'w3', name: 'InstaPay', kind: 'mobile', currency: 'EGP', opening: 0, methods: ['InstaPay'], createdAt: now - 90 * DAY },
+      { id: 'w4', name: 'Payoneer', kind: 'paypal', currency: 'USD', opening: 340, methods: [], createdAt: now - 90 * DAY },
+    ],
+    transfer: [{ id: 'tr1', from: 'w2', to: 'w1', amount: 3000, toAmount: 3000, date: t - 2, note: 'ATM', createdAt: now - 2 * DAY }],
+    supplier: [
+      { id: 's1', name: 'Hany (wholesale)', phone: '+20 111 222 3333', email: '', company: 'Hany Computers', notes: 'Used laptops. Pays cash only.', createdAt: now - 60 * DAY },
+      { id: 's2', name: 'Hetzner', phone: '', email: 'billing@hetzner.example', company: 'Hetzner Online', notes: 'Servers', createdAt: now - 60 * DAY },
+    ],
+    price: [
+      { id: 'pr1', name: 'Landing page', kind: 'service', price: 5000, currency: 'EGP', unit: '', period: '', notes: 'One page, up to 6 sections.', createdAt: now },
+      { id: 'pr2', name: 'Android app', kind: 'service', price: 22000, currency: 'EGP', unit: '', period: '', notes: '', createdAt: now },
+      { id: 'pr3', name: 'Hourly work', kind: 'service', price: 450, currency: 'EGP', unit: 'hour', period: '', notes: '', createdAt: now },
+      { id: 'pr4', name: 'CarrotPOS', kind: 'rental', price: 1200, currency: 'EGP', unit: '', period: 'monthly', notes: 'Includes updates and support.', createdAt: now },
+      { id: 'pr5', name: 'VPS 4 GB', kind: 'rental', price: 900, currency: 'EGP', unit: '', period: 'monthly', notes: '', createdAt: now },
+    ],
+    doc: [
+      { id: 'd1', title: 'Nour Bakery · contract', kind: 'contract', customerId: 'c1', projectId: 'p1', supplierId: null, startDate: t - 45, endDate: t + 9, remindDays: 7, photoIds: [], note: 'Signed at their office.', eventId: null, createdAt: now - 45 * DAY },
+      { id: 'd2', title: 'Dell laptop warranty', kind: 'warranty', customerId: null, projectId: null, supplierId: 's1', startDate: t - 20, endDate: t + 160, remindDays: 14, photoIds: [], note: '', eventId: null, createdAt: now - 20 * DAY },
+    ],
+    activity: [
+      { id: 'a1', projectId: 'p4', userId: 'u2', name: 'Karim Adel', action: 'created', type: 'rental', title: 'Sweet Corner', at: now - 40 * 60_000 },
+      { id: 'a2', projectId: 'p4', userId: 'u1', name: 'Adham Kassem', action: 'split', type: 'project', title: 'CarrotPOS', at: now - 3 * 3600_000 },
+      { id: 'a3', projectId: 'p4', userId: 'u2', name: 'Karim Adel', action: 'completed', type: 'task', title: 'Print receipts in Arabic', at: now - 26 * 3600_000 },
+      { id: 'a4', projectId: 'p4', userId: 'u2', name: 'Karim Adel', action: 'paid', type: 'invoice', title: 'INV-0003', at: now - 50 * 3600_000 },
+    ],
+    target: [
+      { id: 'g1', metric: 'income', amount: 20000, currency: 'EGP', createdAt: now },
+      { id: 'g2', metric: 'sold', amount: 6, currency: 'EGP', createdAt: now },
+      { id: 'g3', metric: 'clients', amount: 3, currency: 'EGP', createdAt: now },
+    ],
     recurring: [
       { id: 'rc1', kind: 'expense', amount: 750, currency: 'EGP', category: 'Subscriptions', method: 'Card', note: 'Figma Professional', projectId: null, customerId: null, period: 'monthly', nextDate: t + 18, active: true, createdAt: now },
       { id: 'rc2', kind: 'income', amount: 3000, currency: 'EGP', category: 'Freelance', method: 'Bank transfer', note: 'Café Kanaka care plan', projectId: null, customerId: null, period: 'monthly', nextDate: t + 5, active: true, createdAt: now },
     ],
-    secret: [], vault: [],
+    secret: [], vault: [], msgtpl: [],
     budget: [{ id: id(), category: '', limit: 15000, currency: 'EGP', createdAt: now }, { id: id(), category: 'Food', limit: 1500, currency: 'EGP', createdAt: now }],
   } as Record<string, any[]>
 }
@@ -150,8 +196,9 @@ export function installMock() {
     return null
   }
   const params = new URLSearchParams(location.search)
+  import('./nav').then(n => { (window as any).__carrotPush = n.push })  // lets preview tests open any page
   let data: Record<string, any[]> = store('data') ?? sample()
-  for (const k of ['rental', 'invoice', 'recurring', 'secret', 'vault', 'item']) if (!data[k]) data[k] = sample()[k]
+  for (const k of ['rental', 'invoice', 'recurring', 'secret', 'vault', 'item', 'quote', 'wallet', 'transfer', 'supplier', 'price', 'doc', 'activity', 'target', 'msgtpl']) if (!data[k]) data[k] = sample()[k]
   const vaultKeys: Record<string, string> = {}
   let signedIn = params.has('auth') ? false : store('signedIn') ?? true
   let theme = Number(params.get('theme') ?? store('theme') ?? 1)
@@ -159,17 +206,17 @@ export function installMock() {
   let github: string = params.has('nogh') ? '' : 'adham-dev'
   const emit = (name: string, payload: unknown) => setTimeout(() => window.__native.emit(name, payload), 0)
   const state = () => ({
-    signedIn, locked, version: '1.11.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
+    signedIn, locked, version: '1.12.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
     user: { id: 'u1', email: 'you@example.com', name: 'Adham Kassem', username: 'adham', bio: 'Freelance Android and web developer.', github, avatarRev: 0 },
     settings: { currency: 'EGP', theme, autoUpdate: true },
     lock: { pinEnabled: true, pinLength: 4, biometric: false, biometricAvailable: false, delay: 30, secureScreen: false },
-    sync: { syncing: false, lastSync: Date.now() - 120_000, error: null },
+    sync: { syncing: false, lastSync: Date.now() - 120_000, error: null, apiVersion: 4 },
     release: null, download: { state: 'idle' },
   })
   const push = () => {
     emit('state', state())
     for (const [type, items] of Object.entries(data)) if (type !== 'receipt') emit('table', { type, items })
-    emit('spaces', [])
+    emit('spaces', [{ id: 'p_p4', kind: 'project', projectId: 'p4', ownerId: 'u1', role: 'owner', members: [{ id: 'u1', username: 'adham', name: 'Adham Kassem', avatarRev: 0, role: 'owner' }, { id: 'u2', username: 'karim', name: 'Karim Adel', avatarRev: 0, role: 'member' }], pending: [] }])
     store('data', data)
   }
   const handlers: Record<string, (a: any) => unknown> = {

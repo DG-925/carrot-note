@@ -147,7 +147,7 @@ export const hours = (ms: number) => ms / 3_600_000
 
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 export const initials = (name: string) =>
-  name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]!.toUpperCase()).join('') || '?'
+  name.trim().split(/\s+/).map(w => w.replace(/^[^\p{L}\p{N}]+/u, '')).filter(Boolean).slice(0, 2).map(w => [...w][0]!.toUpperCase()).join('') || '?'
 
 /** The same day of the month [n] months later (or earlier), clamped to the month's last day. */
 export function addMonthsKeep(day: number, n: number): number {

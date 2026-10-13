@@ -5,7 +5,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { getJson } from '../net'
 import { call } from '../bridge'
 import * as F from '../format'
-import { askForPayment, CustomerPicker, ProjectPicker } from '../editors'
+import { CustomerPicker, ProjectPicker } from '../editors'
 import { Icon } from '../icons'
 import { pop as popNav, push } from '../nav'
 import { byId, getState, remove, save, useApp } from '../store'
@@ -16,6 +16,7 @@ import {
 } from '../ui'
 import { dateLocale } from '../i18n'
 import { addRentalSplit, partnersOf } from './partners'
+import { sendMessage } from './messages'
 
 // ---------------------------------------------------------------- maths
 
@@ -235,10 +236,11 @@ export function RentalCard({ r, i }: { r: Rental; i?: number }) {
 }
 
 function remindClient(r: Rental) {
-  askForPayment({
-    person: clientOf(r) || 'there', amount: r.price, currency: r.priceCurrency, customerId: r.customerId, dueDate: r.expiryDate,
-    what: `the ${rentalKind(r.kind).label.toLowerCase()}${r.name ? ` “${r.name}”` : ''}${rentalPeriod(r.period).months ? ` (${rentalPeriod(r.period).short})` : ''}`,
-  })
+  const expired = rentalState(r) === 'expired'
+  sendMessage(expired ? 'expired' : 'renewal', {
+    name: clientOf(r), customerId: r.customerId, amount: r.price, currency: r.priceCurrency, date: r.expiryDate,
+    what: r.name || rentalKind(r.kind).label,
+  }, expired ? 'Ask to renew' : 'Remind about renewal')
 }
 
 // ---------------------------------------------------------------- detail

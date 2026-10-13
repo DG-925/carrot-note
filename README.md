@@ -16,6 +16,19 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.12
+
+- **Quotes**: send a price offer as a PDF or on WhatsApp. When the client says yes, one tap turns it into a project and a draft invoice. See what's waiting and your win rate.
+- **Wallets**: Cash, bank, InstaPay, PayPal… each with its own balance. Payments land in a wallet by their payment method (or pick one), and "Move money" records transfers between them, even across currencies.
+- **Suppliers**: who you buy from, what you paid them, what you still owe them and the stock they sold you. Pick a supplier on expenses, debts and stock purchases.
+- **Price list**: save what you sell and its usual price, then add it to invoices and quotes in one tap.
+- **Insights**: profit over 3, 6 or 12 months, money in and out each month, best clients, most profitable projects, rental income, fastest-selling stock, quote win rate and how long clients take to pay.
+- **Contracts & files**: photos of contracts, ID copies, agreements and warranties linked to a client, project or supplier, with a reminder before they end.
+- **Team activity**: shared projects show who added, changed, finished or paid what, and teammates' changes arrive as a notification.
+- **Monthly targets**: goals like "earn 20,000 EGP", "sell 10 laptops" or "4 new clients", with progress rings on Home.
+- **Smart WhatsApp messages**: ready-made messages (in English and Arabic) for payment reminders, renewals, expired services, invoices, quotes and thank-yous, filled in with the name, amount and date. Edit them in Account → Message templates.
+- Needs the updated API so quotes and activity are shared in team projects (it deploys by itself from GitHub).
+
 ### New in 1.11
 
 - **Android 5.1 and up**: the app now installs on Android 5.1.1 (API 22) and newer. Old phones need an up-to-date "Android System WebView" from the Play Store (the app says so if it's too old), and the app carries the newer security certificates those phones are missing.
