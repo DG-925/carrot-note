@@ -1225,7 +1225,14 @@ const ar: Record<string, string> = {
  "Point your phone at the QR code here": "وجّه هاتفك إلى رمز QR هنا",
  "After that it stays logged in. Your chats stay in WhatsApp; Carrot Note can't read them.": "بعدها يبقى مسجّل الدخول. محادثاتك تبقى في واتساب ولا يستطيع Carrot Note قراءتها.",
  "Open WhatsApp in its own window": "افتح واتساب في نافذة مستقلة",
- "Chat from here": "دردش من هنا"
+ "Chat from here": "دردش من هنا",
+ "You follow each other": "تتابعان بعضكما",
+ "Follows you": "يتابعك",
+ "Shared projects": "مشاريع مشتركة",
+ "Projects you share": "مشاريعكما المشتركة",
+ "Shared project": "مشروع مشترك",
+ "Lately": "مؤخرًا",
+ "Share profile": "مشاركة الملف"
 }
 
 export default ar

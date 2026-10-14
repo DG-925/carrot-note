@@ -18,6 +18,7 @@ import { DocCard, editDoc } from './docs'
 import { InvoiceCard, editInvoice } from './invoices'
 import { setTaskDone, save as saveItem } from '../store'
 import type { TaskItem } from '../types'
+import { openPerson } from './person'
 import { duration, isRunning, type Project, type PublicUser, type SpaceInfo, type SpaceMember } from '../types'
 import {
   Avatar, AvatarStack, Bar, Btn, Card, Chips, Empty, Eyebrow, Hero, Hint, MainHeader, PageHeader, Round, SearchBar, Seg, SheetTitle,
@@ -397,8 +398,10 @@ function TeamSheet({ project, initialSpace, isOwner, close }: { project: Project
 export function PersonRow({ p, label, children }: { p: { id: string; avatarRev: number; name: string; username: string }; label?: string; children?: any }) {
   return (
     <div class="item">
-      <Avatar userId={p.id} rev={p.avatarRev} name={p.name || p.username} size={40} />
-      <div class="main"><div class="t">{p.name || '@' + p.username}</div><div class="s">@{p.username}{label ? ' · ' + label : ''}</div></div>
+      <button class="person-open press" onClick={() => openPerson(p)}>
+        <Avatar userId={p.id} rev={p.avatarRev} name={p.name || p.username} size={40} />
+        <div class="main"><div class="t">{p.name || '@' + p.username}</div><div class="s">@{p.username}{label ? ' · ' + label : ''}</div></div>
+      </button>
       {children}
     </div>
   )

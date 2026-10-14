@@ -707,7 +707,7 @@ const handlers: Record<string, (a: Json) => unknown> = {
 
   // client links
   'api.request': a => {
-    if (!['/api/share', '/api/share/revoke', '/api/follow', '/api/unfollow', '/api/follows'].includes(a.path)) throw new Error('Not allowed')
+    if (!['/api/share', '/api/share/revoke', '/api/follow', '/api/unfollow', '/api/follows', '/api/person'].includes(a.path)) throw new Error('Not allowed')
     return api('POST', a.path, a.body ?? {})
   },
 

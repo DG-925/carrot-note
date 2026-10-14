@@ -236,7 +236,7 @@ export function installMock() {
   let github: string = params.has('nogh') ? '' : 'adham-dev'
   const emit = (name: string, payload: unknown) => setTimeout(() => window.__native.emit(name, payload), 0)
   const state = () => ({
-    signedIn, locked, version: '1.14.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
+    signedIn, locked, version: '1.15.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
     user: { id: 'u1', email: 'you@example.com', name: 'Adham Kassem', username: 'adham', bio: 'Freelance Android and web developer.', github, avatarRev: 0 },
     settings: { currency: 'EGP', theme, autoUpdate: true },
     lock: { pinEnabled: true, pinLength: 4, biometric: false, biometricAvailable: false, delay: 30, secureScreen: false },
@@ -282,7 +282,17 @@ export function installMock() {
     'uptime.status': () => ({ r1: { up: true, at: Date.now() - 240_000, ms: 182, error: '', since: Date.now() - 86_400_000 * 3 }, r2: { up: false, at: Date.now() - 60_000, ms: 10000, error: 'connect timed out', since: Date.now() - 1_800_000 } }),
     'uptime.check': () => ({ up: true, at: Date.now(), ms: 143, error: '', since: Date.now() }),
     'uptime.probe': a => (String(a.target).includes('down') ? { up: false, at: Date.now(), ms: 0, error: 'connect timed out', since: 0 } : { up: true, at: Date.now(), ms: 151, error: '', since: 0 }),
-    'api.request': a => (a.path === '/api/share' ? { token: 'demo', url: 'https://carrot-note-api.example.workers.dev/c/Xq3v9Lk2PbN0aT7wR1mE5g' } : { ok: true }),
+    'api.request': a => {
+      const now = Date.now()
+      if (a.path === '/api/share') return { token: 'demo', url: 'https://carrot-note-api.example.workers.dev/c/Xq3v9Lk2PbN0aT7wR1mE5g' }
+      if (a.path === '/api/follows') return { following: [{ id: 'u2', username: 'karim', name: 'Karim Adel', avatarRev: 0, at: now - 86_400_000 * 9 }], followers: [{ id: 'u2', username: 'karim', name: 'Karim Adel', avatarRev: 0, at: now - 86_400_000 * 8 }, { id: 'u3', username: 'lina', name: 'Lina Hassan', avatarRev: 0, at: now - 3600_000 }] }
+      if (a.path === '/api/person') {
+        const k = a.body?.userId === 'u3'
+        return { id: a.body?.userId, username: k ? 'lina' : 'karim', name: k ? 'Lina Hassan' : 'Karim Adel', bio: k ? '' : 'Android developer · POS systems for cafés in Cairo', github: k ? '' : 'karimadel',
+          avatarRev: 0, joinedAt: now - 86_400_000 * 210, followers: k ? 4 : 37, following: k ? 2 : 21, youFollow: !k, followsYou: true, projects: k ? [] : ['p4'] }
+      }
+      return { ok: true }
+    },
     'whatsapp.show': () => true,
     'whatsapp.hide': () => true,
     'whatsapp.reload': () => true,

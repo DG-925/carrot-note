@@ -99,6 +99,42 @@ export async function follows(req: Request, env: Env) {
   return json({ following: (following.results as R[]).map(person), followers: (followers.results as R[]).map(person) });
 }
 
+/** POST /api/person {userId}: someone's profile as you see it: who they are, their followers, whether
+ *  you follow each other, and the projects you share (ids only; the app knows the names). */
+export async function personProfile(req: Request, env: Env) {
+  const { user } = await authenticate(req, env);
+  await ensureTables(env);
+  const id = String((await readJson(req)).userId ?? "");
+  const u = await env.DB.prepare("SELECT id, username, name, bio, github, avatar_rev, created_at FROM users WHERE id = ?")
+    .bind(id)
+    .first<{ id: string; username: string | null; name: string; bio: string; github: string; avatar_rev: number; created_at: number }>();
+  if (!u) throw new HttpError(404, "That person no longer has an account");
+  const [counts, rel, shared] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT (SELECT COUNT(*) FROM follows WHERE followee = ?1) AS followers, (SELECT COUNT(*) FROM follows WHERE follower = ?1) AS following`,
+    ).bind(id),
+    env.DB.prepare(
+      `SELECT EXISTS(SELECT 1 FROM follows WHERE follower = ?1 AND followee = ?2) AS you_follow,
+              EXISTS(SELECT 1 FROM follows WHERE follower = ?2 AND followee = ?1) AS follows_you`,
+    ).bind(user.id, id),
+    env.DB.prepare(
+      `SELECT s.id AS space_id, s.project_id FROM spaces s
+       WHERE s.kind = 'project'
+         AND (s.owner_id = ?1 OR EXISTS(SELECT 1 FROM space_members m WHERE m.space_id = s.id AND m.user_id = ?1))
+         AND (s.owner_id = ?2 OR EXISTS(SELECT 1 FROM space_members m WHERE m.space_id = s.id AND m.user_id = ?2))
+       LIMIT 50`,
+    ).bind(user.id, id),
+  ]);
+  const c = (counts.results[0] ?? {}) as { followers?: number; following?: number };
+  const r = (rel.results[0] ?? {}) as { you_follow?: number; follows_you?: number };
+  return json({
+    id: u.id, username: u.username ?? "", name: u.name, bio: u.bio ?? "", github: u.github ?? "", avatarRev: u.avatar_rev ?? 0,
+    joinedAt: u.created_at, followers: c.followers ?? 0, following: c.following ?? 0,
+    youFollow: !!r.you_follow, followsYou: !!r.follows_you,
+    projects: (shared.results as { space_id: string; project_id: string | null }[]).map((x) => x.project_id ?? x.space_id.replace(/^p_/, "")),
+  });
+}
+
 /** For every sync: how many follow you, and the newest few (so the app can say "Karim followed you"). */
 export async function followSummary(env: Env, userId: string) {
   await ensureTables(env);

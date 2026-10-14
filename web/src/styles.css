@@ -995,7 +995,7 @@ html.desktop button, html.desktop .press { cursor: pointer; }
 .msg.mentioned { box-shadow: inset 0 0 0 2px var(--accent); }
 [dir="rtl"] .msg { border-radius: 20px 20px 6px 20px; }
 [dir="rtl"] .msg.mine { border-radius: 20px 20px 20px 6px; }
-.msg-from { font-size: 12px; font-weight: 800; color: var(--accent); margin-bottom: 2px; }
+.msg-from { display: block; font-size: 12px; font-weight: 800; color: var(--accent); margin-bottom: 2px; text-align: start; }
 .msg-text { white-space: pre-wrap; word-break: break-word; font-size: 15.5px; line-height: 1.4; }
 .mention { color: var(--accent); }
 .msg.mine .mention { color: #fff; text-decoration: underline; }
@@ -1009,7 +1009,7 @@ html.desktop button, html.desktop .press { cursor: pointer; }
 .voice.mine .voice-track i { background: #fff; }
 .mention-bar { display: flex; gap: 8px; overflow-x: auto; padding: 6px 14px; }
 .mention-bar .chip { gap: 6px; flex: none; }
-.composer { display: flex; align-items: flex-end; gap: 8px; padding: 8px 12px calc(var(--sab) + 10px + var(--kb)); background: var(--bg); border-top: 1px solid var(--line); }
+.composer { display: flex; align-items: flex-end; gap: 8px; padding: 8px 12px calc(var(--sab) + 10px); background: var(--bg); border-top: 1px solid var(--line); }
 .composer textarea { flex: 1; min-height: 46px; max-height: 120px; resize: none; border: 0; outline: 0; border-radius: 23px; padding: 12px 16px; background: var(--card); color: inherit; font: 16px/1.4 var(--body); }
 .composer .send { width: 46px; height: 46px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; flex: none; }
 .composer .send.mic { background: var(--ink); color: var(--on-ink); }
@@ -1027,3 +1027,49 @@ html.desktop .wa-frame { margin: 0 36px 24px; }
 .wa-help { max-width: 420px; padding: 24px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
 .wa-logo { width: 60px; height: 60px; border-radius: 20px; display: grid; place-items: center; background: #25d366; color: #fff; }
 .wa-steps { text-align: start; margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+
+/* ---------------------------------------------------------------- 1.15: people's profiles */
+.person-open { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; text-align: start; }
+.person-open .main { min-width: 0; }
+.person-card { padding: 0; overflow: hidden; text-align: center; }
+.person-avatar { margin-top: -54px; display: flex; justify-content: center; position: relative; z-index: 1; }
+.person-link { text-align: start; width: 100%; }
+.person-link .main { flex: 1; min-width: 0; }
+.person-body { padding: 10px 18px 18px; display: flex; flex-direction: column; align-items: center; }
+.person-body .row { width: 100%; }
+.person-bio { margin: 10px auto 0; max-width: 34ch; white-space: pre-wrap; }
+.person-stats { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; margin-top: 16px; background: var(--bg); border-radius: 18px; padding: 10px 4px; }
+.person-stats div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.person-stats b { font-size: 19px; font-weight: 800; }
+.person-stats span { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.person-follow .btn, .person-follow .btn.sm { width: 100%; padding: 12px 20px; font-size: 14.5px; }
+.person-follow .btn.ghost { background: var(--bg); }
+.chat-head.press { cursor: pointer; }
+
+/* ---------------------------------------------------------------- 1.15: the phone menu is a sidebar too */
+.side-drawer { background: var(--card); gap: 8px; padding-inline: 12px; width: min(300px, 84%); }
+.side-drawer .side-brand { display: flex; align-items: center; gap: 10px; padding: 0 2px 4px 6px; }
+.side-drawer .side-profile { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 16px; background: var(--bg); width: 100%; }
+.side-drawer .sync-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--good); flex: none; }
+.side-drawer .sync-dot.busy { background: var(--warn, #E8A100); }
+.side-drawer .sync-dot.bad { background: var(--bad); }
+.side-actions { display: flex; gap: 8px; }
+.side-drawer .side-new { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; height: 46px; border-radius: 16px; background: var(--accent); color: #fff; font: 700 15px var(--display); box-shadow: 0 10px 22px -12px var(--accent); transition: transform .35s var(--spring); }
+.side-find { width: 46px; height: 46px; border-radius: 16px; background: var(--bg); display: grid; place-items: center; color: var(--fg); flex: none; transition: transform .35s var(--spring); }
+.side-drawer .side-new:active, .side-find:active { transform: scale(.94); }
+.side-drawer .side-nav { display: flex; flex-direction: column; gap: 2px; }
+.side-drawer .side-group { animation: tabIn .4s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 40ms + 60ms); }
+.side-drawer .side-label { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 14px 10px 6px; }
+.side-drawer .side-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 7px 8px; border-radius: 14px; font-weight: 600; font-size: 15px; color: var(--fg); text-align: start; transition: background .15s, transform .3s var(--spring); }
+.side-drawer .side-item:active { background: var(--bg); transform: scale(.98); }
+.side-drawer .side-item.on { background: var(--ink); color: var(--on-ink); }
+:root[data-theme="dark"] .side-drawer .side-item.on { background: var(--accent); }
+.side-drawer .side-item .box { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+.side-drawer .side-item .box:not([class*="t-"]) { background: var(--bg); color: var(--accent); }
+.side-drawer .side-item .box.bad { color: var(--bad); }
+.side-drawer .side-item.on .box { box-shadow: 0 0 0 2px rgba(255,255,255,.25); }
+.side-drawer .side-count { min-width: 22px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: #fff; font: 700 11.5px/20px var(--display); text-align: center; }
+.side-drawer .drawer-theme { background: var(--bg); }
+.side-drawer .switch { transform: scale(.85); }
+.person-list .item { width: 100%; text-align: start; }
+.person-list .item .main { flex: 1; min-width: 0; }

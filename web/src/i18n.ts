@@ -43,6 +43,7 @@ function phrase(t: string): string | null {
 const tr = (t: string) => phrase(t) ?? t
 
 const patterns: [RegExp, (m: RegExpExecArray) => string | null][] = [
+  [/^On Carrot Note since (.+)$/, m => `على Carrot Note منذ ${m[1]}`],
   [/^Following (\d+)$/, m => `تتابعهم ${m[1]}`],
   [/^Followers (\d+)$/, m => `المتابعون ${m[1]}`],
   [/^You follow @(.+)$/, m => `أنت تتابع ‎@${m[1]}`],

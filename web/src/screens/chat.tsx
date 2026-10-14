@@ -9,6 +9,7 @@ import * as F from '../format'
 import { currentLang } from '../i18n'
 import { Icon } from '../icons'
 import { pop as popNav, push } from '../nav'
+import { openPerson } from './person'
 import { getState, save, useApp } from '../store'
 import { newId, type ChatConvo, type ChatMsg, type ChatPerson, type PublicUser } from '../types'
 import { Avatar, Btn, Empty, Hint, PageHeader, Round, SearchBar, Seg, SheetTitle, attempt, confirm, cx, openSheet, toast } from '../ui'
@@ -156,8 +157,10 @@ function PersonLine({ p, f, onMessage }: { p: { id: string; name: string; userna
   const ok = canMessage(p.id, f)
   return (
     <div class="item person-line">
-      <Avatar userId={p.id} rev={p.avatarRev} name={p.name || p.username} size={40} />
-      <div class="main"><div class="t">{p.name || '@' + p.username}</div><div class="s">@{p.username}</div></div>
+      <button class="person-open press" onClick={() => openPerson(p)}>
+        <Avatar userId={p.id} rev={p.avatarRev} name={p.name || p.username} size={40} />
+        <div class="main"><div class="t">{p.name || '@' + p.username}</div><div class="s">@{p.username}</div></div>
+      </button>
       <FollowButton p={p} f={f} />
       <button class={cx('round sm', !ok && 'muted')} aria-label="Message" disabled={!ok} onClick={onMessage}><Icon name="chat" size={16} /></button>
     </div>
@@ -306,6 +309,12 @@ export function ChatScreen({ id }: { id: string }) {
     return () => { off(); clearInterval(poll); call('chat.viewing', { convo: null }).catch(() => {}); call('voice.cancel').catch(() => {}); refreshChats() }
   }, [id])
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }) }, [msgs.length])
+  // When the keyboard opens the page gets shorter: keep the newest messages in sight.
+  useEffect(() => {
+    const keep = () => end.current?.scrollIntoView({ block: 'end' })
+    window.addEventListener('resize', keep)
+    return () => window.removeEventListener('resize', keep)
+  }, [])
   useEffect(() => { if (rec == null) return; const t = setInterval(() => setTick(x => x + 1), 500); return () => clearInterval(t) }, [rec])
 
   const mentionsIn = (t: string) => people.filter(p => p.username && new RegExp(`@${p.username.replace(/\./g, '\\.')}(?![a-z0-9_.])`, 'i').test(t)).map(p => p.id)
@@ -337,13 +346,14 @@ export function ChatScreen({ id }: { id: string }) {
     <div class="chat-page">
       <PageHeader title={title} onBack={popNav}>
         {group && <Round icon="project" label="Open project" onClick={() => push({ name: 'project', id: id.slice(2) })} />}
+        {!group && people[0] && <Round icon="user" label="Profile" onClick={() => openPerson(people[0])} />}
         <Round icon="trash" label="Clear chat" onClick={async () => {
           if (!(await confirm('Clear this chat?', 'Its messages are deleted from this device. Notes you saved from it stay.', 'Clear'))) return
           await call('chat.clear', { convo: id }); refreshChats(); popNav()
         }} />
       </PageHeader>
       <div class="chat-scroll">
-        <div class="chat-head">
+        <div class={cx('chat-head', !group && people[0] && 'press')} onClick={() => !group && people[0] && openPerson(people[0])}>
           <ChatAvatar id={id} c={c} size={56} />
           <div class="h-sm" style={{ marginTop: 8 }}>{title}</div>
           <div class="tiny muted">{group ? `${people.length + 1} people · @mention someone to notify them` : people[0]?.username ? '@' + people[0].username : ''}</div>
@@ -358,7 +368,7 @@ export function ChatScreen({ id }: { id: string }) {
             <Fragment key={m.id}>
               {showDay && <div class="chat-day">{F.relativeDay(day)}</div>}
               <div class={cx('msg', m.mine && 'mine', m.mentions.includes(myId ?? '') && 'mentioned')} {...holdable(() => messageMenu(m, id, load))}>
-                {showName && <div class="msg-from">{m.from.name || '@' + m.from.username}</div>}
+                {showName && <button class="msg-from" onClick={e => { e.stopPropagation(); openPerson(m.from) }}>{m.from.name || '@' + m.from.username}</button>}
                 {m.voice ? <VoicePlayer load={() => call<string | null>('chat.voice', { id: m.id })} dur={m.dur} mine={m.mine} /> : <MsgText text={m.text} />}
                 <div class="msg-time">
                   {clock(m.at)}

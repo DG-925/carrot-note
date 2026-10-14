@@ -8,7 +8,6 @@ import { Icon } from './icons'
 import { closeAllOverlays, closeOverlay, getNav, goTab, onNav, openOverlay, push, setDrawer, type Route, type Tab } from './nav'
 import { getState, isDark, setLanguage, setPrefs, useApp } from './store'
 import { currentLang, startArabic } from './i18n'
-import { debtSettled, duration, isRunning } from './types'
 import { Avatar, Btn, Logo, ToastHost, attempt, cx } from './ui'
 import { ProfileScreen, SettingsScreen, signOut } from './screens/account'
 import { AuthScreen, ChooseUsername, LockScreen } from './screens/auth'
@@ -22,7 +21,7 @@ import { InvoiceDetail, InvoicesScreen, invoiceState } from './screens/invoices'
 import { ReportScreen } from './screens/report'
 import { VaultScreen } from './screens/vault'
 import { RecurringScreen } from './screens/recurring'
-import { ItemDetail, StockScreen, stockOf, stockState } from './screens/stock'
+import { ItemDetail, StockScreen, stockState } from './screens/stock'
 import { QuoteDetail, QuotesScreen, quoteState } from './screens/quotes'
 import { WalletDetail, WalletsScreen } from './screens/wallets'
 import { SupplierDetail, SuppliersScreen } from './screens/suppliers'
@@ -33,6 +32,7 @@ import { MessagesScreen } from './screens/messages'
 import { ActivityScreen } from './screens/activity'
 import { TargetsScreen } from './screens/targets'
 import { hasWhatsApp, WhatsAppScreen } from './screens/whatsapp'
+import { PersonScreen } from './screens/person'
 import { ChatScreen, ChatsScreen, PeopleScreen, unreadChats, useChats } from './screens/chat'
 import { openSmartAdd } from './screens/smartadd'
 import { runRecurring } from './recurring'
@@ -113,6 +113,7 @@ function routeScreen(r: Route) {
     case 'chat': return <ChatScreen id={r.id} />
     case 'people': return <PeopleScreen />
     case 'whatsapp': return <WhatsAppScreen />
+    case 'person': return <PersonScreen id={r.id} />
     case 'calendar': return <CalendarScreen />
     case 'time': return <TimeScreen />
     case 'customers': return <CustomersScreen />
@@ -275,34 +276,43 @@ function TabBtn({ t, on }: { t: (typeof tabs)[number]; on: boolean }) {
 const isDesktop = document.documentElement.classList.contains('desktop')
 
 /** Desktop: navigation always on the left (shown on wide windows instead of the tab bar). */
-function Sidebar() {
-  const s = useApp()
-  const nav = getNav()
-  const u = s.user!
+type MenuItem = [label: string, icon: string, color: string, route: string, count?: number]
+
+/** The menu, grouped: the same on the PC sidebar and the phone's side menu. */
+function menuGroups(s: ReturnType<typeof useApp>, chats: ReturnType<typeof useChats>): [string, MenuItem[]][] {
   const { data } = s
-  const current = nav.stack.length ? nav.stack[nav.stack.length - 1].name : nav.tab
-  const go = (r: string) => {
-    if (['home', 'money', 'projects', 'notes'].includes(r)) goTab(r as Tab)
-    else { goTab(nav.tab); push({ name: r } as Route) }
-  }
   const renew = data.rental.filter(r => ['expired', 'soon'].includes(rentalState(r))).length
   const unpaid = data.invoice.filter(i => ['sent', 'partial', 'overdue'].includes(invoiceState(i))).length
   const dueToday = data.task.filter(t => !t.done && t.dueDate != null && t.dueDate <= F.today()).length
   const lowStock = data.item.filter(i => !i.archived && i.lowStock > 0 && stockState(i) !== 'ok').length
   const openQuotes = data.quote.filter(q => quoteState(q) === 'sent').length
-  const chats = useChats()
   const endingDocs = data.doc.filter(d => d.endDate != null && d.endDate >= F.today() && d.endDate <= F.today() + 30).length
-  const groups: [string, [string, string, string, string, number?][]][] = [
+  const when = <T,>(ok: boolean, item: T): T[] => (ok ? [item] : [])
+  return [
     ['', [['Home', 'home', 'orange', 'home'], ['Money', 'wallet', 'mint', 'money'], ['Projects', 'project', 'sky', 'projects'], ['Notes', 'note', 'lilac', 'notes'],
-      ['Calendar', 'calendar', 'butter', 'calendar', dueToday], ['Chats', 'chat', 'sky', 'chats', unreadChats(chats)],
-      ...(hasWhatsApp() ? [['WhatsApp', 'whatsapp', 'mint', 'whatsapp'] as [string, string, string, string]] : [])]],
+      ['Calendar', 'calendar', 'butter', 'calendar', dueToday]]],
+    ['People', [['Chats', 'chat', 'sky', 'chats', unreadChats(chats)], ['People', 'users', 'lilac', 'people'],
+      ...when<MenuItem>(hasWhatsApp(), ['WhatsApp', 'whatsapp', 'mint', 'whatsapp']),
+      ...when<MenuItem>(s.spaces.length > 0, ['Team activity', 'team', 'lilac', 'activity']),
+      ...when<MenuItem>(s.invites > 0, ['Invitations', 'inbox', 'orange', 'invites', s.invites])]],
     ['Work', [['Time', 'timer', 'mint', 'time'], ['Quotes', 'pen', 'lilac', 'quotes', openQuotes], ['Invoices', 'invoice', 'orange', 'invoices', unpaid], ['Rentals', 'server', 'sky', 'rentals', renew],
-      ['Stock', 'box', 'butter', 'stock', lowStock], ['Suppliers', 'briefcase', 'rose', 'suppliers'], ['Contracts & files', 'pen', 'sky', 'docs', endingDocs],
-      ...(s.spaces.length ? [['Team activity', 'team', 'lilac', 'activity'] as [string, string, string, string]] : []), ['Customers', 'users', 'rose', 'customers'], ...(s.invites > 0 ? [['Invitations', 'inbox', 'orange', 'invites', s.invites] as [string, string, string, string, number]] : [])]],
+      ['Stock', 'box', 'butter', 'stock', lowStock], ['Suppliers', 'briefcase', 'rose', 'suppliers'], ['Contracts & files', 'pen', 'sky', 'docs', endingDocs], ['Customers', 'users', 'rose', 'customers']]],
     ['Money', [['Wallets', 'wallet', 'mint', 'wallets'], ['Recurring', 'repeat', 'mint', 'recurring'], ['Debts', 'debt', 'butter', 'debts'], ['Savings', 'goal', 'lilac', 'goals'],
       ['Targets', 'flag', 'orange', 'targets'], ['Price list', 'tag', 'butter', 'prices'], ['Insights', 'chart', 'sky', 'insights'], ['Report', 'chart', 'lilac', 'report']]],
     ['Private', [['Vault', 'lock', 'rose', 'vault']]],
   ]
+}
+
+function Sidebar() {
+  const s = useApp()
+  const nav = getNav()
+  const u = s.user!
+  const current = nav.stack.length ? nav.stack[nav.stack.length - 1].name : nav.tab
+  const go = (r: string) => {
+    if (['home', 'money', 'projects', 'notes'].includes(r)) goTab(r as Tab)
+    else { goTab(nav.tab); push({ name: r } as Route) }
+  }
+  const groups = menuGroups(s, useChats())
   return (
     <aside class="sidebar">
       <div class="side-brand"><Logo size={36} /><div><div class="h-sm">Carrot Note</div><div class="tiny muted">Freelancer workspace</div></div></div>
@@ -338,8 +348,6 @@ function Drawer() {
   const s = useApp()
   const nav = getNav()
   const u = s.user!
-  const { data } = s
-  const today = F.today()
   const current = nav.stack.length ? nav.stack[nav.stack.length - 1].name : nav.tab
   const [closing, setClosing] = useState(false)
   const close = (then?: () => void) => {
@@ -352,95 +360,42 @@ function Drawer() {
   })
   const later = (run: () => void) => close(() => setTimeout(run, 60))
 
-  const cur = s.settings.currency
-  const mStart = F.monthStart(today)
-  const net = data.txn.filter(t => t.date >= mStart && t.currency === cur).reduce((a, t) => a + (t.kind === 'income' ? t.amount : -t.amount), 0)
-  const activeProjects = data.project.filter(p => p.status === 'active').length
-  const dueToday = data.task.filter(t => !t.done && t.dueDate != null && t.dueDate <= today).length
-  const eventsToday = data.event.filter(e => e.date === today && !e.done).length
-  const running = data.time.find(isRunning)
-  const trackedToday = data.time.filter(t => F.dayOfMs(t.start) === today).reduce((a, t) => a + duration(t), 0)
-  const openDebts = data.debt.filter(d => !debtSettled(d)).length
-  const activeRentals = data.rental.filter(r => r.status === 'active')
-  const unpaidInvoices = data.invoice.filter(i => ['sent', 'partial', 'overdue'].includes(invoiceState(i))).length
-  const renewSoon = activeRentals.filter(r => ['expired', 'soon'].includes(rentalState(r))).length
-  const chats = useChats()
-
-  const tiles: [string, string, string, string, string][] = [
-    ['Home', 'home', 'orange', 'home', 'Your day'],
-    ['Money', 'wallet', 'mint', 'money', (net >= 0 ? '+' : '−') + F.money(Math.abs(net), cur)],
-    ['Projects', 'project', 'sky', 'projects', `${activeProjects} active`],
-    ['Notes', 'note', 'lilac', 'notes', F.plural(data.note.length, 'note')],
-    ['Calendar', 'calendar', 'butter', 'calendar', dueToday + eventsToday ? `${dueToday + eventsToday} today` : 'Holidays & plans'],
-    ['Chats', 'chat', 'sky', 'chats', unreadChats(chats) ? `${unreadChats(chats)} unread` : 'Message your team'],
-    ...(hasWhatsApp() ? [['WhatsApp', 'whatsapp', 'mint', 'whatsapp', 'Chat from here'] as [string, string, string, string, string]] : []),
-    ['Time', 'timer', 'mint', 'time', running ? 'Tracking now' : `${F.hours(trackedToday).toFixed(1)} h today`],
-    ['Rentals', 'server', 'sky', 'rentals', renewSoon ? `${renewSoon} to renew` : `${activeRentals.length} active`],
-    ['Invoices', 'invoice', 'orange', 'invoices', unpaidInvoices ? `${unpaidInvoices} unpaid` : `${data.invoice.length} total`],
-    ['Stock', 'box', 'butter', 'stock', `${data.item.filter(i => !i.archived).reduce((a, i) => a + Math.max(0, stockOf(i).qty), 0)} in stock`],
-    ['Quotes', 'pen', 'lilac', 'quotes', `${data.quote.filter(q => quoteState(q) === 'sent').length} waiting`],
-    ['Wallets', 'wallet', 'mint', 'wallets', F.plural(data.wallet.filter(w => !w.archived).length, 'wallet')],
-    ['Suppliers', 'briefcase', 'rose', 'suppliers', `${data.supplier.length} saved`],
-    ['Contracts & files', 'pen', 'sky', 'docs', F.plural(data.doc.length, 'file')],
-    ['Price list', 'tag', 'butter', 'prices', `${data.price.length} saved`],
-    ['Targets', 'flag', 'orange', 'targets', F.plural(data.target.length, 'target')],
-    ['Insights', 'chart', 'sky', 'insights', 'Charts & trends'],
-    ...(s.spaces.length ? [['Team activity', 'team', 'lilac', 'activity', 'Shared projects'] as [string, string, string, string, string]] : []),
-    ['Recurring', 'repeat', 'mint', 'recurring', `${data.recurring.filter(r => r.active).length} active`],
-    ['Report', 'chart', 'lilac', 'report', `${new Date().getFullYear()} so far`],
-    ['Vault', 'lock', 'rose', 'vault', `${data.secret.length} saved`],
-    ['Customers', 'users', 'rose', 'customers', `${data.customer.length} saved`],
-    ['Debts', 'debt', 'butter', 'debts', openDebts ? `${openDebts} open` : 'All settled'],
-    ['Savings', 'goal', 'lilac', 'goals', F.plural(data.goal.length, 'goal')],
-    ...(s.invites > 0 ? [['Invitations', 'inbox', 'orange', 'invites', `${s.invites} waiting`] as [string, string, string, string, string]] : []),
-  ]
-  const quick: [string, string, string, () => void][] = [
-    ['Expense', 'expense', 'rose', () => editTxn(undefined, { kind: 'expense' })],
-    ['Income', 'income', 'mint', () => editTxn(undefined, { kind: 'income' })],
-    ['Task', 'tasks', 'butter', () => editTask(undefined, { date: today })],
-    ['Note', 'note', 'lilac', () => editNote()],
-  ]
+  const groups = menuGroups(s, useChats())
   return (
     <>
       <div class={cx('scrim', closing && 'closing')} onClick={() => close()} />
-      <aside class={cx('drawer', closing && 'closing')}>
-        <div class="row" style={{ padding: '0 4px 12px' }}>
-          <Logo size={40} />
-          <div class="grow"><div class="h-md">Carrot Note</div><div class="tiny muted">Freelancer workspace</div></div>
+      <aside class={cx('drawer side-drawer', closing && 'closing')}>
+        <div class="side-brand">
+          <Logo size={36} />
+          <div class="grow"><div class="h-sm">Carrot Note</div><div class="tiny muted">Freelancer workspace</div></div>
           <button class="round sm" aria-label="Close menu" onClick={() => close()}><Icon name="close" size={15} /></button>
         </div>
-        <button class="drawer-profile press" onClick={() => go('profile')}>
-          <div class="row">
-            <Avatar userId={u.id} rev={u.avatarRev} name={u.name || u.username} size={48} />
-            <div class="grow" style={{ textAlign: 'start', minWidth: 0 }}><div class="h-sm ellipsis">{u.name || '@' + u.username}</div><div class="small" style={{ opacity: .85 }}>@{u.username}</div></div>
-            <Icon name="right" size={13} />
-          </div>
-          <div class="drawer-stats">
-            <span><b>{activeProjects}</b> projects</span><span><b>{dueToday}</b> due</span><span class="amt"><b>{F.amount(Math.round(net))}</b> {cur}</span>
-          </div>
+        <button class="side-profile press" onClick={() => go('profile')}>
+          <Avatar userId={u.id} rev={u.avatarRev} name={u.name || u.username} size={40} />
+          <div class="grow" style={{ minWidth: 0, textAlign: 'start' }}><div class="semibold ellipsis">{u.name || '@' + u.username}</div><div class="tiny muted ellipsis">@{u.username}</div></div>
+          <span class={'sync-dot' + (s.sync.error ? ' bad' : s.sync.syncing ? ' busy' : '')} />
         </button>
-        <button class="search drawer-search press" onClick={() => go('search')}><Icon name="search" size={17} /><span class="muted grow" style={{ textAlign: 'start' }}>Search everything…</span></button>
-
-        <div class="label">Quick add</div>
-        <div class="drawer-quick">
-          {quick.map(([label, icon, color, run]) => (
-            <button key={label} class="press" onClick={() => later(run)}><span class={`box t-${color}`}><Icon name={icon} size={17} /></span>{label}</button>
-          ))}
+        <div class="side-actions">
+          <button class="side-new press" onClick={() => later(() => quickAdd())}><Icon name="plus" size={17} stroke={2.6} />New</button>
+          <button class="side-find press" aria-label="Search" onClick={() => go('search')}><Icon name="search" size={18} /></button>
         </div>
 
-        <div class="label">Go to</div>
-        <div class="drawer-grid">
-          {tiles.map(([label, icon, color, r, sub], i) => (
-            <button key={r} class={cx(`drawer-tile t-${color} press`, current === r && 'on')} style={{ '--i': i } as any} onClick={() => go(r)}>
-              <span class="box"><Icon name={icon} size={16} /></span>
-              <b>{label}</b>
-              <span class={cx('sub ellipsis', r === 'money' && 'amt')}>{sub}</span>
-              {r === 'invites' && <span class="badge">{s.invites}</span>}
-            </button>
+        <nav class="side-nav">
+          {groups.map(([title, items], g) => (
+            <div key={title || 'main'} class="side-group" style={{ '--i': g } as any}>
+              {title && <div class="side-label">{title}</div>}
+              {items.map(([label, icon, color, r, n]) => (
+                <button key={r} class={cx('side-item', current === r && 'on')} onClick={() => go(r)}>
+                  <span class={`box t-${color}`}><Icon name={icon} size={15} /></span>
+                  <span class="grow">{label}</span>
+                  {!!n && <span class="side-count">{n}</span>}
+                </button>
+              ))}
+            </div>
           ))}
-        </div>
+        </nav>
 
-        <div class="label">Preferences</div>
+        <div class="side-label">Preferences</div>
         <div class="drawer-prefs">
           <div class="drawer-theme">
             {([[1, 'sun', 'Light'], [2, 'moon', 'Dark'], [0, 'settings', 'Auto']] as const).map(([v, icon, label]) => (
@@ -451,13 +406,13 @@ function Drawer() {
             <button class={s.prefs.lang === 'en' ? 'on' : ''} onClick={() => setLanguage('en')}>English</button>
             <button class={s.prefs.lang === 'ar' ? 'on' : ''} onClick={() => setLanguage('ar')}>العربية</button>
           </div>
-          <button class="drawer-row" onClick={() => setPrefs({ privacy: !s.prefs.privacy })}>
-            <span class="box"><Icon name={s.prefs.privacy ? 'eyeOff' : 'eye'} size={15} /></span><span class="grow" style={{ textAlign: 'start' }}>Hide amounts</span>
+          <button class="side-item" onClick={() => setPrefs({ privacy: !s.prefs.privacy })}>
+            <span class="box"><Icon name={s.prefs.privacy ? 'eyeOff' : 'eye'} size={15} /></span><span class="grow">Hide amounts</span>
             <span class={cx('switch', s.prefs.privacy && 'on')} />
           </button>
-          <button class="drawer-row" onClick={() => go('settings')}><span class="box"><Icon name="settings" size={15} /></span><span class="grow" style={{ textAlign: 'start' }}>Settings</span><Icon name="right" size={12} class="muted" /></button>
-          {s.lock.pinEnabled && <button class="drawer-row" onClick={() => close(() => call('lock.now'))}><span class="box"><Icon name="lock" size={15} /></span><span class="grow" style={{ textAlign: 'start' }}>Lock now</span></button>}
-          <button class="drawer-row" onClick={() => close(signOut)}><span class="box bad"><Icon name="signOut" size={15} /></span><span class="grow bad" style={{ textAlign: 'start' }}>Sign out</span></button>
+          <button class={cx('side-item', current === 'settings' && 'on')} onClick={() => go('settings')}><span class="box"><Icon name="settings" size={15} /></span><span class="grow">Settings</span></button>
+          {s.lock.pinEnabled && <button class="side-item" onClick={() => close(() => call('lock.now'))}><span class="box"><Icon name="lock" size={15} /></span><span class="grow">Lock now</span></button>}
+          <button class="side-item" onClick={() => close(signOut)}><span class="box bad"><Icon name="signOut" size={15} /></span><span class="grow bad">Sign out</span></button>
         </div>
         <div class="tiny muted center" style={{ padding: '14px 0 4px' }}>Carrot Note {s.version} · made for freelancers 🥕</div>
       </aside>

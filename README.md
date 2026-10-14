@@ -16,6 +16,12 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.15: profiles, a new menu, chat fix
+
+- **Profiles for everyone**: tap a person anywhere (People, a chat, a project's team, a name in a team chat) to see their profile: photo, bio, GitHub, followers, whether you follow each other, the projects you share and what they did in them lately. Follow or message them from there.
+- **The menu is a sidebar now**: on the phone the side menu is a grouped list like on the PC (main pages, People, Work, Money, Private) with counts for what needs attention, a New button and search at the top, and preferences at the bottom.
+- **Chat fix**: the message box no longer jumps to the top with the keyboard open on Android; the newest messages stay in sight while you type.
+
 ### New in 1.14: client links, chat, WhatsApp on the PC, Say it and barcodes
 
 - **Client links**: on an invoice, quote or project tap the link button to get a private web page for your client. They open it in any browser (no app needed): on a quote they can accept or decline, on an invoice they can say they paid (amount and InstaPay, Vodafone Cash, bank…), and on a project they see the progress and what they paid so far, but never task names or notes. You get a notification, and their answer shows on the invoice or quote with one tap to act: make the project and invoice, or record the payment. Stop sharing any time.

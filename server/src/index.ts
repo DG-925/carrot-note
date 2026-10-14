@@ -7,7 +7,7 @@
  * Sync: clients push changed records and pull everything with rev > their per-space cursor.
  */
 
-import { chatInbox, chatPending, follow, followSummary, follows, sendChat, unfollow } from "./chat";
+import { chatInbox, chatPending, follow, followSummary, follows, personProfile, sendChat, unfollow } from "./chat";
 import { createLink, replyLink, revokeLink, showLink } from "./links";
 
 export interface Env {
@@ -757,6 +757,8 @@ export default {
           return await unfollow(req, env);
         case "POST /api/follows":
           return await follows(req, env);
+        case "POST /api/person":
+          return await personProfile(req, env);
       }
       // Client links: public pages, no sign-in.
       if (req.method === "GET" && (m = path.match(/^\/c\/([A-Za-z0-9_-]+)$/))) return await showLink(env, m[1], url);
