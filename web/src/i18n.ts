@@ -189,6 +189,15 @@ const patterns: [RegExp, (m: RegExpExecArray) => string | null][] = [
   [/^([\d,.]+ [A-Z]{3,4}) left$/, m => `باقي ${m[1]}`],
   // 1.12: quotes, wallets, files, insights, targets, activity.
   [/^valid until (.+)$/i, m => `صالح حتى ${m[1]}`],
+  // 1.14: client answers, chat, labels.
+  [/^(.+) accepted the offer$/, m => `${tr(m[1])} قبل العرض`],
+  [/^(.+) declined the offer$/, m => `${tr(m[1])} رفض العرض`],
+  [/^(.+) says they paid(?: (-?[\d,.]+ [A-Z]{3,4}))?$/, m => `${tr(m[1])} يقول إنه دفع${m[2] ? ' ' + m[2] : ''}`],
+  [/^(\d+) people$/, m => `${m[1]} أشخاص`],
+  [/^@mention someone to notify them$/, () => 'اذكر شخصًا بـ @ لتنبيهه'],
+  [/^Make (\d+) labels?$/, m => `إنشاء ${m[1]} ملصق`],
+  [/^(\d+) unread$/, m => `${m[1]} غير مقروءة`],
+  [/^Message everyone in (.+) · voice messages and @mentions$/, m => `راسل كل من في ${m[1]} · رسائل صوتية وإشارات @`],
   [/^(Sent|Drafted|Accepted|Declined) (\d[^·]*|[^A-Za-z·]*[\u0600-\u06FF][^A-Za-z·]*)$/, m => `${({ Sent: 'أُرسل', Drafted: 'مسودة', Accepted: 'قُبل', Declined: 'رُفض' } as Record<string, string>)[m[1]]} ${m[2]}`],
   [/^From quote (.+)$/, m => `من العرض ${m[1]}`],
   [/^Tax \(([\d.]+)%\)$/, m => `الضريبة (${m[1]}٪)`],

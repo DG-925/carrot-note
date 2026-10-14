@@ -8,6 +8,7 @@ type Block =
   | { type: 'text'; text: string }
   | { type: 'table'; columns: Col[]; rows: string[][]; muted?: number[] }
   | { type: 'totals'; rows: [string, string, boolean?][] }
+  | { type: 'labels'; labels: { name: string; price: string; code: string; bars: string }[] }
 
 export interface PdfDoc { file?: string; title: string; subtitle?: string; headerRight?: string[]; footer?: string; blocks: Block[] }
 
@@ -29,6 +30,12 @@ function block(b: Block): string {
         `<td style="text-align:${b.columns[i]?.align === 'right' ? 'end' : 'start'}">${esc(v)}</td>`).join('')}</tr>`).join('')
       return `<table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`
     }
+    case 'labels':
+      return `<div class="labels">${b.labels.map(l => {
+        const rects = [...l.bars].map((c, i) => (c === '1' ? `<rect x="${i}" y="0" width="1" height="40"/>` : '')).join('')
+        return `<div class="label"><div class="ln">${esc(l.name)}</div><div class="lp">${esc(l.price)}</div>
+<svg viewBox="0 0 ${l.bars.length} 40" preserveAspectRatio="none">${rects}</svg><div class="lc">${esc(l.code)}</div></div>`
+      }).join('')}</div>`
     case 'totals':
       return `<div class="totals">${b.rows.map(([l, v, strong]) => `<div class="${strong ? 'strong' : ''}"><span>${esc(l)}</span><b>${esc(v)}</b></div>`).join('')}</div>`
   }
@@ -42,7 +49,7 @@ export function pdfHtml(doc: PdfDoc): string {
 body { margin: 0; font: 13px/1.45 "Segoe UI", system-ui, sans-serif; color: #1c1a18; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 header { background: #ff6b1f; color: #fff; padding: 34px 44px 26px; display: flex; justify-content: space-between; gap: 20px; }
 header h1 { margin: 0; font-size: 30px; letter-spacing: .02em; }
-header .sub { opacity: .92; margin-top: 4px; }
+header .sub { opacity: .92; margin-top: 4px; color: #fff; }
 header .right { text-align: end; } header .right div:first-child { font-weight: 700; font-size: 15px; }
 main { padding: 28px 44px 70px; }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 22px; }
@@ -59,6 +66,12 @@ td:first-child { font-weight: 600; } tr.muted td { color: #78706a; font-weight: 
 .totals div b { color: #1c1a18; font-weight: 600; }
 .totals .strong { color: #1c1a18; font-weight: 700; font-size: 15px; border-top: 1px dashed #e0d6cc; margin-top: 4px; padding-top: 8px; }
 .totals .strong b { color: #ff6b1f; font-size: 17px; }
+.labels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.label { border: 1px solid #ece4dc; border-radius: 8px; padding: 8px 10px; break-inside: avoid; }
+.ln { font-weight: 700; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lp { color: #ff6b1f; font-weight: 800; font-size: 13px; }
+.label svg { width: 100%; height: 40px; display: block; margin-top: 4px; shape-rendering: crispEdges; }
+.lc { text-align: center; font-size: 10px; letter-spacing: .08em; }
 footer { position: fixed; bottom: 22px; left: 44px; right: 44px; color: #78706a; font-size: 10.5px; }
 </style></head><body>
 <header><div><h1>${esc(doc.title)}</h1>${doc.subtitle ? `<div class="sub">${esc(doc.subtitle)}</div>` : ''}</div>

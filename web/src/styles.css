@@ -939,3 +939,69 @@ html.desktop button, html.desktop .press { cursor: pointer; }
 .card.flush-card { padding: 0 16px 4px; }
 .card.flush-card > .row:first-child { margin: 0 -2px; padding-inline: 0 !important; }
 .item.picked .badge-ico { background: var(--mint); color: var(--on-mint); }
+
+/* ---------------------------------------------------------------- 1.14: client links, say it, barcodes, chat */
+.link-box { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; }
+.reply-card { border: 2px solid var(--accent-soft); }
+.reply-note { margin: 8px 0 0; font-style: italic; color: var(--muted); white-space: pre-wrap; }
+.chip.on-soft { background: var(--bg); cursor: default; gap: 5px; font-size: 13px; }
+
+.say-bar { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 20px;
+  background: linear-gradient(135deg, #FF7A2E, #FF5A12); color: #fff; text-align: start; font: inherit; }
+.say-ico { width: 38px; height: 38px; border-radius: 14px; background: rgba(255, 255, 255, .22); display: grid; place-items: center; flex: none; }
+.smart-input { position: relative; background: var(--bg); border-radius: 20px; padding: 12px 64px 12px 14px; }
+.smart-input textarea { width: 100%; border: 0; outline: 0; background: transparent; color: inherit; resize: none; font: 500 17px/1.4 var(--body); }
+.smart-mic { position: absolute; inset-inline-end: 8px; top: 50%; transform: translateY(-50%); width: 48px; height: 48px; border-radius: 50%;
+  background: var(--accent); color: #fff; display: grid; place-items: center; box-shadow: 0 6px 18px rgba(255, 107, 31, .35); }
+.smart-mic.on { animation: mic-pulse 1.1s ease-in-out infinite; }
+@keyframes mic-pulse { 50% { box-shadow: 0 0 0 10px rgba(255, 107, 31, .18); } }
+.smart-preview { margin-top: 10px; }
+
+.field-btn { flex: none; width: 54px; border-radius: 18px; background: var(--card); color: var(--accent); display: grid; place-items: center; }
+.stepper { display: flex; align-items: center; gap: 6px; flex: none; }
+.stepper button { width: 30px; height: 30px; border-radius: 50%; background: var(--bg); display: grid; place-items: center; color: inherit; }
+.stepper b { min-width: 22px; text-align: center; }
+
+.team-chat-bar { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--r-card); background: var(--card); width: 100%; font: inherit; color: inherit; }
+.rec-btn { background: var(--bad) !important; color: #fff !important; animation: mic-pulse 1.1s ease-in-out infinite; }
+
+/* chat list */
+.chat-row .main .s { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.chat-badge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center; }
+
+/* one chat */
+.chat-page { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.chat-scroll { flex: 1; overflow-y: auto; padding: 4px 14px 12px; display: flex; flex-direction: column; gap: 4px; scrollbar-width: thin; }
+.chat-head { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 8px 20px 18px; }
+.chat-day { align-self: center; font-size: 12px; font-weight: 700; color: var(--muted); background: var(--card); border-radius: 99px; padding: 3px 12px; margin: 10px 0 6px; }
+.msg { align-self: flex-start; max-width: min(78%, 520px); background: var(--card); border-radius: 20px 20px 20px 6px; padding: 8px 12px 6px;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.msg.mine { align-self: flex-end; background: var(--accent); color: #fff; border-radius: 20px 20px 6px 20px; }
+.msg.mentioned { box-shadow: inset 0 0 0 2px var(--accent); }
+[dir="rtl"] .msg { border-radius: 20px 20px 6px 20px; }
+[dir="rtl"] .msg.mine { border-radius: 20px 20px 20px 6px; }
+.msg-from { font-size: 12px; font-weight: 800; color: var(--accent); margin-bottom: 2px; }
+.msg-text { white-space: pre-wrap; word-break: break-word; font-size: 15.5px; line-height: 1.4; }
+.mention { color: var(--accent); }
+.msg.mine .mention { color: #fff; text-decoration: underline; }
+.msg-time { display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 11px; opacity: .7; margin-top: 2px; }
+.voice { display: flex; align-items: center; gap: 10px; min-width: 200px; padding: 2px 0; cursor: pointer; }
+.voice-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; flex: none; }
+.voice.mine .voice-btn { background: #fff; color: var(--accent); }
+.voice-track { flex: 1; height: 4px; border-radius: 4px; background: var(--track); overflow: hidden; }
+.voice.mine .voice-track { background: rgba(255, 255, 255, .35); }
+.voice-track i { display: block; height: 100%; background: var(--accent); }
+.voice.mine .voice-track i { background: #fff; }
+.mention-bar { display: flex; gap: 8px; overflow-x: auto; padding: 6px 14px; }
+.mention-bar .chip { gap: 6px; flex: none; }
+.composer { display: flex; align-items: flex-end; gap: 8px; padding: 8px 12px calc(var(--sab) + 10px + var(--kb)); background: var(--bg); border-top: 1px solid var(--line); }
+.composer textarea { flex: 1; min-height: 46px; max-height: 120px; resize: none; border: 0; outline: 0; border-radius: 23px; padding: 12px 16px; background: var(--card); color: inherit; font: 16px/1.4 var(--body); }
+.composer .send { width: 46px; height: 46px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; flex: none; }
+.composer .send.mic { background: var(--ink); color: var(--on-ink); }
+.rec-bar { flex: 1; height: 46px; border-radius: 23px; background: var(--card); display: flex; align-items: center; gap: 10px; padding: 0 16px; }
+.rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--bad); animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: .2; } }
+.desktop .chat-scroll { padding: 4px 24px 12px; }
+.desktop .composer { padding: 10px 24px 14px; }

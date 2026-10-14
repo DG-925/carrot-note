@@ -6,6 +6,7 @@ import { call } from '../bridge'
 import * as F from '../format'
 import { CustomerPicker, viewPhoto } from '../editors'
 import { SupplierPicker } from './suppliers'
+import { printLabels, scanInto, scanStock, showScanned, useUsbScanner } from './scan'
 import { Icon, methodIcon } from '../icons'
 import { pop as popNav, push } from '../nav'
 import { byId, getState, remove, save, useApp } from '../store'
@@ -93,6 +94,7 @@ let savedFilter = 'all'
 
 export function StockScreen() {
   const s = useApp()
+  useUsbScanner(showScanned)
   const [filter, setFilterState] = useState(savedFilter)
   const [query, setQuery] = useState('')
   const setFilter = (f: string) => { savedFilter = f; setFilterState(f) }
@@ -113,6 +115,8 @@ export function StockScreen() {
     <>
       <div class="scroll">
         <PageHeader title="Stock" onBack={popNav}>
+          <Round icon="barcode" label="Price labels" onClick={printLabels} />
+          <Round icon="scan" label="Scan" onClick={scanStock} />
           <Round icon="plus" label="New item" onClick={() => editItem()} />
         </PageHeader>
         <div class="content no-tabbar">
@@ -411,14 +415,14 @@ function CountForm({ id, close }: { id: string; close: () => void }) {
 
 // ---------------------------------------------------------------- item form
 
-export function editItem(item?: StockItem) {
-  openForm(close => <ItemForm item={item} close={close} />)
+export function editItem(item?: StockItem, defaults: { sku?: string } = {}) {
+  openForm(close => <ItemForm item={item} defaults={defaults} close={close} />)
 }
 
-function ItemForm({ item, close }: { item?: StockItem; close: () => void }) {
+function ItemForm({ item, defaults, close }: { item?: StockItem; defaults: { sku?: string }; close: () => void }) {
   const st = getState()
   const base: StockItem = item ?? {
-    id: newId(), name: '', sku: '', category: '', condition: 'new', currency: st.settings.currency, sellPrice: 0, lowStock: 1, notes: '',
+    id: newId(), name: '', sku: defaults.sku ?? '', category: '', condition: 'new', currency: st.settings.currency, sellPrice: 0, lowStock: 1, notes: '',
     photoId: null, moves: [], createdAt: Date.now(),
   }
   const [it, set] = useState(base)
@@ -491,7 +495,10 @@ function ItemForm({ item, close }: { item?: StockItem; close: () => void }) {
       <FieldLabel>Warn me when it's running low</FieldLabel>
       <Chips options={['0', '1', '2', '3', '5', '10']} value={String(it.lowStock)} onChange={v => up({ lowStock: Number(v) })}
         label={v => (v === '0' ? 'Never' : `${v} or fewer`)} />
-      <Field label="Serial number / code (optional)" value={it.sku} icon="tag" onInput={v => up({ sku: v })} />
+      <div class="row" style={{ alignItems: 'stretch' }}>
+        <div class="grow"><Field label="Barcode / serial number (optional)" value={it.sku} icon="barcode" onInput={v => up({ sku: v })} /></div>
+        <button class="field-btn" aria-label="Scan" onClick={() => scanInto(code => up({ sku: code }))}><Icon name="scan" size={20} /></button>
+      </div>
       <Field label="Details (specs, where it's kept…)" multiline value={it.notes} onInput={v => up({ notes: v })} />
     </Form>
   )

@@ -1,6 +1,7 @@
 // Quotes: a price offer with items, discount and tax, sent as a PDF or on WhatsApp. When the client
 // says yes, one tap turns it into a project and an invoice.
 
+import { ClientReplies, openClientLink } from './clientlink'
 import { useState } from 'preact/hooks'
 import { call } from '../bridge'
 import * as F from '../format'
@@ -121,6 +122,7 @@ export function QuoteDetail({ id }: { id: string }) {
   return (
     <div class="scroll">
       <PageHeader title={q.number} onBack={popNav}>
+        <Round icon="link" label="Client link" onClick={() => openClientLink('quote', q.id, { title: q.number, client: clientOf(q), customerId: q.customerId })} />
         <Round icon="share" label="Share PDF" onClick={() => shareQuotePdf(q)} />
         <Round icon="edit" label="Edit" onClick={() => editQuote(q)} />
       </PageHeader>
@@ -133,6 +135,7 @@ export function QuoteDetail({ id }: { id: string }) {
             Sent {F.dateShort(q.issueDate)}{q.validUntil != null ? ` · valid until ${F.dateShort(q.validUntil)}` : ''}
           </div>
         </div>
+        <ClientReplies type="quote" id={q.id} onAccept={() => acceptQuote(q)} />
         <div class="row wrap pop" style={{ '--i': 2 } as any}>
           {(st === 'sent' || st === 'draft' || st === 'expired') && <Btn icon="check" onClick={() => acceptQuote(q)}>Client said yes</Btn>}
           {(st === 'sent' || st === 'expired') && <Btn kind="ghost" icon="close" onClick={() => attempt(() => save('quote', { ...q, status: 'declined' }))}>Declined</Btn>}
@@ -172,7 +175,7 @@ export function QuoteDetail({ id }: { id: string }) {
 }
 
 /** Client accepted: create (or reuse) the project and an invoice with the same items. */
-async function acceptQuote(q: Quote) {
+export async function acceptQuote(q: Quote) {
   await attempt(async () => {
     const st = getState()
     const t = quoteTotals(q)

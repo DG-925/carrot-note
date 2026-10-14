@@ -5,6 +5,7 @@ import { call } from './bridge'
 import * as F from './format'
 import { WalletPicker } from './screens/wallets'
 import { SupplierPicker } from './screens/suppliers'
+import { VoicePlayer } from './screens/chat'
 import { categoryIcon, Icon, methodIcon } from './icons'
 import { openOverlay, push } from './nav'
 import { myRepos, repoPath, repoUrl, verifyRepo, languageColor, type GhRepo } from './github'
@@ -14,13 +15,13 @@ import { linkGithub } from './screens/account'
 import {
   Categories, newId, debtRemaining, goalSaved,
   type Budget, type CalEvent, type CheckItem, type Customer, type Debt, type Goal, type InfoItem, type Note,
-  type PhoneContact, type Project, type TaskItem, type TimeEntry, type Txn,
+  type PhoneContact, type Project, type TaskItem, type TimeEntry, type Txn, type AudioClip,
 } from './types'
 import {
   AmountBox, Btn, Chips, CurrencyField, DateField, Field, FieldLabel, Form, Hint, MoreOptions, Round, SearchBar, Seg,
   SelectField, SheetTitle, SwitchRow, TimeField, attempt, matches, openForm, openSheet, toast,
 } from './ui'
-import { dateLocale } from './i18n'
+import { currentLang, dateLocale } from './i18n'
 
 const now = () => Date.now()
 
@@ -137,13 +138,40 @@ function NoteForm({ item, defaults, close }: { item?: Note; defaults: { projectI
   const [n, set] = useState(base)
   const up = (p: Partial<Note>) => set({ ...n, ...p })
   const setItem = (i: number, p: Partial<CheckItem>) => up({ checklist: n.checklist.map((c, j) => (j === i ? { ...c, ...p } : c)) })
+  // Voice clips recorded here are saved with the note (until then they only live in this form).
+  const [newClips, setNewClips] = useState<AudioClip[]>([])
+  const [recording, setRecording] = useState<number | null>(null)
+  const clips = [...(n.audioIds ?? []).map(id => s.data.audio.find(a => a.id === id)).filter((a): a is AudioClip => !!a), ...newClips]
+  const record = async () => {
+    if (recording == null) {
+      try { await call('voice.start'); setRecording(Date.now()) } catch (e) { toast(String((e as Error).message ?? e)) }
+      return
+    }
+    setRecording(null)
+    const clip = await call<{ data: string; dur: number } | null>('voice.stop').catch(() => null)
+    if (clip) setNewClips([...newClips, { id: newId(), data: clip.data, dur: clip.dur, createdAt: Date.now() }])
+    else toast('Too short. Tap Voice, talk, then tap Stop.')
+  }
+  useEffect(() => () => { call('voice.cancel').catch(() => {}) }, [])
   const shared = !!n.projectId && s.spaces.some(sp => sp.kind === 'project' && sp.projectId === n.projectId)
-  const current = (): Note => ({ ...n, title: n.title.trim(), body: n.body.trim(), checklist: n.checklist.filter(c => c.text.trim()) })
-  const canSave = !!(n.title.trim() || n.body.trim() || n.checklist.some(c => c.text.trim()))
+  const current = (): Note => ({
+    ...n, title: n.title.trim(), body: n.body.trim(), checklist: n.checklist.filter(c => c.text.trim()),
+    audioIds: clips.map(c => c.id),
+  })
+  const canSave = !!(n.title.trim() || n.body.trim() || n.checklist.some(c => c.text.trim()) || clips.length)
   return (
     <Form title={item ? 'Edit note' : 'New note'} close={close} saveEnabled={canSave}
-      onSave={async () => { await save('note', current()); close() }}
-      onDelete={item ? () => { remove('note', item.id); close() } : undefined}
+      onSave={async () => {
+        for (const c of newClips) await save('audio', c)
+        // Clips taken out of the note are deleted.
+        for (const id of base.audioIds ?? []) if (!clips.some(c => c.id === id)) call('data.delete', { type: 'audio', id }).catch(() => {})
+        await save('note', current()); close()
+      }}
+      onDelete={item ? () => {
+        remove('note', item.id)
+        for (const id of item.audioIds ?? []) call('data.delete', { type: 'audio', id }).catch(() => {})
+        close()
+      } : undefined}
       actions={<>
         <Round icon="pin" label="Pin" onClick={() => up({ pinned: !n.pinned })} style={n.pinned ? { background: 'var(--accent)', color: '#fff' } : undefined} />
         <Round icon="share" label="Share" onClick={() => call('app.share', { subject: n.title || 'Note', text: noteText(current()) })} />
@@ -167,9 +195,25 @@ function NoteForm({ item, defaults, close }: { item?: Note; defaults: { projectI
           ))}
         </div>}
       </div>
-      <Btn kind="t-lilac" icon="checkSquare" class="t-lilac" onClick={() => up({ checklist: [...n.checklist, { id: newId(), text: '', done: false }] })}>
-        {n.checklist.length ? 'Add item' : 'Add checklist'}
-      </Btn>
+      {clips.length > 0 && <div class="col tight">
+        {clips.map(c => (
+          <div key={c.id} class="row">
+            <div class="grow"><VoicePlayer load={async () => c.data} dur={c.dur} /></div>
+            <button class="muted" style={{ padding: 8 }} aria-label="Remove voice clip" onClick={() => {
+              setNewClips(newClips.filter(x => x.id !== c.id))
+              up({ audioIds: (n.audioIds ?? []).filter(x => x !== c.id) })
+            }}><Icon name="close" size={14} /></button>
+          </div>
+        ))}
+      </div>}
+      <div class="row wrap">
+        <Btn kind="t-lilac" icon="checkSquare" class="t-lilac" onClick={() => up({ checklist: [...n.checklist, { id: newId(), text: '', done: false }] })}>
+          {n.checklist.length ? 'Add item' : 'Add checklist'}
+        </Btn>
+        <Btn kind={recording != null ? 'danger' : 't-rose'} class={recording != null ? 'rec-btn' : 't-rose'} icon={recording != null ? 'stop' : 'mic'} onClick={record}>
+          {recording != null ? 'Stop' : 'Voice'}
+        </Btn>
+      </div>
       <MoreOptions startOpen={base.projectId != null || base.date != null || base.color !== 0}>
         <FieldLabel>Color</FieldLabel>
         <div class="swatches">
@@ -189,18 +233,18 @@ function NoteForm({ item, defaults, close }: { item?: Note; defaults: { projectI
 
 // ---------------------------------------------------------------- money
 
-export function editTxn(item?: Txn, defaults: { kind?: string; projectId?: string | null; customerId?: string | null; date?: number; note?: string; amount?: number; supplierId?: string | null } = {}) {
+export function editTxn(item?: Txn, defaults: { kind?: string; projectId?: string | null; customerId?: string | null; date?: number; note?: string; amount?: number; supplierId?: string | null; category?: string; method?: string; currency?: string } = {}) {
   openForm(close => <TxnForm item={item} defaults={defaults} close={close} />)
 }
 
-function TxnForm({ item, defaults, close }: { item?: Txn; defaults: { kind?: string; projectId?: string | null; customerId?: string | null; date?: number; note?: string; amount?: number; supplierId?: string | null }; close: () => void }) {
+function TxnForm({ item, defaults, close }: { item?: Txn; defaults: { kind?: string; projectId?: string | null; customerId?: string | null; date?: number; note?: string; amount?: number; supplierId?: string | null; category?: string; method?: string; currency?: string }; close: () => void }) {
   const st = getState()
   const kind0 = defaults.kind ?? 'expense'
   const base: Txn = item ?? {
     id: newId(), kind: kind0, amount: defaults.amount ?? 0,
-    currency: (defaults.projectId && byId('project', defaults.projectId)?.currency) || st.settings.currency,
-    category: kind0 === 'income' ? (defaults.projectId ? 'Project payment' : 'Freelance') : 'Food',
-    method: 'Cash', date: defaults.date ?? F.today(), note: defaults.note ?? '', projectId: defaults.projectId ?? null, customerId: defaults.customerId ?? null, createdAt: now(),
+    currency: defaults.currency || (defaults.projectId && byId('project', defaults.projectId)?.currency) || st.settings.currency,
+    category: defaults.category ?? (kind0 === 'income' ? (defaults.projectId ? 'Project payment' : 'Freelance') : 'Food'),
+    method: defaults.method ?? 'Cash', date: defaults.date ?? F.today(), note: defaults.note ?? '', projectId: defaults.projectId ?? null, customerId: defaults.customerId ?? null, createdAt: now(),
     supplierId: defaults.supplierId ?? null,
   }
   const [t, set] = useState(base)
@@ -749,13 +793,13 @@ function GoalMove({ goal, close }: { goal: Goal; close: () => void }) {
 
 // ---------------------------------------------------------------- event
 
-export function editEvent(item?: CalEvent, defaults: { date?: number; projectId?: string | null; customerId?: string | null } = {}) {
+export function editEvent(item?: CalEvent, defaults: { date?: number; projectId?: string | null; customerId?: string | null; title?: string; time?: number | null } = {}) {
   openForm(close => <EventForm item={item} defaults={defaults} close={close} />)
 }
 
-function EventForm({ item, defaults, close }: { item?: CalEvent; defaults: { date?: number; projectId?: string | null; customerId?: string | null }; close: () => void }) {
+function EventForm({ item, defaults, close }: { item?: CalEvent; defaults: { date?: number; projectId?: string | null; customerId?: string | null; title?: string; time?: number | null }; close: () => void }) {
   const base: CalEvent = item ?? {
-    id: newId(), title: '', date: defaults.date ?? F.today(), time: null, note: '', reminder: true,
+    id: newId(), title: defaults.title ?? '', date: defaults.date ?? F.today(), time: defaults.time ?? null, note: '', reminder: true,
     projectId: defaults.projectId ?? null, customerId: defaults.customerId ?? null, createdAt: now(),
   }
   const [e, set] = useState(base)
@@ -870,6 +914,11 @@ export function quickAdd() {
       <>
         <SheetTitle title="Add new" sub="Pick one. You can fill in the details next." />
         <div class="body">
+          <button class="say-bar press" onClick={() => { shut(); setTimeout(() => import('./screens/smartadd').then(m => m.openSmartAdd(!document.documentElement.classList.contains('desktop'))), 120) }}>
+            <span class="say-ico"><Icon name="mic" size={18} /></span>
+            <span class="grow" style={{ textAlign: 'start' }}><b>Say it</b><span class="tiny" style={{ display: 'block', opacity: .8 }}>{currentLang() === 'ar' ? '«صرفت ٢٠٠ على الغدا» · «كريم دفع ١٥٠٠»' : '“spent 200 on lunch” · “Karim paid 1500”'}</span></span>
+            <Icon name="right" size={14} />
+          </button>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
             {items.map(([label, icon, color, run], i) => (
               <button key={label} class={`tile t-${color} press pop`} style={{ '--i': i, alignItems: 'center', padding: '18px 0', gap: 10 } as any}

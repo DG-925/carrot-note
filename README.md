@@ -16,6 +16,15 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.14: client links, chat, Say it and barcodes
+
+- **Client links**: on an invoice, quote or project tap the link button to get a private web page for your client. They open it in any browser (no app needed): on a quote they can accept or decline, on an invoice they can say they paid (amount and InstaPay, Vodafone Cash, bank…), and on a project they see the progress and what they paid so far, but never task names or notes. You get a notification, and their answer shows on the invoice or quote with one tap to act: make the project and invoice, or record the payment. Stop sharing any time.
+- **Chat**: message other Carrot Note users one to one, and every shared project has a team chat. Send voice messages (up to 2 minutes). In a team chat, type @ to mention someone: they get a notification. Chats are kept only on your phone or PC; the server only passes messages along and deletes them once delivered. Hold a message (right-click on the PC) and tap **Save to notes** to keep it, voice messages too.
+- **Voice notes**: record voice clips straight into a note.
+- **Say it**: say or type one sentence and it becomes the right thing: "spent 200 on lunch", "Karim paid 1500 for the POS", "remind me to send the invoice tomorrow", "call Lina tomorrow at 5", or in Arabic "صرفت ٢٠٠ على الغدا" and "كريم دفع ١٥٠٠". It picks the amount, currency, category, payment method, date, time, customer and project, shows what it understood, and saves it. In New, or the launcher shortcut. (Voice typing on the phone; type it on the PC.)
+- **Barcodes for stock**: scan with the phone camera to find an item and sell or buy it, or add a new item with that code. On the PC a USB barcode scanner works anywhere on the Stock page. **Price labels** prints the name, price and a barcode for each piece; items without a code get one.
+- Background sync now runs every 15 minutes so messages arrive even when the app is closed.
+
 ### New in 1.13: 10 home-screen widgets
 
 Long-press your home screen → Widgets → Carrot Note:

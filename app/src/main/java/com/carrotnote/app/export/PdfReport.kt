@@ -163,6 +163,35 @@ object PdfReport {
                     }
                     y += 8f
                 }
+                "labels" -> {
+                    // Price labels with a barcode: [bars] is the pattern of thin modules, "1" = black.
+                    val labels = b["labels"]?.jsonArray?.map { it.jsonObject }.orEmpty()
+                    val gap = 10f
+                    val lw = (W - 2 * M - 2 * gap) / 3f
+                    val lh = 96f
+                    labels.chunked(3).forEach { row ->
+                        need(lh + gap)
+                        row.forEachIndexed { i, l ->
+                            val x = M + i * (lw + gap)
+                            c.drawRoundRect(RectF(x, y, x + lw, y + lh), 8f, 8f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = line; style = Paint.Style.STROKE; strokeWidth = 0.8f })
+                            val np = paint(9.5f, bold = true)
+                            var name = l.s("name")
+                            while (name.length > 1 && np.measureText(name) > lw - 16) name = name.dropLast(2) + "…"
+                            c.drawText(name, x + 8, y + 16f, np)
+                            c.drawText(l.s("price"), x + 8, y + 31f, paint(11f, orange, bold = true))
+                            val bars = l.s("bars")
+                            if (bars.isNotEmpty()) {
+                                val unit = (lw - 16) / bars.length
+                                val black = Paint().apply { color = Color.BLACK }
+                                bars.forEachIndexed { k, ch -> if (ch == '1') c.drawRect(x + 8 + k * unit, y + 38f, x + 8 + (k + 1) * unit, y + 74f, black) }
+                            }
+                            val cp = paint(8.5f, ink)
+                            val code = l.s("code")
+                            c.drawText(code, x + lw / 2 - cp.measureText(code) / 2, y + 86f, cp)
+                        }
+                        y += lh + gap
+                    }
+                }
                 "totals" -> {
                     val rows = b["rows"]?.jsonArray?.map { it.jsonArray }.orEmpty()
                     val h = rows.size * 20f + 24f

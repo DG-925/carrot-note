@@ -126,6 +126,11 @@ function sample() {
       { id: 'g2', metric: 'sold', amount: 6, currency: 'EGP', createdAt: now },
       { id: 'g3', metric: 'clients', amount: 3, currency: 'EGP', createdAt: now },
     ],
+    reply: [
+      { id: 'rp1', kind: 'accept', targetType: 'quote', targetId: 'q1', number: 'QUO-0001', clientName: 'Café Kanaka', currency: 'EGP', name: 'Mona from Café Kanaka', note: 'Looks great, let\'s start next week!', amount: null, method: '', at: now - 25 * 60_000, handled: false, createdAt: now },
+      { id: 'rp2', kind: 'paid', targetType: 'invoice', targetId: 'i2', number: 'INV-0002', clientName: 'Lina Hassan', currency: 'EGP', name: 'Lina', note: '', amount: 4000, method: 'InstaPay', at: now - 3 * 3600_000, handled: false, createdAt: now },
+    ],
+    audio: [],
     recurring: [
       { id: 'rc1', kind: 'expense', amount: 750, currency: 'EGP', category: 'Subscriptions', method: 'Card', note: 'Figma Professional', projectId: null, customerId: null, period: 'monthly', nextDate: t + 18, active: true, createdAt: now },
       { id: 'rc2', kind: 'income', amount: 3000, currency: 'EGP', category: 'Freelance', method: 'Bank transfer', note: 'Café Kanaka care plan', projectId: null, customerId: null, period: 'monthly', nextDate: t + 5, active: true, createdAt: now },
@@ -187,7 +192,32 @@ function netGet(url: string): unknown {
   throw new Error('Not found')
 }
 
+/** A tiny silent WAV, standing in for voice clips in previews. */
+const SILENT = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='
+
+function sampleChat() {
+  const now = Date.now()
+  const karim = { id: 'u2', name: 'Karim Adel', username: 'karim', avatarRev: 0 }
+  const me = { id: 'u1', name: 'Adham Kassem', username: 'adham', avatarRev: 0 }
+  const msgs = [
+    { id: 'm1', convo: 'p_p4', from: karim, text: 'Sweet Corner wants the new receipt design before Thursday', voice: false, dur: 0, mentions: [], at: now - 3 * 3600_000, mine: false, status: 'sent' },
+    { id: 'm2', convo: 'p_p4', from: me, text: 'On it. I\'ll send a preview tonight', voice: false, dur: 0, mentions: [], at: now - 2.9 * 3600_000, mine: true, status: 'sent' },
+    { id: 'm3', convo: 'p_p4', from: karim, text: '', voice: true, dur: 23, mentions: [], at: now - 50 * 60_000, mine: false, status: 'sent' },
+    { id: 'm4', convo: 'p_p4', from: karim, text: '@adham can you renew Cafe Roma? They paid on InstaPay', voice: false, dur: 0, mentions: ['u1'], at: now - 12 * 60_000, mine: false, status: 'sent' },
+    { id: 'm5', convo: 'dm_u1_u3', from: { id: 'u3', name: 'Lina Hassan', username: 'lina', avatarRev: 0 }, text: 'Thanks for the deposit receipt 🙏', voice: false, dur: 0, mentions: [], at: now - 26 * 3600_000, mine: false, status: 'sent' },
+  ]
+  return {
+    msgs,
+    voice: {} as Record<string, string>,
+    convos: [
+      { id: 'p_p4', title: 'CarrotPOS', last: '@adham can you renew Cafe Roma? They paid on InstaPay', lastAt: now - 12 * 60_000, unread: 2, mentioned: 1, people: [karim] },
+      { id: 'dm_u1_u3', title: 'Lina Hassan', last: 'Thanks for the deposit receipt 🙏', lastAt: now - 26 * 3600_000, unread: 0, mentioned: 0, people: [{ id: 'u3', name: 'Lina Hassan', username: 'lina', avatarRev: 0 }] },
+    ],
+  }
+}
+
 export function installMock() {
+  const chat = sampleChat()
   const store = (k: string, v?: unknown) => {
     try {
       if (v === undefined) return JSON.parse(localStorage.getItem('carrot.mock.' + k) ?? 'null')
@@ -198,7 +228,7 @@ export function installMock() {
   const params = new URLSearchParams(location.search)
   import('./nav').then(n => { (window as any).__carrotPush = n.push })  // lets preview tests open any page
   let data: Record<string, any[]> = store('data') ?? sample()
-  for (const k of ['rental', 'invoice', 'recurring', 'secret', 'vault', 'item', 'quote', 'wallet', 'transfer', 'supplier', 'price', 'doc', 'activity', 'target', 'msgtpl', 'setting']) if (!data[k]) data[k] = sample()[k]
+  for (const k of ['rental', 'invoice', 'recurring', 'secret', 'vault', 'item', 'quote', 'wallet', 'transfer', 'supplier', 'price', 'doc', 'activity', 'target', 'msgtpl', 'setting', 'reply', 'audio']) if (!data[k]) data[k] = sample()[k]
   const vaultKeys: Record<string, string> = {}
   let signedIn = params.has('auth') ? false : store('signedIn') ?? true
   let theme = Number(params.get('theme') ?? store('theme') ?? 1)
@@ -206,7 +236,7 @@ export function installMock() {
   let github: string = params.has('nogh') ? '' : 'adham-dev'
   const emit = (name: string, payload: unknown) => setTimeout(() => window.__native.emit(name, payload), 0)
   const state = () => ({
-    signedIn, locked, version: '1.13.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
+    signedIn, locked, version: '1.14.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
     user: { id: 'u1', email: 'you@example.com', name: 'Adham Kassem', username: 'adham', bio: 'Freelance Android and web developer.', github, avatarRev: 0 },
     settings: { currency: 'EGP', theme, autoUpdate: true },
     lock: { pinEnabled: true, pinLength: 4, biometric: false, biometricAvailable: false, delay: 30, secureScreen: false },
@@ -252,6 +282,31 @@ export function installMock() {
     'uptime.status': () => ({ r1: { up: true, at: Date.now() - 240_000, ms: 182, error: '', since: Date.now() - 86_400_000 * 3 }, r2: { up: false, at: Date.now() - 60_000, ms: 10000, error: 'connect timed out', since: Date.now() - 1_800_000 } }),
     'uptime.check': () => ({ up: true, at: Date.now(), ms: 143, error: '', since: Date.now() }),
     'uptime.probe': a => (String(a.target).includes('down') ? { up: false, at: Date.now(), ms: 0, error: 'connect timed out', since: 0 } : { up: true, at: Date.now(), ms: 151, error: '', since: 0 }),
+    'api.request': a => (a.path === '/api/share' ? { token: 'demo', url: 'https://carrot-note-api.example.workers.dev/c/Xq3v9Lk2PbN0aT7wR1mE5g' } : { ok: true }),
+    'chat.convos': () => chat.convos,
+    'chat.messages': a => chat.msgs.filter(m => m.convo === a.convo),
+    'chat.open': a => { if (!chat.convos.some(c => c.id === a.convo)) chat.convos.unshift({ id: a.convo, title: a.title, last: '', lastAt: Date.now(), unread: 0, mentioned: 0, people: a.people ?? [] }); return true },
+    'chat.send': a => {
+      const m = { id: id(), convo: a.convo, from: { id: 'u1', name: 'Adham Kassem', username: 'adham', avatarRev: 0 }, text: a.text, voice: !!a.voice, dur: a.dur ?? 0, mentions: a.mentions ?? [], at: Date.now(), mine: true, status: 'sent' }
+      chat.msgs.push(m)
+      if (a.voice) chat.voice[m.id] = a.voice
+      const c = chat.convos.find(x => x.id === a.convo)
+      if (c) { c.last = a.text || '🎤 Voice message'; c.lastAt = m.at }
+      emit('chat', a.convo)
+      return m
+    },
+    'chat.read': () => true,
+    'chat.viewing': a => { const c = chat.convos.find(x => x.id === a.convo); if (c) { c.unread = 0; c.mentioned = 0 } return true },
+    'chat.voice': a => chat.voice[a.id] ?? SILENT,
+    'chat.poll': () => true,
+    'chat.delete': a => { chat.msgs = chat.msgs.filter(m => m.id !== a.id); return true },
+    'chat.clear': a => { chat.msgs = chat.msgs.filter(m => m.convo !== a.convo); chat.convos = chat.convos.filter(c => c.id !== a.convo); return true },
+    'chat.retry': () => true,
+    'voice.start': () => true,
+    'voice.stop': () => ({ data: SILENT, dur: 4.2 }),
+    'voice.cancel': () => true,
+    'speech.listen': () => 'spent 200 on lunch with Karim',
+    'barcode.scan': () => 'DL7490-01',
     'vault.hasKey': () => !!vaultKeys.k,
     'vault.saveKey': a => { vaultKeys.k = a.key; return true },
     'vault.loadKey': () => vaultKeys.k ?? null,

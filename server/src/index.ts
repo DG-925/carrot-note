@@ -7,6 +7,9 @@
  * Sync: clients push changed records and pull everything with rev > their per-space cursor.
  */
 
+import { chatInbox, chatPending, sendChat } from "./chat";
+import { createLink, replyLink, revokeLink, showLink } from "./links";
+
 export interface Env {
   DB: D1Database;
 }
@@ -20,16 +23,16 @@ const MAX_FAILED_LOGINS = 10;
 const LOCKOUT_MS = 15 * 60 * 1000;
 /** Record types that follow their project into a shared space. */
 const PROJECT_SCOPED = new Set(["task", "note", "event", "rental", "invoice", "quote", "activity"]);
-/** Bumped when clients need to know about new server behaviour (3: rentals and invoices are shared, 4: quotes and activity). */
-const API_VERSION = 4;
+/** Bumped when clients need to know about new server behaviour (3: rentals and invoices are shared, 4: quotes and activity, 5: client links and chat). */
+const API_VERSION = 5;
 
-class HttpError extends Error {
+export class HttpError extends Error {
   constructor(public status: number, message: string) {
     super(message);
   }
 }
 
-const json = (data: unknown, status = 200) =>
+export const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
@@ -37,7 +40,7 @@ const json = (data: unknown, status = 200) =>
 
 const enc = new TextEncoder();
 
-function b64url(bytes: Uint8Array): string {
+export function b64url(bytes: Uint8Array): string {
   let s = "";
   for (const b of bytes) s += String.fromCharCode(b);
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -48,7 +51,7 @@ function fromB64url(s: string): Uint8Array {
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 
-function randomBytes(n: number): Uint8Array {
+export function randomBytes(n: number): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(n));
 }
 
@@ -81,7 +84,7 @@ async function verifyPassword(password: string, stored: string): Promise<boolean
   return safeEqual(await pbkdf2(password, fromB64url(salt), parseInt(iter, 10)), hash);
 }
 
-async function readJson(req: Request): Promise<Record<string, unknown>> {
+export async function readJson(req: Request): Promise<Record<string, unknown>> {
   try {
     const body = await req.json();
     if (body && typeof body === "object" && !Array.isArray(body)) return body as Record<string, unknown>;
@@ -128,7 +131,7 @@ function checkNewPassword(v: unknown): string {
   return p;
 }
 
-interface UserRow {
+export interface UserRow {
   id: string;
   email: string;
   name: string;
@@ -162,7 +165,7 @@ async function createSession(env: Env, userId: string): Promise<string> {
   return token;
 }
 
-async function authenticate(req: Request, env: Env): Promise<{ user: UserRow; tokenHash: string }> {
+export async function authenticate(req: Request, env: Env): Promise<{ user: UserRow; tokenHash: string }> {
   const header = req.headers.get("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
   if (!token) throw new HttpError(401, "Not signed in");
@@ -373,7 +376,7 @@ interface SpaceRow {
   role: string;
 }
 
-async function memberSpaces(env: Env, userId: string): Promise<SpaceRow[]> {
+export async function memberSpaces(env: Env, userId: string): Promise<SpaceRow[]> {
   const rows = await env.DB.prepare(
     `SELECT s.id, s.kind, s.owner_id, s.project_id, s.rev, 'owner' AS role FROM spaces s WHERE s.id = ?1
      UNION ALL
@@ -697,6 +700,7 @@ async function sync(req: Request, env: Env) {
     invites: (inviteCount.results[0] as { n: number } | undefined)?.n ?? 0,
     user: publicUser(me.results[0] as UserRow),
     apiVersion: API_VERSION,
+    chatPending: await chatPending(env, user.id),
   });
 }
 
@@ -738,7 +742,18 @@ export default {
           return await changePassword(req, env);
         case "POST /api/account/delete":
           return await deleteAccount(req, env);
+        case "POST /api/share":
+          return await createLink(req, env);
+        case "POST /api/share/revoke":
+          return await revokeLink(req, env);
+        case "POST /api/chat/send":
+          return await sendChat(req, env);
+        case "POST /api/chat/inbox":
+          return await chatInbox(req, env);
       }
+      // Client links: public pages, no sign-in.
+      if (req.method === "GET" && (m = path.match(/^\/c\/([A-Za-z0-9_-]+)$/))) return await showLink(env, m[1], url);
+      if (req.method === "POST" && (m = path.match(/^\/c\/([A-Za-z0-9_-]+)\/reply$/))) return await replyLink(req, env, m[1]);
       if (req.method === "GET" && (m = path.match(/^\/api\/username\/([^/]+)$/))) return await usernameAvailable(env, m[1]);
       if (req.method === "GET" && (m = path.match(/^\/api\/users\/([^/]+)\/avatar$/))) return await getAvatar(req, env, m[1]);
       if (req.method === "POST" && (m = path.match(/^\/api\/projects\/([^/]+)\/invite$/))) return await invite(req, env, decodeURIComponent(m[1]));

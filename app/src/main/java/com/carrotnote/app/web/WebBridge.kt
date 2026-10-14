@@ -18,6 +18,10 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.carrotnote.app.Graph
 import com.carrotnote.app.MainActivity
+import com.carrotnote.app.chat.ChatMsg
+import com.carrotnote.app.chat.ChatPerson
+import com.carrotnote.app.chat.ChatStore
+import com.carrotnote.app.chat.VoiceRecorder
 import com.carrotnote.app.data.AppJson
 import com.carrotnote.app.data.CalEvent
 import com.carrotnote.app.data.ProfileUpdate
@@ -131,6 +135,7 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
     // ---------------------------------------------------------------- observing state
 
     fun start() {
+        ChatStore.listener = { convo -> emit("chat", JSONObject.quote(convo)) }
         val flows: List<Flow<Any?>> = listOf(
             Graph.repoFlow, Graph.session.user, Graph.lock.locked, Graph.lock.biometricEnabled, Graph.lock.lockDelay,
             Graph.lock.secureScreen, Graph.settings.currency, Graph.settings.theme, Graph.settings.autoUpdate,
@@ -153,7 +158,16 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
     fun stop() {
         jobs.forEach { it.cancel() }
         dataJobs.forEach { it.cancel() }
+        ChatStore.listener = null
+        ChatStore.viewing = null
+        VoiceRecorder.cancel()
     }
+
+    /** People in a chat, as sent by the page: [{id, name, username, avatarRev}]. */
+    private fun people(a: JsonObject): List<ChatPerson> =
+        (a["people"] as? kotlinx.serialization.json.JsonArray).orEmpty().mapNotNull { p ->
+            runCatching { AppJson.decodeFromJsonElement(ChatPerson.serializer(), p) }.getOrNull()
+        }
 
     private fun emitTable(type: String) {
         val col = Graph.repoOrNull?.collection(type) ?: return
@@ -380,6 +394,50 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
         // ---- receipts (photos are kept as their own records and loaded on demand)
         "receipt.capture" -> captureReceipt(a.strOrNull("source") ?: "camera")
         "receipt.get" -> Graph.repo.receipts.get(a.str("id")) ?: JsonNull
+
+        // ---- client links (the page talks to the API through here, signed in)
+        "api.request" -> {
+            val path = a.str("path")
+            require(path == "/api/share" || path == "/api/share/revoke") { "Not allowed" }
+            AppJson.parseToJsonElement(Graph.api.raw("POST", path, (a["body"] ?: JsonObject(emptyMap())).toString(), token()))
+        }
+
+        // ---- chat (kept on this phone; see ChatStore)
+        "chat.convos" -> AppJson.parseToJsonElement(ChatStore.convosJson(activity))
+        "chat.messages" -> AppJson.parseToJsonElement(ChatStore.messagesJson(activity, a.str("convo")))
+        "chat.open" -> { ChatStore.open(activity, a.str("convo"), a.strOrNull("title").orEmpty(), people(a)); ok }
+        "chat.send" -> {
+            val msg = ChatStore.send(
+                activity, a.str("convo"), a.strOrNull("title").orEmpty(), people(a), a.strOrNull("text").orEmpty(),
+                a.strOrNull("voice"), a.prim("dur")?.doubleOrNull ?: 0.0,
+                (a["mentions"] as? kotlinx.serialization.json.JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
+            ) ?: error("You are signed out")
+            AppJson.encodeToJsonElement(ChatMsg.serializer(), msg)
+        }
+        "chat.retry" -> { ChatStore.retry(activity, a.str("convo"), a.str("id")); ok }
+        "chat.read" -> { ChatStore.markRead(activity, a.str("convo")); ok }
+        "chat.viewing" -> {
+            ChatStore.viewing = a.strOrNull("convo")?.takeIf { it.isNotBlank() }
+            ChatStore.viewing?.let { ChatStore.markRead(activity, it) }
+            ok
+        }
+        "chat.delete" -> { ChatStore.deleteMessage(activity, a.str("convo"), a.str("id")); ok }
+        "chat.clear" -> { ChatStore.clear(activity, a.str("convo")); ok }
+        "chat.voice" -> ChatStore.voiceData(activity, a.str("id"))?.let { JsonPrimitive(it) } ?: JsonNull
+        "chat.poll" -> { ChatStore.flush(activity); ChatStore.fetch(activity); ok }
+
+        // ---- voice recording, voice typing and barcodes
+        "voice.start" -> {
+            if (!activity.ensurePermission(Manifest.permission.RECORD_AUDIO)) error("Allow the microphone for Carrot Note in your phone's settings to record")
+            VoiceRecorder.start(activity)
+            ok
+        }
+        "voice.stop" -> VoiceRecorder.stop()?.let { (data, seconds) ->
+            buildJsonObject { put("data", data); put("dur", seconds) }
+        } ?: JsonNull
+        "voice.cancel" -> { VoiceRecorder.cancel(); ok }
+        "speech.listen" -> activity.listen(a.strOrNull("lang") ?: "en-US", a.strOrNull("prompt") ?: "")?.let { JsonPrimitive(it) } ?: JsonNull
+        "barcode.scan" -> activity.scanBarcode(a.strOrNull("prompt") ?: "")?.let { JsonPrimitive(it) } ?: JsonNull
 
         // ---- uptime checks for rentals
         "uptime.status" -> AppJson.encodeToJsonElement(

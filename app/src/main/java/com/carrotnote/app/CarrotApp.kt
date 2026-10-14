@@ -61,11 +61,17 @@ class CarrotApp : Application() {
                 description = "New versions of Carrot Note"
             }
         )
+        nm.createNotificationChannel(
+            NotificationChannel(CHANNEL_CHAT, "Messages", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Chat messages, @mentions and clients' answers"
+            }
+        )
     }
 
     companion object {
         const val CHANNEL_TIMER = "timer"
         const val CHANNEL_REMINDERS = "reminders"
         const val CHANNEL_UPDATES = "updates"
+        const val CHANNEL_CHAT = "chat"
     }
 }

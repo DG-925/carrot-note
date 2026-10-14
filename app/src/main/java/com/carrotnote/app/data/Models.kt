@@ -106,6 +106,8 @@ data class Note(
     val date: Long? = null,
     val pinned: Boolean = false,
     val color: Int = 0,
+    /** Ids of "audio" records: voice clips in this note. */
+    val audioIds: List<String> = emptyList(),
     val createdAt: Long = nowMs(),
 )
 

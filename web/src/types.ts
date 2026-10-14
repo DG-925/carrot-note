@@ -39,6 +39,8 @@ export interface CheckItem { id: string; text: string; done: boolean }
 export interface Note {
   id: string; title: string; body: string; checklist: CheckItem[]; projectId?: string | null; date?: number | null
   pinned: boolean; color: number; createdAt: number
+  /** Voice clips kept in this note ("audio" records). */
+  audioIds?: string[]
 }
 
 export interface Txn {
@@ -188,6 +190,7 @@ export interface Tables {
   invoice: Invoice[]; recurring: Recurring[]; secret: Secret[]; vault: VaultMeta[]; item: StockItem[]
   quote: Quote[]; wallet: Wallet[]; transfer: Transfer[]; supplier: Supplier[]; price: PriceItem[]; doc: DocFile[]
   activity: Activity[]; target: Target[]; msgtpl: MsgTemplate[]; setting: SyncedSetting[]
+  reply: ClientReply[]; audio: AudioClip[]
 }
 export type TableName = keyof Tables
 
@@ -253,3 +256,21 @@ export const rentalPeriod = (p: string) => rentalPeriods.find(x => x.value === p
 
 /** A setting shared by all of the user's devices, like the main currency (id "currency"). */
 export interface SyncedSetting { id: string; value: string }
+
+/** A client's answer through a client link: accepted or declined a quote, or says they paid an invoice. */
+export interface ClientReply {
+  id: string; kind: 'accept' | 'decline' | 'paid'; targetType: 'invoice' | 'quote' | 'project'; targetId: string
+  number: string; clientName: string; currency: string; name: string; note: string; amount: number | null; method: string
+  at: number; handled: boolean; createdAt: number
+}
+
+/** A voice clip saved in a note (a data URL). */
+export interface AudioClip { id: string; data: string; dur: number; createdAt: number }
+
+/** Chats are kept on the device only; these come from the native side. */
+export interface ChatPerson { id: string; name: string; username: string; avatarRev: number }
+export interface ChatMsg {
+  id: string; convo: string; from: ChatPerson; text: string; voice: boolean; dur: number
+  mentions: string[]; at: number; mine: boolean; status: 'sending' | 'sent' | 'failed'
+}
+export interface ChatConvo { id: string; title: string; last: string; lastAt: number; unread: number; mentioned: number; people: ChatPerson[] }

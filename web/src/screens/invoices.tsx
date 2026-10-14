@@ -1,6 +1,7 @@
 // Invoices: numbered, with line items, discount and tax, partial payments, a PDF to send and a
 // reminder when they are overdue.
 
+import { ClientReplies, openClientLink, settleReplies } from './clientlink'
 import { useState } from 'preact/hooks'
 import { call } from '../bridge'
 import * as F from '../format'
@@ -149,6 +150,7 @@ export function InvoiceDetail({ id }: { id: string }) {
   return (
     <div class="scroll">
       <PageHeader title={inv.number} onBack={popNav}>
+        <Round icon="link" label="Client link" onClick={() => openClientLink('invoice', inv.id, { title: inv.number, client: clientOf(inv), customerId: inv.customerId })} />
         <Round icon="share" label="Share PDF" onClick={() => shareInvoicePdf(inv)} />
         <Round icon="edit" label="Edit" onClick={() => editInvoice(inv)} />
       </PageHeader>
@@ -164,6 +166,7 @@ export function InvoiceDetail({ id }: { id: string }) {
           </div>
         </div>
 
+        <ClientReplies type="invoice" id={inv.id} onPaid={r => recordPayment(inv, { amount: r.amount, method: r.method, onSaved: () => settleReplies(inv) })} />
         <div class="row wrap pop" style={{ '--i': 2 } as any}>
           {st === 'draft' && <Btn icon="check" onClick={() => attempt(() => save('invoice', { ...inv, status: 'sent' }))}>Mark as sent</Btn>}
           {open && <Btn icon="income" onClick={() => recordPayment(inv)}>Record payment</Btn>}
@@ -230,15 +233,23 @@ async function removePayment(inv: Invoice, paymentId: string) {
 
 // ---------------------------------------------------------------- payment
 
-export function recordPayment(inv: Invoice) {
-  openSheet(close => <PaymentSheet inv={inv} close={close} />)
+/** What the client said through the client link: "I paid 1,000 with InstaPay". */
+interface PaymentHint { amount?: number | null; method?: string; onSaved?: () => void }
+
+/** The app's payment method for what a client typed on the client link page. */
+const methodFrom = (m?: string) => !m ? 'Bank transfer'
+  : /insta|انستا|إنستا/i.test(m) ? 'InstaPay' : /vodafone|فودافون|wallet|محفظ/i.test(m) ? 'Wallet'
+    : /cash|نقد/i.test(m) ? 'Cash' : /bank|بنك/i.test(m) ? 'Bank transfer' : 'Other'
+
+export function recordPayment(inv: Invoice, hint: PaymentHint = {}) {
+  openSheet(close => <PaymentSheet inv={inv} hint={hint} close={close} />)
 }
 
-function PaymentSheet({ inv, close }: { inv: Invoice; close: () => void }) {
+function PaymentSheet({ inv, hint, close }: { inv: Invoice; hint: PaymentHint; close: () => void }) {
   const due = invoiceTotals(inv).due
-  const [amount, setAmount] = useState(F.amountText(due))
+  const [amount, setAmount] = useState(F.amountText(hint.amount && hint.amount > 0 ? Math.min(hint.amount, due || hint.amount) : due))
   const [date, setDate] = useState(F.today())
-  const [method, setMethod] = useState('Bank transfer')
+  const [method, setMethod] = useState(methodFrom(hint.method))
   const [toMoney, setToMoney] = useState(true)
   const value = F.parseAmount(amount)
   return (
@@ -259,6 +270,7 @@ function PaymentSheet({ inv, close }: { inv: Invoice; close: () => void }) {
             })
             await save('invoice', { ...inv, status: inv.status === 'draft' ? 'sent' : inv.status, payments: [...inv.payments, { id: newId(), amount: value!, date, method, txnId }] })
             toast(value! >= due - 0.0001 ? 'Paid in full 🎉' : 'Payment saved')
+            hint.onSaved?.()
           })
           close()
         }}>Save payment</Btn>

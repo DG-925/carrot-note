@@ -27,6 +27,8 @@ data class SyncResponse(
     val user: UserInfo? = null,
     /** 3 and up: the server shares rentals and invoices of shared projects. 0 = an older server. */
     val apiVersion: Int = 0,
+    /** Chat messages waiting on the server for this user. */
+    val chatPending: Int = 0,
 )
 
 @Serializable
@@ -150,6 +152,9 @@ class ApiClient(private val baseUrl: String) {
     suspend fun deleteAccount(token: String, password: String) {
         request("POST", "/api/account/delete", AppJson.encodeToString(PasswordOnly.serializer(), PasswordOnly(password)), token)
     }
+
+    /** A JSON request for features the app drives directly (client links, chat). Returns the response body. */
+    suspend fun raw(method: String, path: String, body: String?, token: String): String = request(method, path, body, token)
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
 

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
+import { chatWith } from './chat'
+import { openClientLink } from './clientlink'
 import { call } from '../bridge'
 import * as F from '../format'
 import { askForPayment, editEvent, editNote, editProject, editTask, editTime, editTxn } from '../editors'
@@ -103,6 +105,7 @@ export function ProjectDetail({ id }: { id: string }) {
     <>
       <div class="scroll">
         <PageHeader title={p.name} onBack={popNav}>
+          <Round icon="link" label="Client link" onClick={() => openClientLink('project', p.id, { title: p.name, client: p.clientName, customerId: p.customerId })} />
           <Round icon="invoice" label="New invoice" onClick={() => editInvoice(undefined, { projectId: id, customerId: p.customerId })} />
           <Round icon="edit" label="Edit" onClick={() => editProject(p)} />
         </PageHeader>
@@ -162,6 +165,11 @@ export function ProjectDetail({ id }: { id: string }) {
             <div class="row top"><Icon name="warning" size={16} class="warn" />
               <div class="grow small"><b>Rentals and invoices aren't shared yet.</b> Your Carrot Note server is an older version. Update it (run "Deploy API" on GitHub, or <code>npx wrangler deploy</code> in the server folder) and everyone in this project will see them.</div></div>
           </Card>}
+          {space && <button class="team-chat-bar press pop" style={{ '--i': 3 } as any} onClick={() => push({ name: 'chat', id: space.id })}>
+            <span class="badge-ico t-sky"><Icon name="chat" size={16} /></span>
+            <span class="grow" style={{ textAlign: 'start' }}><b>Team chat</b><span class="tiny muted" style={{ display: 'block' }}>{`Message everyone in ${p.name} · voice messages and @mentions`}</span></span>
+            <Icon name="right" size={14} class="muted" />
+          </button>}
           {space && <ProjectActivity projectId={id} />}
           {p.repo && <RepoCard repo={p.repo} />}
 
@@ -354,6 +362,7 @@ function TeamSheet({ project, initialSpace, isOwner, close }: { project: Project
         <div class="card flush in-card">
           {[...members].sort((a, b) => Number(a.role !== 'owner') - Number(b.role !== 'owner')).map(m => (
             <PersonRow key={m.id} p={m} label={m.role === 'owner' ? 'Owner' : 'Member'}>
+              {m.id !== me?.id && <Btn kind="t-sky" class="t-sky" sm icon="chat" onClick={() => { close(); chatWith(m) }}>Message</Btn>}
               {isOwner && space && m.id !== me?.id && <Btn kind="ghost" sm onClick={() => attempt(() => call('team.remove', { spaceId: space.id, userId: m.id }))}>Remove</Btn>}
             </PersonRow>
           ))}

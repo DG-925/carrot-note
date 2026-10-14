@@ -119,11 +119,16 @@ class Repository(context: Context, val userId: String) {
     val targets = Collection("target", JsonObject.serializer()) { it.id() }
     val messageTemplates = Collection("msgtpl", JsonObject.serializer()) { it.id() }
     val settingsRecords = Collection("setting", JsonObject.serializer()) { it.id() }
+    /** Clients' answers from client links (accepted a quote, says they paid). */
+    val replies = Collection("reply", JsonObject.serializer()) { it.id() }
+    /** Voice clips kept in notes. */
+    val audio = Collection("audio", JsonObject.serializer()) { it.id() }
 
     private val collections = listOf(
         projects, tasks, notes, txns, goals, customers, debts, events, time, budgets, rentals,
         invoices, recurring, receipts, secrets, vault, items,
         quotes, wallets, transfers, suppliers, prices, docs, activity, targets, messageTemplates, settingsRecords,
+        replies, audio,
     )
         .associateBy { it.type }
 

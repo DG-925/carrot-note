@@ -92,6 +92,54 @@ class MainActivity : AppCompatActivity() {
         return result.await()
     }
 
+    private var speechResult: CompletableDeferred<String?>? = null
+    private val speechLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
+        val text = r.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        speechResult?.complete(if (r.resultCode == RESULT_OK) text else null)
+        speechResult = null
+    }
+
+    /** Listens with the phone's speech recognizer ("ar-EG", "en-US"…); null when the user backs out. */
+    suspend fun listen(language: String, prompt: String): String? {
+        speechResult?.complete(null)
+        val result = CompletableDeferred<String?>()
+        speechResult = result
+        val intent = Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, language)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, prompt)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        Graph.lock.suppressNextLock()
+        try {
+            speechLauncher.launch(intent)
+        } catch (e: android.content.ActivityNotFoundException) {
+            speechResult = null
+            throw IllegalStateException("Voice typing isn't available on this phone. Type it instead.")
+        }
+        return result.await()
+    }
+
+    private var scanResult: CompletableDeferred<String?>? = null
+    private val scanLauncher = registerForActivityResult(com.journeyapps.barcodescanner.ScanContract()) { r ->
+        scanResult?.complete(r.contents)
+        scanResult = null
+    }
+
+    /** Opens the camera barcode scanner; the code, or null when the user backs out. */
+    suspend fun scanBarcode(prompt: String): String? {
+        scanResult?.complete(null)
+        val result = CompletableDeferred<String?>()
+        scanResult = result
+        val options = com.journeyapps.barcodescanner.ScanOptions()
+            .setPrompt(prompt)
+            .setBeepEnabled(true)
+            .setOrientationLocked(false)
+            .setDesiredBarcodeFormats(com.journeyapps.barcodescanner.ScanOptions.ALL_CODE_TYPES)
+        Graph.lock.suppressNextLock()
+        scanLauncher.launch(options)
+        return result.await()
+    }
+
     /** Asks for a runtime permission if needed; true when granted. */
     suspend fun ensurePermission(permission: String): Boolean {
         if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) return true
@@ -212,6 +260,7 @@ class MainActivity : AppCompatActivity() {
             .build()
         runCatching {
             sm.dynamicShortcuts = listOf(
+                shortcut("say", "Say it", R.drawable.ic_sc_mic),
                 shortcut("expense", "New expense", R.drawable.ic_sc_expense),
                 shortcut("task", "New task", R.drawable.ic_sc_task),
                 shortcut("timer", "Start timer", R.drawable.ic_sc_timer),

@@ -49,15 +49,18 @@ class SyncManager(private val context: Context, private val scope: CoroutineScop
             val dirty = repo.dirtyRecords()
             val chunks = if (dirty.isEmpty()) listOf(emptyList()) else dirty.chunked(100)
             var apiVersion = 0
+            var chatPending = 0
             for (chunk in chunks) {
                 val resp = Graph.api.sync(token, SyncRequest(cursors, chunk))
                 apiVersion = resp.apiVersion
+                chatPending = resp.chatPending
                 if (Graph.repoOrNull !== repo) {
                     _state.value = SyncState()
                     return false
                 }
                 repo.applyRemote(resp.changes)
                 runCatching { com.carrotnote.app.notify.ActivityNotifier.onSync(context, resp.changes) }
+                runCatching { com.carrotnote.app.notify.ReplyNotifier.onSync(context, resp.changes) }
                 repo.markClean(chunk)
                 repo.setSpaces(resp.spaces.filter { it.kind == "project" })
                 cursors = resp.cursors.filterKeys { k -> k == repo.userId || resp.spaces.any { it.id == k } }
@@ -69,6 +72,9 @@ class SyncManager(private val context: Context, private val scope: CoroutineScop
                 }
                 if (resp.changes.any { it.type == "time" }) TimeTracker.refreshNotification(context)
             }
+            // Chat: send what's waiting, and pick up new messages.
+            runCatching { com.carrotnote.app.chat.ChatStore.flush(context) }
+            if (chatPending > 0) runCatching { com.carrotnote.app.chat.ChatStore.fetch(context) }
             repo.lastSyncAt = nowMs()
             _state.value = SyncState(syncing = false, lastSync = repo.lastSyncAt, apiVersion = apiVersion)
             true
@@ -92,11 +98,13 @@ class SyncManager(private val context: Context, private val scope: CoroutineScop
 
     companion object {
         fun schedulePeriodic(context: Context) {
-            val req = PeriodicWorkRequestBuilder<SyncWorker>(1, TimeUnit.HOURS)
+            // Every 15 minutes (the shortest Android allows) so chat messages arrive in the background.
+            val req = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .build()
             WorkManager.getInstance(context)
-                .enqueueUniquePeriodicWork("carrot_sync", ExistingPeriodicWorkPolicy.KEEP, req)
+                .enqueueUniquePeriodicWork("carrot_sync_15m", ExistingPeriodicWorkPolicy.KEEP, req)
+            WorkManager.getInstance(context).cancelUniqueWork("carrot_sync")
         }
     }
 }

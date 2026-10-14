@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
+import { ChatButton } from './chat'
+import { RepliesCard } from './clientlink'
 import { call } from '../bridge'
 import * as F from '../format'
 import { editEvent, editNote, editProject, editTask, editTxn } from '../editors'
@@ -189,7 +191,7 @@ export function HomeScreen() {
   if (desktop) {
     return (
       <div class="scroll">
-        <MainHeader title={`${greeting}, ${first}`} sub={F.longDay(today)} big />
+        <MainHeader title={`${greeting}, ${first}`} sub={F.longDay(today)} big><ChatButton /></MainHeader>
         <div class="dash">
           <div class="dash-main">
             <div class="dash-top">
@@ -197,6 +199,7 @@ export function HomeScreen() {
               <div class="dash-tiles pop" style={{ '--i': 2 } as any}>{timer}{dueTile}</div>
             </div>
             {welcome}
+            <RepliesCard />
             <div class="dash-cards">
               <WeekInsights />
               {projectsCard}
@@ -217,11 +220,12 @@ export function HomeScreen() {
 
   return (
     <div class="scroll">
-      <MainHeader title={`${greeting}, ${first}`} sub={F.longDay(today)} big />
+      <MainHeader title={`${greeting}, ${first}`} sub={F.longDay(today)} big><ChatButton /></MainHeader>
       <div class="content">
         {hero}
         <div class="grid2 pop" style={{ '--i': 2 } as any}>{timer}{dueTile}</div>
         {welcome}
+        <RepliesCard />
         {todayCard}
         <RentalsDue />
         <TargetsCard />

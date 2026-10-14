@@ -72,3 +72,18 @@ CREATE TABLE IF NOT EXISTS records (
   PRIMARY KEY (space_id, type, id)
 );
 CREATE INDEX IF NOT EXISTS idx_records_space_rev ON records(space_id, rev);
+
+-- Client links (created by the Worker on first use, see src/links.ts).
+CREATE TABLE IF NOT EXISTS shares (
+  token TEXT PRIMARY KEY, owner_id TEXT NOT NULL, space_id TEXT NOT NULL, type TEXT NOT NULL, rec_id TEXT NOT NULL,
+  lang TEXT NOT NULL DEFAULT 'en', created_at INTEGER NOT NULL, replies INTEGER NOT NULL DEFAULT 0,
+  last_action TEXT, last_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_shares_rec ON shares(owner_id, type, rec_id);
+
+-- Chat messages waiting to be picked up; deleted once the recipient's app has them (src/chat.ts).
+CREATE TABLE IF NOT EXISTS chat_queue (
+  to_user TEXT NOT NULL, id TEXT NOT NULL, from_user TEXT NOT NULL, convo TEXT NOT NULL,
+  body TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (to_user, id)
+);
+CREATE INDEX IF NOT EXISTS idx_chat_from ON chat_queue(from_user, created_at);
