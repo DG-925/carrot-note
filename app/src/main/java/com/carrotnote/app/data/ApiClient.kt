@@ -29,7 +29,15 @@ data class SyncResponse(
     val apiVersion: Int = 0,
     /** Chat messages waiting on the server for this user. */
     val chatPending: Int = 0,
+    /** How many follow this user, and the newest few. */
+    val followers: FollowSummary? = null,
 )
+
+@Serializable
+data class FollowSummary(val count: Int = 0, val latest: List<Follower> = emptyList())
+
+@Serializable
+data class Follower(val id: String, val username: String = "", val name: String = "", val avatarRev: Int = 0, val at: Long = 0)
 
 @Serializable
 data class PublicUser(val id: String, val username: String = "", val name: String = "", val avatarRev: Int = 0)

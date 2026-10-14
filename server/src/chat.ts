@@ -19,8 +19,9 @@ async function recipients(env: Env, userId: string, convo: string): Promise<stri
     const ids = convo.slice(3).split("_");
     if (ids.length !== 2 || !ids.includes(userId) || ids[0] === ids[1]) throw new HttpError(400, "Unknown chat");
     const other = ids[0] === userId ? ids[1] : ids[0];
-    const exists = await env.DB.prepare("SELECT 1 AS ok FROM users WHERE id = ?").bind(other).first();
+    const exists = await env.DB.prepare("SELECT username FROM users WHERE id = ?").bind(other).first<{ username: string | null }>();
     if (!exists) throw new HttpError(404, "That person no longer has an account");
+    if (!(await canMessage(env, userId, other))) throw new HttpError(403, `Follow @${exists.username ?? "them"} first to send them a message`);
     return [other];
   }
   if (convo.startsWith("p_")) {
@@ -35,6 +36,81 @@ async function recipients(env: Env, userId: string, convo: string): Promise<stri
     return members.filter((m) => m !== userId);
   }
   throw new HttpError(400, "Unknown chat");
+}
+
+/** Direct messages need a follow either way, or a shared project. */
+async function canMessage(env: Env, a: string, b: string): Promise<boolean> {
+  const row = await env.DB.prepare(
+    `SELECT 1 AS ok FROM follows WHERE (follower = ?1 AND followee = ?2) OR (follower = ?2 AND followee = ?1)
+     UNION ALL
+     SELECT 1 FROM (SELECT space_id FROM space_members WHERE user_id = ?1 UNION SELECT id FROM spaces WHERE owner_id = ?1 AND kind = 'project') x
+       JOIN (SELECT space_id FROM space_members WHERE user_id = ?2 UNION SELECT id FROM spaces WHERE owner_id = ?2 AND kind = 'project') y
+       ON x.space_id = y.space_id
+     LIMIT 1`,
+  )
+    .bind(a, b)
+    .first();
+  return !!row;
+}
+
+// ---------------------------------------------------------------- following
+
+const person = (r: { id: string; username: string | null; name: string; avatar_rev: number; at: number }) =>
+  ({ id: r.id, username: r.username ?? "", name: r.name, avatarRev: r.avatar_rev ?? 0, at: r.at });
+
+/** POST /api/follow {userId} */
+export async function follow(req: Request, env: Env) {
+  const { user } = await authenticate(req, env);
+  await ensureTables(env);
+  const id = String((await readJson(req)).userId ?? "");
+  if (!id || id === user.id) throw new HttpError(400, "You can't follow yourself");
+  const exists = await env.DB.prepare("SELECT 1 AS ok FROM users WHERE id = ?").bind(id).first();
+  if (!exists) throw new HttpError(404, "That person no longer has an account");
+  const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM follows WHERE follower = ?").bind(user.id).first<{ n: number }>();
+  if ((count?.n ?? 0) >= 2000) throw new HttpError(400, "You follow a lot of people already");
+  await env.DB.prepare("INSERT OR IGNORE INTO follows (follower, followee, created_at) VALUES (?, ?, ?)").bind(user.id, id, Date.now()).run();
+  return json({ ok: true });
+}
+
+/** POST /api/unfollow {userId} */
+export async function unfollow(req: Request, env: Env) {
+  const { user } = await authenticate(req, env);
+  await ensureTables(env);
+  const id = String((await readJson(req)).userId ?? "");
+  await env.DB.prepare("DELETE FROM follows WHERE follower = ? AND followee = ?").bind(user.id, id).run();
+  return json({ ok: true });
+}
+
+/** POST /api/follows → {following, followers}: people with name, username and since when. */
+export async function follows(req: Request, env: Env) {
+  const { user } = await authenticate(req, env);
+  await ensureTables(env);
+  const [following, followers] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT u.id, u.username, u.name, u.avatar_rev, f.created_at AS at FROM follows f JOIN users u ON u.id = f.followee
+       WHERE f.follower = ? ORDER BY f.created_at DESC LIMIT 2000`,
+    ).bind(user.id),
+    env.DB.prepare(
+      `SELECT u.id, u.username, u.name, u.avatar_rev, f.created_at AS at FROM follows f JOIN users u ON u.id = f.follower
+       WHERE f.followee = ? ORDER BY f.created_at DESC LIMIT 2000`,
+    ).bind(user.id),
+  ]);
+  type R = { id: string; username: string | null; name: string; avatar_rev: number; at: number };
+  return json({ following: (following.results as R[]).map(person), followers: (followers.results as R[]).map(person) });
+}
+
+/** For every sync: how many follow you, and the newest few (so the app can say "Karim followed you"). */
+export async function followSummary(env: Env, userId: string) {
+  await ensureTables(env);
+  const [count, latest] = await env.DB.batch([
+    env.DB.prepare("SELECT COUNT(*) AS n FROM follows WHERE followee = ?").bind(userId),
+    env.DB.prepare(
+      `SELECT u.id, u.username, u.name, u.avatar_rev, f.created_at AS at FROM follows f JOIN users u ON u.id = f.follower
+       WHERE f.followee = ? ORDER BY f.created_at DESC LIMIT 5`,
+    ).bind(userId),
+  ]);
+  type R = { id: string; username: string | null; name: string; avatar_rev: number; at: number };
+  return { count: (count.results[0] as { n: number } | undefined)?.n ?? 0, latest: (latest.results as R[]).map(person) };
 }
 
 /** POST /api/chat/send {convo, msg: {id, text, voice, dur, mentions, at}} */

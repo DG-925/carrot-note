@@ -15,9 +15,14 @@ export function zoomSetting(): string {
   try { return localStorage.getItem(KEY) || 'auto' } catch { return 'auto' }
 }
 
+let current = 1
+/** The zoom the page is shown at now (1 = 100%). */
+export const currentZoom = () => current
+
 export async function applyZoom(setting = zoomSetting()) {
   try { localStorage.setItem(KEY, setting) } catch { /* private mode */ }
   const value = setting === 'auto' ? autoZoom() : Number(setting) || 1
+  current = value
   if (inTauri) await getCurrentWebview().setZoom(value).catch(() => {})
   return value
 }

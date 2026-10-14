@@ -76,5 +76,38 @@ object ReplyNotifier {
         }
     }
 
+    /** "Karim followed you": new followers since the last sync on this phone. */
+    fun onFollowers(context: Context, f: com.carrotnote.app.data.FollowSummary) {
+        val prefs = context.getSharedPreferences("replies", Context.MODE_PRIVATE)
+        val seen = prefs.getLong("follow_seen", -1L)
+        val newest = f.latest.maxOfOrNull { it.at } ?: return
+        prefs.edit().putLong("follow_seen", maxOf(seen, newest)).apply()
+        if (seen < 0) return // first sync on this phone: nothing is new
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) return
+        val ar = Graph.settings.language == "ar"
+        for (p in f.latest.filter { it.at > seen }) {
+            val who = p.name.ifBlank { "@" + p.username }
+            val open = PendingIntent.getActivity(
+                context, ("people").hashCode(),
+                Intent(context, MainActivity::class.java).setAction(Intent.ACTION_VIEW)
+                    .setData(Uri.parse("carrot-people://open"))
+                    .putExtra(MainActivity.EXTRA_SHORTCUT, "people")
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            val n = NotificationCompat.Builder(context, CarrotApp.CHANNEL_CHAT)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setColor(0xFFFF7A1A.toInt())
+                .setContentTitle(if (ar) "$who بدأ متابعتك" else "$who followed you")
+                .setContentText(if (ar) "تابعه أنت أيضًا لتتراسلا" else "Follow them back to chat")
+                .setContentIntent(open)
+                .setAutoCancel(true)
+                .build()
+            NotificationManagerCompat.from(context).notify(("follow:" + p.id).hashCode(), n)
+        }
+    }
+
     private fun JsonObject.str(k: String) = this[k]?.jsonPrimitive?.contentOrNull.orEmpty()
 }

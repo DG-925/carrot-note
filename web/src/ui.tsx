@@ -89,15 +89,27 @@ export function Chips<T extends string>({ options, value, onChange, label, icon,
   )
 }
 
-/** Segmented control; the dark knob springs to the selected option. */
+/** Segmented control; the dark knob springs to the selected option. With many options (or on a narrow
+ *  phone) it becomes a row of pills you can scroll sideways. */
 export function Seg({ options, value, onChange, i }: { options: { label: string; icon?: string }[]; value: number; onChange: (i: number) => void; i?: number }) {
+  const many = options.length > 4
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!many) return
+    // Keep the chosen tab in view (sideways only: the page itself must not jump).
+    const el = ref.current
+    const b = el?.children[value] as HTMLElement | undefined
+    if (!el || !b) return
+    const br = b.getBoundingClientRect(), er = el.getBoundingClientRect()
+    el.scrollBy({ left: br.left + br.width / 2 - (er.left + er.width / 2), behavior: 'smooth' })
+  }, [value, many])
   return (
-    <div class={cx('seg', i != null && 'pop')} style={i != null ? ({ '--i': i } as any) : undefined}>
-      <span class="knob" style={{ width: `calc((100% - 8px) / ${options.length})`, transform: `translateX(${(document.documentElement.dir === 'rtl' ? -1 : 1) * value * 100}%)` }} />
+    <div ref={ref} class={cx('seg', many && 'many', i != null && 'pop')} style={i != null ? ({ '--i': i } as any) : undefined}>
+      {!many && <span class="knob" style={{ width: `calc((100% - 8px) / ${options.length})`, transform: `translateX(${(document.documentElement.dir === 'rtl' ? -1 : 1) * value * 100}%)` }} />}
       {options.map((o, idx) => (
         <button key={o.label} class={idx === value ? 'on' : ''} onClick={() => onChange(idx)}>
           {o.icon && <Icon name={o.icon} size={13} />}
-          {o.label}
+          <span class="seg-l">{o.label}</span>
         </button>
       ))}
     </div>
@@ -519,7 +531,7 @@ export function PageHeader({ title, children, onBack }: Kids & { title: string; 
   return (
     <div class="topbar">
       <Round icon="back" label="Back" onClick={onBack} />
-      <div class="titles pop"><div class="title ellipsis">{title}</div></div>
+      <div class="titles pop"><div class="title ellipsis" dir="auto">{title}</div></div>
       {children}
     </div>
   )

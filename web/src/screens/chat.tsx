@@ -11,7 +11,7 @@ import { Icon } from '../icons'
 import { pop as popNav, push } from '../nav'
 import { getState, save, useApp } from '../store'
 import { newId, type ChatConvo, type ChatMsg, type ChatPerson, type PublicUser } from '../types'
-import { Avatar, Btn, Empty, Hint, PageHeader, Round, SearchBar, SheetTitle, attempt, confirm, cx, openSheet, toast } from '../ui'
+import { Avatar, Btn, Empty, Hint, PageHeader, Round, SearchBar, Seg, SheetTitle, attempt, confirm, cx, openSheet, toast } from '../ui'
 
 // ---------------------------------------------------------------- the list of chats
 
@@ -82,7 +82,10 @@ export function ChatsScreen() {
   return (
     <>
       <div class="scroll">
-        <PageHeader title="Chats" onBack={popNav}><Round icon="plus" label="New chat" onClick={newChat} /></PageHeader>
+        <PageHeader title="Chats" onBack={popNav}>
+          <Round icon="users" label="People" onClick={() => push({ name: 'people' })} />
+          <Round icon="plus" label="New chat" onClick={newChat} />
+        </PageHeader>
         <div class="content no-tabbar">
           {!list.length && <Empty icon="chat" title="No chats yet" text="Message other Carrot Note users, or your team in a shared project. Send voice messages and @mention people to notify them.">
             <Btn icon="plus" onClick={newChat}>New chat</Btn>
@@ -110,44 +113,126 @@ export function ChatsScreen() {
   )
 }
 
-/** Pick someone from your teams, or find anyone by username. */
-export function newChat() {
-  openSheet(close => <NewChatSheet close={close} />)
+// ---------------------------------------------------------------- following
+
+export interface FollowPerson { id: string; name: string; username: string; avatarRev: number; at: number }
+interface Follows { following: FollowPerson[]; followers: FollowPerson[]; loaded: boolean }
+
+let follows: Follows = { following: [], followers: [], loaded: false }
+const followSubs = new Set<(f: Follows) => void>()
+
+export function refreshFollows() {
+  call<{ following: FollowPerson[]; followers: FollowPerson[] }>('api.request', { path: '/api/follows', body: {} })
+    .then(r => { follows = { following: r.following ?? [], followers: r.followers ?? [], loaded: true }; followSubs.forEach(f => f(follows)) })
+    .catch(() => {})
 }
 
-function NewChatSheet({ close }: { close: () => void }) {
-  const s = useApp()
-  const [q, setQ] = useState('')
+export function useFollows(): Follows {
+  const [f, set] = useState(follows)
+  useEffect(() => { followSubs.add(set); refreshFollows(); return () => { followSubs.delete(set) } }, [])
+  return f
+}
+
+/** Direct messages work when either of you follows the other, or you share a project. */
+export function canMessage(id: string, f: Follows = follows) {
+  return f.following.some(p => p.id === id) || f.followers.some(p => p.id === id) || getState().spaces.some(sp => sp.members.some(m => m.id === id))
+}
+
+async function setFollow(p: { id: string; username: string }, on: boolean) {
+  await attempt(async () => {
+    await call('api.request', { path: on ? '/api/follow' : '/api/unfollow', body: { userId: p.id } })
+    toast(on ? `You follow @${p.username}` : `You unfollowed @${p.username}`)
+    refreshFollows()
+  })
+}
+
+export function FollowButton({ p, f }: { p: { id: string; username: string }; f: Follows }) {
+  const on = f.following.some(x => x.id === p.id)
+  const back = !on && f.followers.some(x => x.id === p.id)
+  return <Btn sm kind={on ? 'ghost' : undefined} icon={on ? 'check' : 'userPlus'} onClick={() => setFollow(p, !on)}>{on ? 'Following' : back ? 'Follow back' : 'Follow'}</Btn>
+}
+
+function PersonLine({ p, f, onMessage }: { p: { id: string; name: string; username: string; avatarRev: number }; f: Follows; onMessage: () => void }) {
+  const ok = canMessage(p.id, f)
+  return (
+    <div class="item person-line">
+      <Avatar userId={p.id} rev={p.avatarRev} name={p.name || p.username} size={40} />
+      <div class="main"><div class="t">{p.name || '@' + p.username}</div><div class="s">@{p.username}</div></div>
+      <FollowButton p={p} f={f} />
+      <button class={cx('round sm', !ok && 'muted')} aria-label="Message" disabled={!ok} onClick={onMessage}><Icon name="chat" size={16} /></button>
+    </div>
+  )
+}
+
+/** Searches people by username. */
+function useUserSearch(q: string) {
   const [found, setFound] = useState<PublicUser[]>([])
-  const team = s.spaces.flatMap(sp => sp.members).filter((m, i, a) => m.id !== s.user?.id && a.findIndex(x => x.id === m.id) === i)
   useEffect(() => {
     const term = q.trim().replace(/^@/, '')
     if (term.length < 2) { setFound([]); return }
     const t = setTimeout(() => call<PublicUser[]>('team.search', { query: term }).then(r => setFound(r ?? [])).catch(() => setFound([])), 300)
     return () => clearTimeout(t)
   }, [q])
+  return found
+}
+
+let savedPeopleTab = 0
+/** People you follow, people who follow you, and finding someone new. */
+export function PeopleScreen() {
+  const s = useApp()
+  const f = useFollows()
+  const [tab, setTabState] = useState(savedPeopleTab)
+  const setTab = (i: number) => { savedPeopleTab = i; setTabState(i) }
+  const [q, setQ] = useState('')
+  const found = useUserSearch(q)
+  const list = tab === 0 ? f.following : tab === 1 ? f.followers : found.map(u => ({ ...u, at: 0 }))
+  return (
+    <div class="scroll">
+      <PageHeader title="People" onBack={popNav} />
+      <div class="content no-tabbar">
+        <Seg i={1} options={[{ label: `Following ${f.following.length}` }, { label: `Followers ${f.followers.length}` }, { label: 'Find' }]} value={tab} onChange={setTab} />
+        {tab === 2 && <SearchBar i={2} value={q} onInput={setQ} placeholder="Search @username" autoFocus />}
+        {list.length > 0 && <div class="card flush pop" style={{ '--i': 3 } as any}>
+          {list.filter(p => p.id !== s.user?.id).map(p => <PersonLine key={p.id} p={p} f={f} onMessage={() => chatWith(p)} />)}
+        </div>}
+        {!list.length && <Empty icon={tab === 2 ? 'search' : 'users'} title={tab === 0 ? 'Not following anyone yet' : tab === 1 ? 'No followers yet' : q.trim() ? 'Nobody found' : 'Find people'}
+          text={tab === 2 ? 'Type a username to find someone on Carrot Note.' : 'Follow people by their username. Once one of you follows the other, you can message each other.'}>
+          {tab !== 2 && <Btn icon="search" onClick={() => setTab(2)}>Find people</Btn>}
+        </Empty>}
+        <Hint>You can message people you follow and people who follow you, and anyone in your shared projects.</Hint>
+      </div>
+    </div>
+  )
+}
+
+/** Pick someone you follow, a follower or a teammate, or find anyone by username. */
+export function newChat() {
+  openSheet(close => <NewChatSheet close={close} />)
+}
+
+function NewChatSheet({ close }: { close: () => void }) {
+  const s = useApp()
+  const f = useFollows()
+  const [q, setQ] = useState('')
+  const found = useUserSearch(q)
+  const known = [...f.following, ...f.followers, ...s.spaces.flatMap(sp => sp.members).map(m => ({ ...m, at: 0 }))]
+    .filter((m, i, a) => m.id !== s.user?.id && a.findIndex(x => x.id === m.id) === i)
   const start = async (p: { id: string; name: string; username: string; avatarRev: number }) => {
-    const convo = dmId(p.id)
-    await attempt(() => call('chat.open', { convo, title: p.name || p.username, people: [{ id: p.id, name: p.name, username: p.username, avatarRev: p.avatarRev }] }))
+    if (!canMessage(p.id, f)) { toast(`Follow @${p.username} first to message them`); return }
     close()
-    setTimeout(() => push({ name: 'chat', id: convo }), 120)
+    setTimeout(() => chatWith(p), 120)
   }
-  const shown = q.trim() ? found : team
+  const shown = q.trim() ? found.map(u => ({ ...u, at: 0 })) : known
   return (
     <>
-      <SheetTitle title="New chat" sub="Your teammates, or anyone by their username" />
+      <SheetTitle title="New chat" sub="People you follow, your followers and teammates" />
       <div class="body">
         <SearchBar value={q} onInput={setQ} placeholder="Search @username" autoFocus />
         <div class="card flush in-card">
-          {shown.map(p => (
-            <div key={p.id} class="item" onClick={() => start(p)}>
-              <Avatar userId={p.id} rev={p.avatarRev} name={p.name || p.username} size={38} />
-              <div class="main"><div class="t">{p.name || '@' + p.username}</div><div class="s">@{p.username}</div></div>
-              <Icon name="chat" size={16} class="accent" />
-            </div>
-          ))}
-          {!shown.length && <div class="muted small" style={{ padding: 14 }}>{q.trim() ? 'Nobody found with that username.' : 'Type a username to find someone.'}</div>}
+          {shown.map(p => <PersonLine key={p.id} p={p} f={f} onMessage={() => start(p)} />)}
+          {!shown.length && <div class="muted small" style={{ padding: 14 }}>{q.trim() ? 'Nobody found with that username.' : 'Follow people to message them. Search for a username above.'}</div>}
         </div>
+        <button class="link" style={{ marginTop: 12 }} onClick={() => { close(); setTimeout(() => push({ name: 'people' }), 120) }}>Following and followers</button>
       </div>
     </>
   )

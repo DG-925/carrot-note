@@ -61,6 +61,7 @@ class SyncManager(private val context: Context, private val scope: CoroutineScop
                 repo.applyRemote(resp.changes)
                 runCatching { com.carrotnote.app.notify.ActivityNotifier.onSync(context, resp.changes) }
                 runCatching { com.carrotnote.app.notify.ReplyNotifier.onSync(context, resp.changes) }
+                resp.followers?.let { f -> runCatching { com.carrotnote.app.notify.ReplyNotifier.onFollowers(context, f) } }
                 repo.markClean(chunk)
                 repo.setSpaces(resp.spaces.filter { it.kind == "project" })
                 cursors = resp.cursors.filterKeys { k -> k == repo.userId || resp.spaces.any { it.id == k } }

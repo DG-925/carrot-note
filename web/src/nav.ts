@@ -15,7 +15,7 @@ export type Route =
   | { name: 'suppliers' } | { name: 'supplier'; id: string } | { name: 'prices' } | { name: 'insights' }
   | { name: 'docs' } | { name: 'doc'; id: string } | { name: 'messages' } | { name: 'activity'; id?: string } | { name: 'targets' }
   | { name: 'calendar' } | { name: 'time' } | { name: 'customers' } | { name: 'debts' } | { name: 'goals' }
-  | { name: 'chats' } | { name: 'chat'; id: string }
+  | { name: 'chats' } | { name: 'chat'; id: string } | { name: 'people' } | { name: 'whatsapp' }
   | { name: 'invites' } | { name: 'search' } | { name: 'profile' } | { name: 'settings' }
 
 export interface Overlay {

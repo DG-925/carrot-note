@@ -398,7 +398,7 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
         // ---- client links (the page talks to the API through here, signed in)
         "api.request" -> {
             val path = a.str("path")
-            require(path == "/api/share" || path == "/api/share/revoke") { "Not allowed" }
+            require(path in setOf("/api/share", "/api/share/revoke", "/api/follow", "/api/unfollow", "/api/follows")) { "Not allowed" }
             AppJson.parseToJsonElement(Graph.api.raw("POST", path, (a["body"] ?: JsonObject(emptyMap())).toString(), token()))
         }
 

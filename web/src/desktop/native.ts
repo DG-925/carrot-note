@@ -14,6 +14,7 @@ import { deleteDb, openDb, readAll, write } from './idb'
 import { printPdf, type PdfDoc } from './pdf'
 import { applyZoom, autoZoom, zoomSetting } from './zoom'
 import * as Chat from './chat'
+import * as WhatsApp from './whatsapp'
 
 declare const __APP_VERSION__: string
 const VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0'
@@ -284,6 +285,7 @@ function runSync(): Promise<boolean> {
         const types = await r.applyRemote(resp.changes ?? [])
         notifyActivity(r, resp.changes ?? [])
         notifyReplies(resp.changes ?? [])
+        notifyFollowers(resp.followers)
         chatPending = Number(resp.chatPending) || 0
         await r.markClean(chunk)
         const spaces = (resp.spaces ?? []).filter((s: Json) => s.kind === 'project')
@@ -357,6 +359,22 @@ function notifyActivity(r: Repo, changes: Json[]) {
   const project = r.get('project', fresh[0].projectId)?.name ?? 'Shared project'
   const line = (a: Json) => `${a.name} ${ACTIVITY_WORDS[a.action] ?? a.action} ${ACTIVITY_TYPES[a.type] ?? a.type}${a.title && a.type !== 'project' ? ` “${a.title}”` : ''}`
   notify(project, fresh.length === 1 ? line(fresh[0]) : `${line(fresh[fresh.length - 1])} and ${fresh.length - 1} more`)
+}
+
+/** "Karim followed you": new followers since last time. */
+function notifyFollowers(f: Json) {
+  const latest: Json[] = f?.latest ?? []
+  let seen = -1
+  try { seen = Number(localStorage.getItem('carrot.followSeen') ?? -1) } catch { /* private mode */ }
+  const newest = latest.reduce((m, x) => Math.max(m, Number(x.at) || 0), 0)
+  if (!newest) return
+  try { localStorage.setItem('carrot.followSeen', String(Math.max(seen, newest))) } catch { /* private mode */ }
+  if (seen < 0) return // first sync on this computer: nothing is new
+  const ar = document.documentElement.dir === 'rtl'
+  for (const x of latest.filter(x => x.at > seen)) {
+    const who = x.name || '@' + x.username
+    notify(ar ? `${who} بدأ متابعتك` : `${who} followed you`, ar ? 'تابعه أنت أيضًا لتتراسلا' : 'Follow them back to chat')
+  }
 }
 
 /** A notification when a client answers through a client link. */
@@ -689,7 +707,7 @@ const handlers: Record<string, (a: Json) => unknown> = {
 
   // client links
   'api.request': a => {
-    if (a.path !== '/api/share' && a.path !== '/api/share/revoke') throw new Error('Not allowed')
+    if (!['/api/share', '/api/share/revoke', '/api/follow', '/api/unfollow', '/api/follows'].includes(a.path)) throw new Error('Not allowed')
     return api('POST', a.path, a.body ?? {})
   },
 
@@ -708,6 +726,11 @@ const handlers: Record<string, (a: Json) => unknown> = {
   'voice.start': async () => { await Chat.startRecording(); return true },
   'voice.stop': () => Chat.stopRecording(),
   'voice.cancel': () => { Chat.cancelRecording(); return true },
+  // WhatsApp Web inside the app (see whatsapp.ts)
+  'whatsapp.show': a => WhatsApp.show(a).then(() => true),
+  'whatsapp.hide': () => WhatsApp.hide().then(() => true),
+  'whatsapp.reload': a => WhatsApp.reload(a).then(() => true),
+  'whatsapp.window': () => WhatsApp.openWindow().then(() => true),
   'speech.listen': () => { throw new Error("Voice typing isn't available on the PC. Type it instead.") },
   'barcode.scan': () => { throw new Error('On the PC, scan with a USB barcode scanner or type the code.') },
 

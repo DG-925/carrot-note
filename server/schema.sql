@@ -87,3 +87,12 @@ CREATE TABLE IF NOT EXISTS chat_queue (
   body TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (to_user, id)
 );
 CREATE INDEX IF NOT EXISTS idx_chat_from ON chat_queue(from_user, created_at);
+
+-- Following: once either person follows the other, they can send each other direct messages.
+CREATE TABLE IF NOT EXISTS follows (
+  follower   TEXT NOT NULL,
+  followee   TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (follower, followee)
+);
+CREATE INDEX IF NOT EXISTS idx_follows_followee ON follows(followee, created_at);

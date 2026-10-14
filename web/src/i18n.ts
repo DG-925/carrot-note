@@ -43,6 +43,12 @@ function phrase(t: string): string | null {
 const tr = (t: string) => phrase(t) ?? t
 
 const patterns: [RegExp, (m: RegExpExecArray) => string | null][] = [
+  [/^Following (\d+)$/, m => `تتابعهم ${m[1]}`],
+  [/^Followers (\d+)$/, m => `المتابعون ${m[1]}`],
+  [/^You follow @(.+)$/, m => `أنت تتابع ‎@${m[1]}`],
+  [/^You unfollowed @(.+)$/, m => `ألغيت متابعة ‎@${m[1]}`],
+  [/^Follow @(.+) first to message them$/, m => `تابِع ‎@${m[1]} أولًا لتراسله`],
+  [/^Follow @(.+) first to send them a message$/, m => `تابِع ‎@${m[1]} أولًا لتراسله`],
   [/^(Good morning|Good afternoon|Good evening), (.+)$/, m => `${tr(m[1])}، ${m[2]}`],
   [/^(\d+) (notes?|tasks?|events?|days?|goals?|members?|results?|rounds?|birthdays?|active rentals?|focus rounds?|items?|steps?|renters?|active renters?)$/, m => count(+m[1], m[2].replace(/s$/, ''))],
   [/^(\d+) active$/, m => `${m[1]} نشط`],

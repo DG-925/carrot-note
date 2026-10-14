@@ -32,7 +32,8 @@ import { DocDetail, DocsScreen } from './screens/docs'
 import { MessagesScreen } from './screens/messages'
 import { ActivityScreen } from './screens/activity'
 import { TargetsScreen } from './screens/targets'
-import { ChatScreen, ChatsScreen, unreadChats, useChats } from './screens/chat'
+import { hasWhatsApp, WhatsAppScreen } from './screens/whatsapp'
+import { ChatScreen, ChatsScreen, PeopleScreen, unreadChats, useChats } from './screens/chat'
 import { openSmartAdd } from './screens/smartadd'
 import { runRecurring } from './recurring'
 import { startMasonry } from './masonry'
@@ -110,6 +111,8 @@ function routeScreen(r: Route) {
     case 'targets': return <TargetsScreen />
     case 'chats': return <ChatsScreen />
     case 'chat': return <ChatScreen id={r.id} />
+    case 'people': return <PeopleScreen />
+    case 'whatsapp': return <WhatsAppScreen />
     case 'calendar': return <CalendarScreen />
     case 'time': return <TimeScreen />
     case 'customers': return <CustomersScreen />
@@ -149,6 +152,7 @@ function runShortcut() {
     else if (id.startsWith('rental-open:')) push({ name: 'rental', id: id.slice('rental-open:'.length) })
     else if (id === 'say') openSmartAdd(true)
     else if (id === 'chats') push({ name: 'chats' })
+    else if (id === 'people') push({ name: 'people' })
     else if (id.startsWith('chat-open:')) push({ name: 'chat', id: id.slice('chat-open:'.length) })
     else if (id.startsWith('invoice-open:')) push({ name: 'invoice', id: id.slice('invoice-open:'.length) })
     else if (id.startsWith('quote-open:')) push({ name: 'quote', id: id.slice('quote-open:'.length) })
@@ -290,7 +294,8 @@ function Sidebar() {
   const endingDocs = data.doc.filter(d => d.endDate != null && d.endDate >= F.today() && d.endDate <= F.today() + 30).length
   const groups: [string, [string, string, string, string, number?][]][] = [
     ['', [['Home', 'home', 'orange', 'home'], ['Money', 'wallet', 'mint', 'money'], ['Projects', 'project', 'sky', 'projects'], ['Notes', 'note', 'lilac', 'notes'],
-      ['Calendar', 'calendar', 'butter', 'calendar', dueToday], ['Chats', 'chat', 'sky', 'chats', unreadChats(chats)]]],
+      ['Calendar', 'calendar', 'butter', 'calendar', dueToday], ['Chats', 'chat', 'sky', 'chats', unreadChats(chats)],
+      ...(hasWhatsApp() ? [['WhatsApp', 'whatsapp', 'mint', 'whatsapp'] as [string, string, string, string]] : [])]],
     ['Work', [['Time', 'timer', 'mint', 'time'], ['Quotes', 'pen', 'lilac', 'quotes', openQuotes], ['Invoices', 'invoice', 'orange', 'invoices', unpaid], ['Rentals', 'server', 'sky', 'rentals', renew],
       ['Stock', 'box', 'butter', 'stock', lowStock], ['Suppliers', 'briefcase', 'rose', 'suppliers'], ['Contracts & files', 'pen', 'sky', 'docs', endingDocs],
       ...(s.spaces.length ? [['Team activity', 'team', 'lilac', 'activity'] as [string, string, string, string]] : []), ['Customers', 'users', 'rose', 'customers'], ...(s.invites > 0 ? [['Invitations', 'inbox', 'orange', 'invites', s.invites] as [string, string, string, string, number]] : [])]],
@@ -368,6 +373,7 @@ function Drawer() {
     ['Notes', 'note', 'lilac', 'notes', F.plural(data.note.length, 'note')],
     ['Calendar', 'calendar', 'butter', 'calendar', dueToday + eventsToday ? `${dueToday + eventsToday} today` : 'Holidays & plans'],
     ['Chats', 'chat', 'sky', 'chats', unreadChats(chats) ? `${unreadChats(chats)} unread` : 'Message your team'],
+    ...(hasWhatsApp() ? [['WhatsApp', 'whatsapp', 'mint', 'whatsapp', 'Chat from here'] as [string, string, string, string, string]] : []),
     ['Time', 'timer', 'mint', 'time', running ? 'Tracking now' : `${F.hours(trackedToday).toFixed(1)} h today`],
     ['Rentals', 'server', 'sky', 'rentals', renewSoon ? `${renewSoon} to renew` : `${activeRentals.length} active`],
     ['Invoices', 'invoice', 'orange', 'invoices', unpaidInvoices ? `${unpaidInvoices} unpaid` : `${data.invoice.length} total`],

@@ -7,7 +7,7 @@
  * Sync: clients push changed records and pull everything with rev > their per-space cursor.
  */
 
-import { chatInbox, chatPending, sendChat } from "./chat";
+import { chatInbox, chatPending, follow, followSummary, follows, sendChat, unfollow } from "./chat";
 import { createLink, replyLink, revokeLink, showLink } from "./links";
 
 export interface Env {
@@ -23,7 +23,7 @@ const MAX_FAILED_LOGINS = 10;
 const LOCKOUT_MS = 15 * 60 * 1000;
 /** Record types that follow their project into a shared space. */
 const PROJECT_SCOPED = new Set(["task", "note", "event", "rental", "invoice", "quote", "activity"]);
-/** Bumped when clients need to know about new server behaviour (3: rentals and invoices are shared, 4: quotes and activity, 5: client links and chat). */
+/** Bumped when clients need to know about new server behaviour (3: rentals and invoices are shared, 4: quotes and activity, 5: client links, chat and following). */
 const API_VERSION = 5;
 
 export class HttpError extends Error {
@@ -701,6 +701,7 @@ async function sync(req: Request, env: Env) {
     user: publicUser(me.results[0] as UserRow),
     apiVersion: API_VERSION,
     chatPending: await chatPending(env, user.id),
+    followers: await followSummary(env, user.id),
   });
 }
 
@@ -750,6 +751,12 @@ export default {
           return await sendChat(req, env);
         case "POST /api/chat/inbox":
           return await chatInbox(req, env);
+        case "POST /api/follow":
+          return await follow(req, env);
+        case "POST /api/unfollow":
+          return await unfollow(req, env);
+        case "POST /api/follows":
+          return await follows(req, env);
       }
       // Client links: public pages, no sign-in.
       if (req.method === "GET" && (m = path.match(/^\/c\/([A-Za-z0-9_-]+)$/))) return await showLink(env, m[1], url);
