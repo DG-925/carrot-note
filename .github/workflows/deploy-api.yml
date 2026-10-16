@@ -6,7 +6,7 @@ name: Deploy API
 #
 # Optional, for "Forgot password" / "Forgot PIN" codes by email (add any of these as repository
 # secrets and they're copied to the Worker on the next deploy):
-#   Gmail:  SMTP_HOST=smtp.gmail.com  SMTP_PORT=465  SMTP_USER=you@gmail.com  SMTP_PASS=<app password>
+#   Gmail:  SMTP_USER=you@gmail.com  SMTP_PASS=<app password>   (other SMTP: also SMTP_HOST, SMTP_PORT)
 #   Resend: RESEND_API_KEY=re_...     MAIL_FROM=Carrot Note <codes@your-domain.com>
 on:
   workflow_dispatch:

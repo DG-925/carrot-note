@@ -231,12 +231,11 @@ The API is live at `https://carrot-note-api.carrot-note-api.workers.dev` (set in
 The server sends the codes through any email account that allows SMTP. The easiest is a Gmail account:
 
 1. Turn on 2-Step Verification for the Google account, then make an **app password** at https://myaccount.google.com/apppasswords (name it "Carrot Note"). You get 16 letters.
-2. In the GitHub repository go to **Settings → Secrets and variables → Actions** and add these repository secrets:
-   - `SMTP_HOST` = `smtp.gmail.com`
-   - `SMTP_PORT` = `465`
+2. In the GitHub repository go to **Settings → Secrets and variables → Actions** and add two repository secrets:
    - `SMTP_USER` = the Gmail address
-   - `SMTP_PASS` = the 16-letter app password
-   - `MAIL_FROM` (optional) = `Carrot Note <the same Gmail address>`
+   - `SMTP_PASS` = the 16-letter app password (with or without the spaces)
+
+   For a Gmail address the server fills in `smtp.gmail.com` and port 465 itself. For other providers also add `SMTP_HOST` and `SMTP_PORT`; `MAIL_FROM` (e.g. `Carrot Note <you@example.com>`) is optional.
 3. Run **Deploy API** from the Actions tab. It copies them to the Worker as secrets.
 
 Or with [Resend](https://resend.com) (needs your own domain): `RESEND_API_KEY` and `MAIL_FROM` = `Carrot Note <codes@your-domain.com>`. Without any of these, the apps say codes by email aren't turned on, and the PIN can still be reset with the account password.

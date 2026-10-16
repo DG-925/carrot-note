@@ -21,7 +21,16 @@ const MAX_TRIES = 5;
 
 type Purpose = "password" | "pin";
 
-export const emailReady = (env: Env) => !!(env.RESEND_API_KEY || (env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS));
+/** SMTP settings; a Gmail address needs only SMTP_USER and SMTP_PASS (the app password, spaces or not). */
+function smtp(env: Env) {
+  const user = (env.SMTP_USER ?? "").trim();
+  const gmail = /@(gmail|googlemail)\.com$/i.test(user);
+  const host = (env.SMTP_HOST ?? "").trim() || (gmail ? "smtp.gmail.com" : "");
+  const pass = gmail || host === "smtp.gmail.com" ? (env.SMTP_PASS ?? "").replace(/\s+/g, "") : env.SMTP_PASS ?? "";
+  return { host, port: Number(env.SMTP_PORT || 465), user, pass };
+}
+
+export const emailReady = (env: Env) => { const s = smtp(env); return !!(env.RESEND_API_KEY || (s.host && s.user && s.pass)); };
 
 /** GET /api/recovery: what this server can do, so the app shows the right options. */
 export function recoveryInfo(env: Env) {
@@ -249,9 +258,9 @@ function mime(env: Env, to: string, mail: Mail) {
 
 /** A small SMTP client over Workers TCP sockets: port 465 is TLS from the start, 587 upgrades with STARTTLS. */
 async function viaSmtp(env: Env, to: string, mail: Mail) {
-  const port = Number(env.SMTP_PORT || 465);
+  const { host, port, user, pass } = smtp(env);
   const tls = env.SMTP_TLS === "off" ? "off" : port === 465 ? "on" : "starttls";
-  let socket = connect({ hostname: env.SMTP_HOST!, port }, { secureTransport: tls, allowHalfOpen: false });
+  let socket = connect({ hostname: host, port }, { secureTransport: tls, allowHalfOpen: false });
   let reader = socket.readable.getReader();
   let writer = socket.writable.getWriter();
   const dec = new TextDecoder();
@@ -290,8 +299,8 @@ async function viaSmtp(env: Env, to: string, mail: Mail) {
       await step(250, "EHLO carrot-note");
     }
     await step(334, "AUTH LOGIN");
-    await step(334, b64(env.SMTP_USER!));
-    await step(235, b64(env.SMTP_PASS!));
+    await step(334, b64(user));
+    await step(235, b64(pass));
     await step(250, `MAIL FROM:<${sender(env)[1]}>`);
     await step(250, `RCPT TO:<${to}>`);
     await step(354, "DATA");
