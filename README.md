@@ -16,6 +16,12 @@ A personal assistant app for freelancers on Android: projects, money, time, note
 - **Security**: PIN lock, fingerprint or face unlock, auto-lock delay, and an option to hide the app in recent apps or block screenshots.
 - **Auto-update**: checks GitHub Releases, sends a notification, and offers *Update now* or *Later*.
 
+### New in 1.16: forgot password, forgot PIN
+
+- **Forgot password?** on the sign-in screen: type your email or username and you get a 6-digit code by email. Type the code and a new password and you're signed in. Your other devices are signed out. The code works for 15 minutes and only once; 5 wrong tries cancel it.
+- **Forgot PIN?** on the lock screen: type your account password (or ask for a code by email) and the PIN is removed; your data stays. Ten wrong passwords lock it for 15 minutes, like signing in. Forgot both? Sign out from the lock screen and use Forgot password.
+- Email codes need the server to be able to send email; see "Turning on email codes" below. The PIN reset with your password works without it.
+
 ### New in 1.15: profiles, a new menu, chat fix
 
 - **Profiles for everyone**: tap a person anywhere (People, a chat, a project's team, a name in a team chat) to see their profile: photo, bio, GitHub, followers, whether you follow each other, the projects you share and what they did in them lately. Follow or message them from there.
@@ -219,6 +225,21 @@ npx wrangler deploy                                     # deploy the API
 The API is live at `https://carrot-note-api.carrot-note-api.workers.dev` (set in `gradle.properties` as `carrot.apiUrl`).
 
 **Deploying from GitHub:** add the repository secret `CLOUDFLARE_API_TOKEN` (Cloudflare → My Profile → API Tokens, with Workers Scripts: Edit, D1: Edit and Account Settings: Read). The account id is already in `server/wrangler.toml`. The "Deploy API" workflow then deploys `server/` whenever it changes, or on demand from the Actions tab.
+
+### Turning on email codes (forgot password / PIN)
+
+The server sends the codes through any email account that allows SMTP. The easiest is a Gmail account:
+
+1. Turn on 2-Step Verification for the Google account, then make an **app password** at https://myaccount.google.com/apppasswords (name it "Carrot Note"). You get 16 letters.
+2. In the GitHub repository go to **Settings → Secrets and variables → Actions** and add these repository secrets:
+   - `SMTP_HOST` = `smtp.gmail.com`
+   - `SMTP_PORT` = `465`
+   - `SMTP_USER` = the Gmail address
+   - `SMTP_PASS` = the 16-letter app password
+   - `MAIL_FROM` (optional) = `Carrot Note <the same Gmail address>`
+3. Run **Deploy API** from the Actions tab. It copies them to the Worker as secrets.
+
+Or with [Resend](https://resend.com) (needs your own domain): `RESEND_API_KEY` and `MAIL_FROM` = `Carrot Note <codes@your-domain.com>`. Without any of these, the apps say codes by email aren't turned on, and the PIN can still be reset with the account password.
 
 ## Building locally
 

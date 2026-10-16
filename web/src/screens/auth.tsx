@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { call } from '../bridge'
+import { currentLang } from '../i18n'
 import { Icon } from '../icons'
 import { useApp } from '../store'
 import { Btn, Field, Hero, Logo, Seg, attempt, toast } from '../ui'
@@ -43,6 +44,7 @@ export function AuthScreen() {
   const [show, setShow] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [forgot, setForgot] = useState(false)
   const check = useUsernameCheck(username)
   const register = tab === 1
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())
@@ -62,6 +64,7 @@ export function AuthScreen() {
 
   const eye = <button class="muted" style={{ padding: 8 }} onClick={e => { e.stopPropagation(); setShow(!show) }}><Icon name={show ? 'eyeOff' : 'eye'} size={18} /></button>
 
+  if (forgot) return <ForgotPassword login={login.trim()} onBack={() => { setForgot(false); setError(null) }} />
   return (
     <div class="scroll">
       <div class="content" style={{ paddingTop: 'calc(var(--sat) + 16px)', paddingBottom: 'calc(var(--sab) + 30px)' }}>
@@ -92,11 +95,169 @@ export function AuthScreen() {
           <Field label="Type the password again" icon="lock" type={show ? 'text' : 'password'} value={confirmPw} onInput={setConfirmPw}
             hint={!confirmPw ? undefined : match ? '✓ Passwords match' : "Passwords don't match"} hintTone={!confirmPw ? undefined : match ? 'good' : 'bad'} />
         </>}
+        {!register && <button class="link forgot-link" onClick={() => { setForgot(true); setError(null) }}>Forgot password?</button>}
         {error && <div class="error-box pop"><Icon name="warning" size={16} />{error}</div>}
         <Btn block busy={busy} disabled={!can} onClick={submit}>{register ? 'Create my account' : 'Sign in'}</Btn>
         <Btn kind="ghost" onClick={() => { setTab(1 - tab); setError(null) }}>{register ? 'Already have an account? Sign in' : 'New here? Create an account'}</Btn>
         <p class="small muted center" style={{ margin: 0 }}>Your data is saved on this phone and synced to your account.</p>
       </div>
+    </div>
+  )
+}
+
+/** A countdown for "send the code again". */
+function useCountdown() {
+  const [left, setLeft] = useState(0)
+  useEffect(() => {
+    if (left <= 0) return
+    const t = setTimeout(() => setLeft(l => Math.max(0, l - 1)), 1000)
+    return () => clearTimeout(t)
+  }, [left])
+  return [left, setLeft] as const
+}
+
+/** "Is email reset turned on for this server?" null while asking. */
+function useEmailRecovery() {
+  const [on, setOn] = useState<boolean | null>(null)
+  useEffect(() => { call<{ email: boolean }>('auth.recovery').then(r => setOn(!!r?.email)).catch(() => setOn(null)) }, [])
+  return on
+}
+
+const codeOnly = (v: string) => v.replace(/\D/g, '').slice(0, 6)
+
+function CodeField({ value, onInput }: { value: string; onInput: (v: string) => void }) {
+  return <Field label="6-digit code" icon="key" inputMode="numeric" maxLength={6} value={value} onInput={v => onInput(codeOnly(v))} autoFocus />
+}
+
+/** Forgot password: a code by email, then a new password, and you're signed in. */
+function ForgotPassword({ login: start, onBack }: { login: string; onBack: () => void }) {
+  const [login, setLogin] = useState(start)
+  const [step, setStep] = useState<'ask' | 'code'>('ask')
+  const [to, setTo] = useState<string | null>(null)
+  const [code, setCode] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [show, setShow] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [wait, setWait] = useCountdown()
+  const emailOn = useEmailRecovery()
+  const lang = currentLang()
+  const match = !!confirmPw && confirmPw === password
+  const level = strength(password)
+  const colors = ['transparent', 'var(--bad)', 'var(--warn)', 'var(--accent)', 'var(--good)']
+
+  const send = async () => {
+    if (!login.trim() || busy) return
+    setBusy(true); setError(null)
+    try {
+      const r = await call<{ to: string | null; retryIn: number }>('auth.forgot', { login: login.trim(), lang })
+      setTo(r.to); setWait(r.retryIn || 60); setStep('code')
+    } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
+  }
+  const reset = async () => {
+    if (code.length !== 6 || password.length < 8 || !match || busy) return
+    setBusy(true); setError(null)
+    try {
+      await call('auth.reset', { login: login.trim(), code, password, lang })
+      toast('Password changed. You\'re signed in.')
+    } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
+  }
+  const eye = <button class="muted" style={{ padding: 8 }} onClick={e => { e.stopPropagation(); setShow(!show) }}><Icon name={show ? 'eyeOff' : 'eye'} size={18} /></button>
+
+  return (
+    <div class="scroll">
+      <div class="content" style={{ paddingTop: 'calc(var(--sat) + 16px)', paddingBottom: 'calc(var(--sab) + 30px)' }}>
+        <div class="row"><button class="round" aria-label="Back" onClick={onBack}><Icon name="back" size={18} /></button></div>
+        <div class="recover-head pop" style={{ '--i': 0 } as any}>
+          <span class="recover-ico"><Icon name={step === 'ask' ? 'lock' : 'mail'} size={26} /></span>
+          <div class="h-lg">{step === 'ask' ? 'Forgot your password?' : 'Check your email'}</div>
+          <p class="muted">{step === 'ask'
+            ? "Type your email or username. We'll email you a 6-digit code to set a new password."
+            : to ? `We sent a code to ${to}. It works for 15 minutes. Check spam if you don't see it.` : "If there's an account with that email, a code is on its way. It works for 15 minutes. Check spam if you don't see it."}</p>
+        </div>
+        {emailOn === false && <div class="error-box pop"><Icon name="warning" size={16} />Codes by email aren't turned on for this server yet. Whoever runs your Carrot Note server can turn them on (see the README).</div>}
+        {step === 'ask' ? <>
+          <Field label="Email or username" icon="user" type="email" inputMode="email" value={login} onInput={setLogin} autoFocus={!start} />
+          {error && <div class="error-box pop"><Icon name="warning" size={16} />{error}</div>}
+          <Btn block icon="mail" busy={busy} disabled={!login.trim() || emailOn === false} onClick={send}>Email me a code</Btn>
+        </> : <>
+          <CodeField value={code} onInput={setCode} />
+          <Field label="New password" icon="lock" type={show ? 'text' : 'password'} value={password} onInput={setPassword} trail={eye} />
+          <div class="strength" style={{ padding: '0 6px' }}>
+            {[1, 2, 3, 4].map(i => <i key={i} style={{ background: i <= level ? colors[level] : undefined }} />)}
+            <span class="tiny semibold" style={{ width: 52, textAlign: 'end', color: colors[level] }}>{['', 'Weak', 'Okay', 'Good', 'Strong'][level]}</span>
+          </div>
+          <Field label="Type the password again" icon="lock" type={show ? 'text' : 'password'} value={confirmPw} onInput={setConfirmPw}
+            hint={!confirmPw ? (password && password.length < 8 ? 'At least 8 characters' : undefined) : match ? '✓ Passwords match' : "Passwords don't match"} hintTone={!confirmPw ? undefined : match ? 'good' : 'bad'} />
+          {error && <div class="error-box pop"><Icon name="warning" size={16} />{error}</div>}
+          <Btn block busy={busy} disabled={code.length !== 6 || password.length < 8 || !match} onClick={reset}>Set new password and sign in</Btn>
+          <Btn kind="ghost" disabled={wait > 0 || busy} onClick={send}>{wait > 0 ? `Send the code again in ${wait}s` : 'Send the code again'}</Btn>
+          <p class="small muted center" style={{ margin: 0 }}>Your other devices will be signed out. Sign in there with the new password.</p>
+        </>}
+      </div>
+    </div>
+  )
+}
+
+/** Forgot PIN on the lock screen: prove it's you with your account password (or an emailed code). */
+function ForgotPin({ onBack }: { onBack: () => void }) {
+  const s = useApp()
+  const [password, setPassword] = useState('')
+  const [show, setShow] = useState(false)
+  const [mode, setMode] = useState<'password' | 'code'>('password')
+  const [code, setCode] = useState('')
+  const [to, setTo] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [wait, setWait] = useCountdown()
+  const emailOn = useEmailRecovery()
+  const lang = currentLang()
+
+  const recover = async () => {
+    if (busy || (mode === 'password' ? !password : code.length !== 6)) return
+    setBusy(true); setError(null)
+    try {
+      await call('lock.recover', mode === 'password' ? { password, lang } : { code, lang })
+      toast('PIN removed. You can set a new one in Settings.')
+    } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
+  }
+  const sendCode = async () => {
+    setBusy(true); setError(null)
+    try {
+      const r = await call<{ to: string; retryIn: number }>('lock.sendCode', { lang })
+      setTo(r.to); setWait(r.retryIn || 60); setMode('code'); setCode('')
+    } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
+  }
+  const eye = <button class="muted" style={{ padding: 8 }} onClick={e => { e.stopPropagation(); setShow(!show) }}><Icon name={show ? 'eyeOff' : 'eye'} size={18} /></button>
+
+  return (
+    <div class="lock forgot-pin">
+      <div class="recover-head pop" style={{ '--i': 0 } as any}>
+        <span class="recover-ico"><Icon name="key" size={26} /></span>
+        <div class="h-lg">Forgot your PIN?</div>
+        <p class="muted">{mode === 'password'
+          ? `Type the password of your account${s.user?.username ? ` @${s.user.username}` : ''} to remove the PIN. Nothing else changes.`
+          : `We sent a code to ${to ?? 'your email'}. It works for 15 minutes.`}</p>
+      </div>
+      <div class="recover-form">
+        {mode === 'password'
+          ? <Field label="Account password" icon="lock" type={show ? 'text' : 'password'} value={password} onInput={setPassword} trail={eye} autoFocus />
+          : <CodeField value={code} onInput={setCode} />}
+        {error && <div class="error-box pop"><Icon name="warning" size={16} />{error}</div>}
+        <Btn block busy={busy} disabled={mode === 'password' ? !password : code.length !== 6} onClick={recover}>Remove the PIN</Btn>
+        {mode === 'password'
+          ? emailOn !== false && <Btn kind="soft" icon="mail" disabled={busy} onClick={sendCode}>Email me a code instead</Btn>
+          : <>
+            <Btn kind="ghost" disabled={wait > 0 || busy} onClick={sendCode}>{wait > 0 ? `Send the code again in ${wait}s` : 'Send the code again'}</Btn>
+            <Btn kind="ghost" onClick={() => { setMode('password'); setError(null) }}>Use my password instead</Btn>
+          </>}
+        <div class="recover-note small muted">
+          Forgot your password too? Sign out, then tap “Forgot password?” on the sign-in screen. What's on this device is synced first.
+          <button class="link" style={{ display: 'block', margin: '6px auto 0' }} onClick={() => attempt(() => call('auth.signOut'))}>Sign out</button>
+        </div>
+      </div>
+      <button class="link" style={{ marginTop: 10 }} onClick={onBack}>Back to PIN</button>
     </div>
   )
 }
@@ -158,6 +319,7 @@ export function LockScreen() {
   const asked = useRef(false)
   const first = s.user?.name.trim().split(' ')[0]
   const total = s.lock.pinLength
+  const [forgot, setForgot] = useState(false)
 
   useEffect(() => {
     if (bio && !asked.current) { asked.current = true; call('lock.biometric', { unlock: true }).catch(() => {}) }
@@ -181,6 +343,7 @@ export function LockScreen() {
     if (p.length === total) setTimeout(() => verify(p), 120)
   }
 
+  if (forgot) return <ForgotPin onBack={() => setForgot(false)} />
   return (
     <div class="lock">
       <div style={{ flex: 1 }} />
@@ -191,6 +354,7 @@ export function LockScreen() {
       <p class="bad semibold center" style={{ minHeight: 22, margin: '14px 0 0' }}>
         {cooldown > 0 ? `Too many attempts. Try again in ${Math.ceil(cooldown / 1000)}s` : error ?? ''}
       </p>
+      <button class="link" style={{ marginTop: 4 }} onClick={() => setForgot(true)}>Forgot PIN?</button>
       <div style={{ flex: 1 }} />
       <PinPad onDigit={digit} onBack={() => setPin(p => p.slice(0, -1))} onBio={bio ? () => call('lock.biometric', { unlock: true }) : undefined} />
     </div>

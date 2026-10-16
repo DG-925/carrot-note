@@ -4,6 +4,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -163,6 +165,19 @@ class ApiClient(private val baseUrl: String) {
 
     /** A JSON request for features the app drives directly (client links, chat). Returns the response body. */
     suspend fun raw(method: String, path: String, body: String?, token: String): String = request(method, path, body, token)
+
+    /** Forgot password: emails a code (the answer never says whether the account exists). */
+    suspend fun forgotPassword(login: String, lang: String): String =
+        request("POST", "/api/password/forgot", buildJsonObject { put("login", login); put("lang", lang) }.toString())
+
+    /** Forgot password, step two: the code and a new password sign you in. */
+    suspend fun resetPassword(login: String, code: String, password: String, lang: String): AuthResponse =
+        decode(AuthResponse.serializer(), request("POST", "/api/password/reset", buildJsonObject {
+            put("login", login); put("code", code); put("password", password); put("lang", lang)
+        }.toString()))
+
+    /** What this server can do for "forgot" ({"email": true} when it can send codes). */
+    suspend fun recovery(): String = request("GET", "/api/recovery", null)
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
 

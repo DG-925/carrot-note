@@ -33,6 +33,12 @@ export async function ensureTables(env: Env) {
          follower TEXT NOT NULL, followee TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (follower, followee))`,
     ),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_follows_followee ON follows(followee, created_at)"),
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS resets (
+         user_id TEXT NOT NULL, purpose TEXT NOT NULL, code_hash TEXT NOT NULL, expires_at INTEGER NOT NULL,
+         attempts INTEGER NOT NULL DEFAULT 0, last_sent INTEGER NOT NULL, sent_count INTEGER NOT NULL DEFAULT 0,
+         window_start INTEGER NOT NULL, PRIMARY KEY (user_id, purpose))`,
+    ),
   ]);
   tablesReady = true;
 }

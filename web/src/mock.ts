@@ -236,7 +236,7 @@ export function installMock() {
   let github: string = params.has('nogh') ? '' : 'adham-dev'
   const emit = (name: string, payload: unknown) => setTimeout(() => window.__native.emit(name, payload), 0)
   const state = () => ({
-    signedIn, locked, version: '1.15.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
+    signedIn, locked, version: '1.16.0', systemDark: matchMedia('(prefers-color-scheme: dark)').matches, invites: 1,
     user: { id: 'u1', email: 'you@example.com', name: 'Adham Kassem', username: 'adham', bio: 'Freelance Android and web developer.', github, avatarRev: 0 },
     settings: { currency: 'EGP', theme, autoUpdate: true },
     lock: { pinEnabled: true, pinLength: 4, biometric: false, biometricAvailable: false, delay: 30, secureScreen: false },
@@ -260,6 +260,11 @@ export function installMock() {
     'settings.set': a => { if (a.theme != null) { theme = a.theme; store('theme', theme) } push(); return true },
     'lock.verify': a => { const ok = a.pin === '1234'; if (ok) { locked = false; push() } return { ok, cooldown: 0 } },
     'lock.cooldown': () => 0,
+    'auth.recovery': () => ({ email: true }),
+    'auth.forgot': () => ({ ok: true, to: 'ad••••••25@gmail.com', retryIn: 60 }),
+    'auth.reset': a => { if (a.code !== '123456') throw new Error("That code isn't right"); signedIn = true; store('signedIn', true); push(); return true },
+    'lock.sendCode': () => ({ ok: true, to: 'ad••••••25@gmail.com', retryIn: 60 }),
+    'lock.recover': a => { if (a.password ? a.password !== 'password' : a.code !== '123456') throw new Error(a.password ? 'Wrong password' : "That code isn't right"); locked = false; push(); return true },
     'lock.now': () => { locked = true; push(); return true },
     'timer.start': a => { data.time = [...data.time, { id: id(), projectId: a.projectId ?? null, start: Date.now(), end: null, note: a.note ?? '', createdAt: Date.now() }]; push(); return true },
     'timer.stop': () => { data.time = data.time.map(t => (t.end == null ? { ...t, end: Date.now() } : t)); push(); return true },

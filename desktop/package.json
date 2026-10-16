@@ -1,7 +1,7 @@
 {
   "name": "carrot-note-desktop",
   "private": true,
-  "version": "1.15.0",
+  "version": "1.16.0",
   "description": "Carrot Note for Windows (Tauri). The interface is the shared web UI in ../web, built with `npm run build:desktop`.",
   "scripts": {
     "web": "npm --prefix ../web run build:desktop",

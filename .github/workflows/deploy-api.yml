@@ -3,6 +3,11 @@ name: Deploy API
 # Deploys the Cloudflare Worker in server/ (the sync API). Runs when server/ changes, or by hand
 # from the Actions tab. Needs one repository secret, CLOUDFLARE_API_TOKEN (Workers Scripts: Edit,
 # D1: Edit, Account Settings: Read). The account id is in server/wrangler.toml.
+#
+# Optional, for "Forgot password" / "Forgot PIN" codes by email (add any of these as repository
+# secrets and they're copied to the Worker on the next deploy):
+#   Gmail:  SMTP_HOST=smtp.gmail.com  SMTP_PORT=465  SMTP_USER=you@gmail.com  SMTP_PASS=<app password>
+#   Resend: RESEND_API_KEY=re_...     MAIL_FROM=Carrot Note <codes@your-domain.com>
 on:
   workflow_dispatch:
   push:
@@ -43,3 +48,28 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: npx --yes wrangler@4.149.0 deploy
+
+      - name: Copy the email settings to the Worker
+        if: steps.secrets.outputs.ready == 'true'
+        working-directory: server
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+        run: |
+          # Only the ones that are set; the values never appear in the log.
+          node -e '
+            const keys = ["RESEND_API_KEY", "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "MAIL_FROM"]
+            const out = {}
+            for (const k of keys) if (process.env[k]) out[k] = process.env[k]
+            require("fs").writeFileSync(process.env.RUNNER_TEMP + "/mail.json", JSON.stringify(out))
+            console.log(Object.keys(out).length ? "Email settings: " + Object.keys(out).join(", ") : "No email settings; forgot-password codes stay off.")
+          '
+          if [ "$(cat "$RUNNER_TEMP/mail.json")" != "{}" ]; then
+            npx --yes wrangler@4.149.0 secret bulk "$RUNNER_TEMP/mail.json"
+          fi
+          rm -f "$RUNNER_TEMP/mail.json"

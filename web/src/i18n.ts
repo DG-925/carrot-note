@@ -43,6 +43,11 @@ function phrase(t: string): string | null {
 const tr = (t: string) => phrase(t) ?? t
 
 const patterns: [RegExp, (m: RegExpExecArray) => string | null][] = [
+  [/^We sent a code to (.+)\. It works for 15 minutes\. Check spam if you don't see it\.$/, m => `أرسلنا رمزًا إلى ${m[1]}. صالح لمدة ١٥ دقيقة. افحص مجلد الرسائل غير المرغوبة إن لم تجده.`],
+  [/^We sent a code to (.+)\. It works for 15 minutes\.$/, m => `أرسلنا رمزًا إلى ${m[1]}. صالح لمدة ١٥ دقيقة.`],
+  [/^Send the code again in (\d+)s$/, m => `أرسل الرمز مرة أخرى بعد ${m[1]} ث`],
+  [/^Type the password of your account @(.+) to remove the PIN\. Nothing else changes\.$/, m => `اكتب كلمة مرور حسابك ‎@${m[1]} لإزالة رمز PIN. لن يتغير شيء آخر.`],
+  [/^Type the password of your account to remove the PIN\. Nothing else changes\.$/, () => 'اكتب كلمة مرور حسابك لإزالة رمز PIN. لن يتغير شيء آخر.'],
   [/^On Carrot Note since (.+)$/, m => `على Carrot Note منذ ${m[1]}`],
   [/^Following (\d+)$/, m => `تتابعهم ${m[1]}`],
   [/^Followers (\d+)$/, m => `المتابعون ${m[1]}`],

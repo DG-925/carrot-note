@@ -577,6 +577,17 @@ const handlers: Record<string, (a: Json) => unknown> = {
   'auth.usernameAvailable': a => api('GET', '/api/username/' + encodeURIComponent(a.username), undefined, false),
   'auth.hasUnsynced': () => (repo?.dirty().length ?? 0) > 0,
   'auth.signOut': async () => { await syncNow().catch(() => {}); api('POST', '/api/logout', {}).catch(() => {}); forceSignOut(); return true },
+  // forgot password / forgot PIN (see server/src/recover.ts)
+  'auth.recovery': () => api('GET', '/api/recovery', undefined, false),
+  'auth.forgot': a => api('POST', '/api/password/forgot', { login: a.login, lang: a.lang ?? 'en' }, false),
+  'auth.reset': async a => signedIn(await api('POST', '/api/password/reset', { login: a.login, code: a.code, password: a.password, lang: a.lang ?? 'en' }, false)),
+  'lock.sendCode': a => api('POST', '/api/pin/forgot', { lang: a.lang ?? 'en' }),
+  'lock.recover': async a => {
+    // The server confirms it's you (account password or emailed code); then the PIN is removed here.
+    await api('POST', '/api/pin/reset', { ...(a.password ? { password: a.password } : {}), ...(a.code ? { code: a.code } : {}), lang: a.lang ?? 'en' })
+    pin.hash = undefined; pin.salt = undefined; pin.fails = 0; locked = false; savePin(); emitState()
+    return true
+  },
   'auth.changePassword': async a => { await api('POST', '/api/password', { oldPassword: a.old, newPassword: a.new }); return true },
   'auth.deleteAccount': async a => { await api('POST', '/api/account/delete', { password: a.password }); forceSignOut(); return true },
 

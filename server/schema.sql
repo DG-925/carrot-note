@@ -96,3 +96,16 @@ CREATE TABLE IF NOT EXISTS follows (
   PRIMARY KEY (follower, followee)
 );
 CREATE INDEX IF NOT EXISTS idx_follows_followee ON follows(followee, created_at);
+
+-- Codes for "forgot password" / "forgot PIN" (src/recover.ts); only a hash of the code is kept.
+CREATE TABLE IF NOT EXISTS resets (
+  user_id      TEXT NOT NULL,
+  purpose      TEXT NOT NULL,          -- 'password' or 'pin'
+  code_hash    TEXT NOT NULL,
+  expires_at   INTEGER NOT NULL,
+  attempts     INTEGER NOT NULL DEFAULT 0,
+  last_sent    INTEGER NOT NULL,
+  sent_count   INTEGER NOT NULL DEFAULT 0,
+  window_start INTEGER NOT NULL,
+  PRIMARY KEY (user_id, purpose)
+);

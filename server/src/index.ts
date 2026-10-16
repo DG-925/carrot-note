@@ -8,10 +8,19 @@
  */
 
 import { chatInbox, chatPending, follow, followSummary, follows, personProfile, sendChat, unfollow } from "./chat";
+import { forgotPassword, forgotPin, recoveryInfo, resetPassword, resetPin } from "./recover";
 import { createLink, replyLink, revokeLink, showLink } from "./links";
 
 export interface Env {
   DB: D1Database;
+  /** Email for "forgot password" codes: Resend, or any SMTP server (see recover.ts). All optional. */
+  RESEND_API_KEY?: string;
+  SMTP_HOST?: string;
+  SMTP_PORT?: string;
+  SMTP_USER?: string;
+  SMTP_PASS?: string;
+  SMTP_TLS?: string;
+  MAIL_FROM?: string;
 }
 
 const PBKDF2_ITERATIONS = 100_000;
@@ -23,8 +32,8 @@ const MAX_FAILED_LOGINS = 10;
 const LOCKOUT_MS = 15 * 60 * 1000;
 /** Record types that follow their project into a shared space. */
 const PROJECT_SCOPED = new Set(["task", "note", "event", "rental", "invoice", "quote", "activity"]);
-/** Bumped when clients need to know about new server behaviour (3: rentals and invoices are shared, 4: quotes and activity, 5: client links, chat and following). */
-const API_VERSION = 5;
+/** Bumped when clients need to know about new server behaviour (3: rentals and invoices are shared, 4: quotes and activity, 5: client links, chat and following, 6: forgot password and PIN by email). */
+const API_VERSION = 6;
 
 export class HttpError extends Error {
   constructor(public status: number, message: string) {
@@ -55,7 +64,7 @@ export function randomBytes(n: number): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(n));
 }
 
-async function sha256Hex(s: string): Promise<string> {
+export async function sha256Hex(s: string): Promise<string> {
   const d = new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(s)));
   return [...d].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
@@ -73,12 +82,12 @@ async function pbkdf2(password: string, salt: Uint8Array, iterations: number): P
   return b64url(new Uint8Array(bits));
 }
 
-async function hashPassword(password: string): Promise<string> {
+export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
   return `pbkdf2$${PBKDF2_ITERATIONS}$${b64url(salt)}$${await pbkdf2(password, salt, PBKDF2_ITERATIONS)}`;
 }
 
-async function verifyPassword(password: string, stored: string): Promise<boolean> {
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const [scheme, iter, salt, hash] = stored.split("$");
   if (scheme !== "pbkdf2" || !iter || !salt || !hash) return false;
   return safeEqual(await pbkdf2(password, fromB64url(salt), parseInt(iter, 10)), hash);
@@ -125,7 +134,7 @@ function normalizeGithub(v: string): string {
   return g;
 }
 
-function checkNewPassword(v: unknown): string {
+export function checkNewPassword(v: unknown): string {
   const p = str(v, "password", 256);
   if (p.length < 8) throw new HttpError(400, "Password must be at least 8 characters");
   return p;
@@ -146,7 +155,7 @@ export interface UserRow {
 
 const USER_COLS = "id, email, name, username, bio, github, avatar_rev, password, failed_logins, locked_until";
 
-const publicUser = (u: UserRow) => ({
+export const publicUser = (u: UserRow) => ({
   id: u.id,
   email: u.email,
   name: u.name,
@@ -156,7 +165,7 @@ const publicUser = (u: UserRow) => ({
   avatarRev: u.avatar_rev ?? 0,
 });
 
-async function createSession(env: Env, userId: string): Promise<string> {
+export async function createSession(env: Env, userId: string): Promise<string> {
   const token = b64url(randomBytes(32));
   const now = Date.now();
   await env.DB.prepare("INSERT INTO sessions (token_hash, user_id, created_at, last_used) VALUES (?, ?, ?, ?)")
@@ -219,21 +228,13 @@ async function login(req: Request, env: Env) {
   const body = await readJson(req);
   const ident = str(body.login ?? body.email, "email or username").trim().toLowerCase().replace(/^@/, "");
   const password = str(body.password, "password", 256);
-  const user = await env.DB.prepare(`SELECT ${USER_COLS} FROM users WHERE ${ident.includes("@") ? "email" : "username"} = ?`)
-    .bind(ident)
-    .first<UserRow>();
+  const user = await userByLogin(env, ident);
   const now = Date.now();
   if (user && user.locked_until > now) {
     throw new HttpError(429, "Too many failed attempts. Try again in a few minutes.");
   }
   if (!user || !(await verifyPassword(password, user.password))) {
-    if (user) {
-      const fails = user.failed_logins + 1;
-      const lock = fails >= MAX_FAILED_LOGINS ? now + LOCKOUT_MS : 0;
-      await env.DB.prepare("UPDATE users SET failed_logins = ?, locked_until = ? WHERE id = ?")
-        .bind(lock ? 0 : fails, lock, user.id)
-        .run();
-    }
+    if (user) await noteFailedLogin(env, user);
     throw new HttpError(401, "Wrong username/email or password");
   }
   if (user.failed_logins > 0 || user.locked_until > 0) {
@@ -241,6 +242,18 @@ async function login(req: Request, env: Env) {
   }
   const token = await createSession(env, user.id);
   return json({ token, user: publicUser(user) });
+}
+
+/** The account for an email address or a username (already lowercased, without the @). */
+export function userByLogin(env: Env, ident: string): Promise<UserRow | null> {
+  return env.DB.prepare(`SELECT ${USER_COLS} FROM users WHERE ${ident.includes("@") ? "email" : "username"} = ?`).bind(ident).first<UserRow>();
+}
+
+/** One more wrong password; ten in a row lock the account for 15 minutes. */
+export async function noteFailedLogin(env: Env, user: UserRow) {
+  const fails = user.failed_logins + 1;
+  const lock = fails >= MAX_FAILED_LOGINS ? Date.now() + LOCKOUT_MS : 0;
+  await env.DB.prepare("UPDATE users SET failed_logins = ?, locked_until = ? WHERE id = ?").bind(lock ? 0 : fails, lock, user.id).run();
 }
 
 async function logout(req: Request, env: Env) {
@@ -720,6 +733,16 @@ export default {
           return json({ ok: true, name: "Carrot Note API", version: API_VERSION });
         case "POST /api/register":
           return await register(req, env);
+        case "GET /api/recovery":
+          return recoveryInfo(env);
+        case "POST /api/password/forgot":
+          return await forgotPassword(req, env);
+        case "POST /api/password/reset":
+          return await resetPassword(req, env);
+        case "POST /api/pin/forgot":
+          return await forgotPin(req, env);
+        case "POST /api/pin/reset":
+          return await resetPin(req, env);
         case "POST /api/login":
           return await login(req, env);
         case "POST /api/logout":

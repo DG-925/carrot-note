@@ -1073,3 +1073,12 @@ html.desktop .wa-frame { margin: 0 36px 24px; }
 .side-drawer .switch { transform: scale(.85); }
 .person-list .item { width: 100%; text-align: start; }
 .person-list .item .main { flex: 1; min-width: 0; }
+
+/* ---------------------------------------------------------------- 1.16: forgot password / PIN */
+.forgot-link { align-self: flex-end; margin: -4px 6px 0; font-size: 13.5px; }
+.recover-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 10px 6px 4px; }
+.recover-head p { margin: 0; max-width: 34ch; }
+.recover-ico { width: 64px; height: 64px; border-radius: 22px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-deep); }
+.forgot-pin { gap: 14px; justify-content: center; overflow-y: auto; }
+.recover-form { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 12px; }
+.recover-note { text-align: center; padding: 12px 8px 0; border-top: 1px solid var(--line); margin-top: 6px; }

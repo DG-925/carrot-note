@@ -275,6 +275,26 @@ class WebBridge(private val activity: MainActivity, private val web: WebView) {
             runCatching { Graph.sync.syncNow() }
             Graph.signOut(); ok
         }
+        // ---- forgot password / forgot PIN (see server/src/recover.ts)
+        "auth.recovery" -> AppJson.parseToJsonElement(Graph.api.recovery())
+        "auth.forgot" -> AppJson.parseToJsonElement(Graph.api.forgotPassword(a.str("login"), a.strOrNull("lang") ?: "en"))
+        "auth.reset" -> {
+            Graph.onSignedIn(Graph.api.resetPassword(a.str("login"), a.str("code"), a.str("password"), a.strOrNull("lang") ?: "en")); ok
+        }
+        "lock.sendCode" -> AppJson.parseToJsonElement(
+            Graph.api.raw("POST", "/api/pin/forgot", buildJsonObject { put("lang", a.strOrNull("lang") ?: "en") }.toString(), token()),
+        )
+        "lock.recover" -> {
+            // The server confirms it's you (account password or emailed code); then the PIN is removed here.
+            val body = buildJsonObject {
+                a.strOrNull("password")?.let { put("password", it) }
+                a.strOrNull("code")?.let { put("code", it) }
+                put("lang", a.strOrNull("lang") ?: "en")
+            }
+            Graph.api.raw("POST", "/api/pin/reset", body.toString(), token())
+            Graph.lock.disable()
+            emitState(); ok
+        }
         "auth.changePassword" -> {
             Graph.api.changePassword(token(), a.str("old"), a.str("new")); ok
         }
